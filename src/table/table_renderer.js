@@ -1,4 +1,4 @@
-// table/table_renderer.js - Table rendering with unified OKLCH/HSL color logic + Color Support
+// table/table_renderer.js - Table rendering with unified OKLCH/HSL color logic + Depth Classes
 console.log('📊 Table Renderer loading...');
 
 /**
@@ -139,7 +139,7 @@ class TableRenderer {
         }
 
         for (let level = 0; level < maxCategoryDepth; level++) {
-            let currentCategoryPath = null; // 상위 레벨까지 포함한 전체 경로
+            let currentCategoryPath = null;
             let groupStart = 0;
             
             for (let i = 0; i <= sortedTasks.length; i++) {
@@ -181,6 +181,7 @@ class TableRenderer {
 
         return sortedTasks;
     }
+    
     /**
      * Render complete table structure - ENHANCED WITH ASYNC COLOR LOADING
      * @param {Map} filteredTasks - Filtered tasks data (for display)
@@ -262,7 +263,7 @@ class TableRenderer {
     }
 
     /**
-     * Create table header - individual columns for each category level
+     * Create table header - individual columns for each category level with depth classes
      * @param {Map} tasks - Tasks data (for statistics)
      * @param {number} maxCategoryDepth - Maximum category depth
      * @returns {string} - Header HTML
@@ -270,10 +271,10 @@ class TableRenderer {
     createTableHeader(tasks, maxCategoryDepth) {
         let headerHTML = '<tr>';
         
-        // Category headers - individual columns for each category level
+        // Category headers - individual columns for each category level with depth classes
         if (maxCategoryDepth > 0) {
             for (let i = 0; i < maxCategoryDepth; i++) {
-                headerHTML += `<th class="${this.namespace}-category-header">${i + 1}</th>`;
+                headerHTML += `<th class="${this.namespace}-category-header fgt-depth-${i}">${i + 1}</th>`;
             }
         }
         
@@ -306,7 +307,7 @@ class TableRenderer {
     }
 
     /**
-     * Create task row with proper rowspan support for each category level
+     * Create task row with proper rowspan support for each category level and depth classes
      * @param {Object} task - Task data with rowspan info
      * @param {number} maxCategoryDepth - Maximum category depth  
      * @returns {string} - Row HTML
@@ -316,7 +317,7 @@ class TableRenderer {
         
         let rowHTML = `<tr class="${this.namespace}-task-row" data-task-id="${task.id || task.taskId}">`;
         
-        // Category cells with proper rowspan support
+        // Category cells with proper rowspan support and depth classes
         if (maxCategoryDepth > 0) {
             for (let level = 0; level < categoryColumns; level++) {
                 const category = task.categories && task.categories[level] ? task.categories[level] : '';
@@ -345,7 +346,7 @@ class TableRenderer {
                 const additionalClasses = rowspanValue && typeof rowspanValue === 'number' && rowspanValue > 1 ? 
                     'grouped' : '';
                 
-                rowHTML += `<td class="${this.namespace}-category-cell ${additionalClasses}" 
+                rowHTML += `<td class="${this.namespace}-category-cell fgt-depth-${level} ${additionalClasses}" 
                                style="${styleString}"
                                data-seed="${CoreDOMUtils.escapeHtml(seed)}"
                                data-level="${level}"
@@ -552,4 +553,4 @@ class TableRenderer {
 // Export to global scope
 window.TableRenderer = TableRenderer;
 
-console.log('✅ Table Renderer loaded successfully');
+console.log('✅ Table Renderer loaded successfully with depth classes');
