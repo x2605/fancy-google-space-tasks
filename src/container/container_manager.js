@@ -1,4 +1,4 @@
-// container/container_manager.js - Main container management with operation verification
+// container/container_manager.js - Main container management with depth filtering
 console.log('📋 Container Manager loading...');
 
 /**
@@ -22,7 +22,7 @@ class ContainerManager {
         this.isInitialized = false;
         this.isCustomUIVisible = true;
         this.showCompleted = false;
-        this.isShowingDeleteModal = false; // NEW: Prevent duplicate delete modals
+        this.isShowingDeleteModal = false;
         this.tasks = new Map();
         this.maxCategoryDepth = 0;
         this.observer = null;
@@ -94,7 +94,7 @@ class ContainerManager {
                 window.CategoryParser &&
                 window.TaskIdUtils &&
                 window.TaskChangeDetector &&
-                window.OperationVerifier) { // NEW: Check for OperationVerifier
+                window.OperationVerifier) {
                 console.log('✅ All dependencies loaded');
                 return;
             }
@@ -114,10 +114,11 @@ class ContainerManager {
         this.tableRenderer = new TableRenderer(this.namespace);
         this.tableEvents = new TableEvents(this.namespace);
         this.interactionHandler = new CoreInteractionUtils(this.namespace);
-        this.operationVerifier = new OperationVerifier(this.namespace); // NEW: Create verifier
+        this.operationVerifier = new OperationVerifier(this.namespace);
         
-        // Initialize lock styles
-        CoreDOMUtils.initLockStyles(); // NEW: Initialize lock styles
+        // Initialize lock and depth styles
+        CoreDOMUtils.initLockStyles();
+        CoreDOMUtils.initDepthStyles();
         
         console.log('🔧 Components initialized');
     }
@@ -236,7 +237,7 @@ class ContainerManager {
         // Update button appearance
         this.containerUI.updateCompletedToggleButton(this.showCompleted);
 
-        // Re-render table with new filter
+        // Re-render table with new filter and depth adjustment
         this.updateDisplay();
 
         // Show notification
@@ -434,25 +435,30 @@ class ContainerManager {
         const tableContainer = this.customContainer.querySelector(`.${this.namespace}-table-container`);
         if (!tableContainer) return;
 
-        const existingTable = tableContainer.querySelector(`#${this.namespace}-tasks-table`);
+        // Get filtered tasks and calculate max depth for visible items
+        const { tasks: filteredTasks, maxDepth } = this.getFilteredTasks();
         
-        if (!existingTable) {
-            // No existing table - create new one
-            this.renderFullTable(tableContainer);
+        // Update depth visibility
+        if (this.showCompleted) {
+            // Show all depths when completed tasks are visible
+            CoreDOMUtils.showAllDepths();
         } else {
-            // For completed tasks toggle, always re-render to handle rowspan properly
-            this.renderFullTable(tableContainer);
+            // Hide depths beyond what's needed for incomplete tasks
+            CoreDOMUtils.hideDepthsAbove(maxDepth - 1); // Convert to 0-based
         }
+        
+        console.log(`📏 Max visible depth: ${maxDepth} (showCompleted: ${this.showCompleted})`);
+        
+        // Always re-render for completed tasks toggle to handle rowspan properly
+        this.renderFullTable(tableContainer, filteredTasks);
     }
 
     /**
      * Render full table (with completed tasks filter applied)
      * @param {Element} tableContainer - Table container element
+     * @param {Map} filteredTasks - Filtered tasks to display
      */
-    renderFullTable(tableContainer) {
-        // Filter tasks based on showCompleted setting
-        const filteredTasks = this.getFilteredTasks();
-        
+    renderFullTable(tableContainer, filteredTasks) {
         // Pass both filtered tasks (for display) and all tasks (for statistics)
         const tableHTML = this.tableRenderer.renderTable(
             filteredTasks, 
@@ -469,23 +475,28 @@ class ContainerManager {
     }
 
     /**
-     * Get filtered tasks based on showCompleted setting
-     * @returns {Map} - Filtered tasks map
+     * Get filtered tasks based on showCompleted setting and calculate max depth
+     * @returns {Object} - { tasks: Map, maxDepth: number }
      */
     getFilteredTasks() {
         if (this.showCompleted) {
-            return this.tasks; // Show all tasks
+            // Show all tasks - use original max depth
+            return { tasks: this.tasks, maxDepth: this.maxCategoryDepth };
         }
 
-        // Filter out completed tasks
+        // Filter out completed tasks and calculate max depth of visible items
         const filteredTasks = new Map();
+        let maxDepth = 0;
+        
         this.tasks.forEach((task, taskId) => {
             if (!task.isCompleted) {
                 filteredTasks.set(taskId, task);
+                // Update max depth based on visible tasks only
+                maxDepth = Math.max(maxDepth, task.categories.length);
             }
         });
 
-        return filteredTasks;
+        return { tasks: filteredTasks, maxDepth };
     }
 
     /**
@@ -533,8 +544,6 @@ class ContainerManager {
                 this.customContainer.style.display = 'none';
             }
             
-            // REMOVED: No need to force refresh when switching to original UI
-            // The change detector will check for changes when switching back to fancy UI
             console.log('💡 Switched to original UI - change detection will run on next fancy UI switch');
         }
 
@@ -645,8 +654,7 @@ class ContainerManager {
      * @param {MutationRecord[]} mutations - DOM mutations
      */
     handleDOMChanges(mutations) {
-        // CRITICAL FIX: Skip DOM updates if operation is in progress
-        // This prevents interference from ensureTaskUIVisible() clicks during delete operations
+        // Skip DOM updates if operation is in progress
         if (this.operationVerifier && this.operationVerifier.isOperationInProgress()) {
             console.log('⏸️ Skipping DOM update - operation in progress');
             return;
@@ -762,18 +770,19 @@ class ContainerManager {
     showAssigneeModal(taskId) {
         CoreNotificationUtils.info(`Assignee modal for task ${taskId} - coming soon`, this.namespace);
     }
+
     /**
-     * Show delete modal with operation verification - FULLY FIXED
+     * Show delete modal with operation verification
      * @param {string} taskId - Task ID to delete
      */
     showDeleteModal(taskId) {
-        // CRITICAL FIX 1: Check if modal is already showing
+        // Check if modal is already showing
         if (this.isShowingDeleteModal) {
             console.log('⏸️ Ignoring duplicate delete - modal already showing');
             return;
         }
         
-        // CRITICAL FIX 2: Check if operation is in progress
+        // Check if operation is in progress
         if (this.operationVerifier && this.operationVerifier.isOperationInProgress()) {
             console.log('⏸️ Ignoring duplicate delete - operation in progress');
             return;
@@ -785,7 +794,7 @@ class ContainerManager {
         const task = this.tasks.get(taskId);
         const taskTitle = task ? task.displayTitle : `task ${taskId}`;
         
-        // Show DeleteModal (non-blocking) with both confirm and cancel callbacks
+        // Show DeleteModal with both confirm and cancel callbacks
         DeleteModal.show(
             taskId, 
             taskTitle, 
@@ -870,8 +879,9 @@ class ContainerManager {
             this.customContainer.parentNode.removeChild(this.customContainer);
         }
 
-        // Cleanup lock styles
+        // Cleanup lock and depth styles
         CoreDOMUtils.cleanupLockStyles();
+        CoreDOMUtils.cleanupDepthStyles();
         
         // Cleanup all timers
         CoreEventUtils.cleanupAll();
@@ -905,4 +915,4 @@ if (typeof window !== 'undefined' && window.location && window.location.href.inc
     }
 }
 
-console.log('✅ Enhanced Container Manager loaded successfully with operation verification');
+console.log('✅ Enhanced Container Manager loaded successfully with depth filtering');

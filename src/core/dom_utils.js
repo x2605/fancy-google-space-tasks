@@ -1,4 +1,4 @@
-// core/dom_utils.js - DOM manipulation utilities with lock styles management
+// core/dom_utils.js - DOM manipulation utilities with lock and depth styles management
 console.log('🔧 Core DOM Utils loading...');
 
 /**
@@ -7,6 +7,9 @@ console.log('🔧 Core DOM Utils loading...');
 class CoreDOMUtils {
     // Lock styles management
     static lockStyleElement = null;
+    
+    // Depth styles management
+    static depthStyleElement = null;
 
     /**
      * Escape HTML special characters
@@ -286,9 +289,65 @@ class CoreDOMUtils {
             console.log('🧹 Lock styles cleaned up');
         }
     }
+
+    // ========== Depth Styles Management ==========
+
+    /**
+     * Initialize depth styles element (call once on startup)
+     */
+    static initDepthStyles() {
+        if (!this.depthStyleElement) {
+            this.depthStyleElement = document.createElement('style');
+            this.depthStyleElement.id = 'fancy-gst-depth-styles';
+            document.head.appendChild(this.depthStyleElement);
+            console.log('📏 Depth styles element initialized');
+        }
+    }
+
+    /**
+     * Hide depths above the specified maximum visible depth
+     * @param {number} maxVisibleDepth - Maximum visible depth (0-based)
+     */
+    static hideDepthsAbove(maxVisibleDepth) {
+        if (!this.depthStyleElement) {
+            this.initDepthStyles();
+        }
+        
+        // Hide depths greater than maxVisibleDepth (0-based)
+        let css = '/* Hide unnecessary depth columns */\n';
+        
+        // Support up to depth 20 (should be more than enough)
+        for (let i = maxVisibleDepth + 1; i <= 20; i++) {
+            css += `.fgt-depth-${i} { display: none !important; }\n`;
+        }
+        
+        this.depthStyleElement.textContent = css;
+        console.log(`📏 Hiding depths above ${maxVisibleDepth}`);
+    }
+
+    /**
+     * Show all depths (remove depth hiding)
+     */
+    static showAllDepths() {
+        if (this.depthStyleElement) {
+            this.depthStyleElement.textContent = '';
+            console.log('📏 Showing all depths');
+        }
+    }
+
+    /**
+     * Cleanup depth styles (call on extension shutdown)
+     */
+    static cleanupDepthStyles() {
+        if (this.depthStyleElement) {
+            this.depthStyleElement.remove();
+            this.depthStyleElement = null;
+            console.log('🧹 Depth styles cleaned up');
+        }
+    }
 }
 
 // Export to global scope
 window.CoreDOMUtils = CoreDOMUtils;
 
-console.log('✅ Core DOM Utils loaded successfully with lock styles management');
+console.log('✅ Core DOM Utils loaded successfully with lock and depth styles management');
