@@ -75,7 +75,7 @@ class ContainerUI {
                 <div class="${this.namespace}-footer-left">
                     <span class="${this.namespace}-status">Fancy Google Space Tasks</span>
                     <span class="${this.namespace}-separator">•</span>
-                    <span class="${this.namespace}-version">v0.1.0</span>
+                    <span class="${this.namespace}-version">v0.1.1</span>
                     <span class="${this.namespace}-separator">•</span>
                     <span class="${this.namespace}-github"><a target="_blank" href="https://github.com/x2605/fancy-google-space-tasks">github</a></span>
                 </div>

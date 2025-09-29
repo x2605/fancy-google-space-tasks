@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Fancy Google Space Tasks",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Enhanced Google Space Tasks with better UI and features - Modular Architecture v2 with Operation Verification",
   
   "permissions": [
