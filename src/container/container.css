@@ -1,0 +1,494 @@
+/* container/container.css - Container styles for everything outside table block (UPDATED - Added Completed Tasks Toggle) */
+
+/* Reset and base styles */
+html, body {
+    height: 100% !important;
+    overflow-y: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Main container */
+#fancy-gst-container {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+    z-index: 999999;
+    overflow-x: hidden;
+    overflow-y: auto;
+    font-family: 'Google Sans', Roboto, Arial, sans-serif;
+    background: #fff;
+    color: #202124;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+    #fancy-gst-container {
+        background: #121212;
+        color: #e0e0e0;
+    }
+}
+
+/* Enhanced floating toggle button (bottom-right) */
+#fancy-gst-toggle-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 999999;
+    font-size: 15px;
+    box-shadow: 0 0 16px rgba(26, 115, 232, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    border: none;
+    outline: none;
+    backdrop-filter: blur(8px);
+    color: white;
+    font-weight: 800;
+}
+
+/* NEW: Completed tasks toggle button (bottom-right, left of main toggle) */
+#fancy-gst-completed-toggle-button {
+    position: fixed;
+    bottom: 20px;
+    right: 60px; /* 30px width + 10px gap from main toggle */
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 999999;
+    font-size: 10px;
+    box-shadow: 0 0 16px rgba(156, 39, 176, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    border: none;
+    outline: none;
+    backdrop-filter: blur(8px);
+    color: white;
+    font-weight: 800;
+}
+
+/* Enhanced mode (showing original UI option) */
+#fancy-gst-toggle-button.fgt-enhanced {
+    background: linear-gradient(135deg, #ea4335, #f44336);
+    box-shadow: 0 4px 16px rgba(234, 67, 53, 0.4);
+}
+
+#fancy-gst-toggle-button.fgt-enhanced:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(234, 67, 53, 0.6);
+}
+
+/* Original mode (showing enhanced UI option) */
+#fancy-gst-toggle-button.fgt-original {
+    background: linear-gradient(135deg, #1a73e8, #4285f4);
+    box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4);
+}
+
+#fancy-gst-toggle-button.fgt-original:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(26, 115, 232, 0.6);
+}
+
+/* NEW: Completed tasks hidden mode (showing show option) */
+#fancy-gst-completed-toggle-button.fgt-completed-hidden {
+    background: linear-gradient(135deg, #9c27b0, #673ab7);
+    box-shadow: 0 4px 16px rgba(156, 39, 176, 0.4);
+}
+
+#fancy-gst-completed-toggle-button.fgt-completed-hidden:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(156, 39, 176, 0.6);
+}
+
+/* NEW: Completed tasks visible mode (showing hide option) */
+#fancy-gst-completed-toggle-button.fgt-completed-visible {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    box-shadow: 0 4px 16px rgba(255, 152, 0, 0.4);
+}
+
+#fancy-gst-completed-toggle-button.fgt-completed-visible:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(255, 152, 0, 0.6);
+}
+
+/* Active/pressed state for both buttons */
+#fancy-gst-toggle-button:active,
+#fancy-gst-completed-toggle-button:active {
+    transform: scale(0.95) !important;
+    transition: transform 0.1s ease;
+}
+
+/* Dark mode adjustments for toggle buttons */
+@media (prefers-color-scheme: dark) {
+    #fancy-gst-toggle-button,
+    #fancy-gst-completed-toggle-button {
+        color: black;
+    }
+
+    #fancy-gst-toggle-button.fgt-enhanced {
+        background: linear-gradient(135deg, #ff6b6b, #ff5252);
+        box-shadow: 0 4px 16px rgba(255, 107, 107, 0.4);
+    }
+    
+    #fancy-gst-toggle-button.fgt-enhanced:hover {
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+    }
+    
+    #fancy-gst-toggle-button.fgt-original {
+        background: linear-gradient(135deg, #8ab4f8, #aecbfa);
+        box-shadow: 0 4px 16px rgba(138, 180, 248, 0.4);
+    }
+    
+    #fancy-gst-toggle-button.fgt-original:hover {
+        box-shadow: 0 6px 20px rgba(138, 180, 248, 0.6);
+    }
+
+    #fancy-gst-completed-toggle-button.fgt-completed-hidden {
+        background: linear-gradient(135deg, #ce93d8, #ba68c8);
+        box-shadow: 0 4px 16px rgba(206, 147, 216, 0.4);
+    }
+    
+    #fancy-gst-completed-toggle-button.fgt-completed-hidden:hover {
+        box-shadow: 0 6px 20px rgba(206, 147, 216, 0.6);
+    }
+    
+    #fancy-gst-completed-toggle-button.fgt-completed-visible {
+        background: linear-gradient(135deg, #ffcc02, #ffc107);
+        box-shadow: 0 4px 16px rgba(255, 204, 2, 0.4);
+    }
+    
+    #fancy-gst-completed-toggle-button.fgt-completed-visible:hover {
+        box-shadow: 0 6px 20px rgba(255, 204, 2, 0.6);
+    }
+}
+
+/* Pulse animation for attention */
+@keyframes toggle-pulse {
+    0% { box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4); }
+    50% { box-shadow: 0 4px 20px rgba(26, 115, 232, 0.8); }
+    100% { box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4); }
+}
+
+@keyframes completed-toggle-pulse {
+    0% { box-shadow: 0 4px 16px rgba(156, 39, 176, 0.4); }
+    50% { box-shadow: 0 4px 20px rgba(156, 39, 176, 0.8); }
+    100% { box-shadow: 0 4px 16px rgba(156, 39, 176, 0.4); }
+}
+
+#fancy-gst-toggle-button.pulse {
+    animation: toggle-pulse 2s infinite;
+}
+
+#fancy-gst-completed-toggle-button.pulse {
+    animation: completed-toggle-pulse 2s infinite;
+}
+
+/* Table container */
+.fancy-gst-table-container {
+    flex: 1;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e8eaed;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-table-container {
+        background: #1e1e1e;
+        border-color: #333;
+        box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+    }
+}
+
+/* Loading states */
+.fancy-gst-loading-stats,
+.fancy-gst-loading-table {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #5f6368;
+    font-size: 14px;
+    gap: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-loading-stats,
+    .fancy-gst-loading-table {
+        color: #9aa0a6;
+    }
+}
+
+.fancy-gst-loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+
+.fancy-gst-loading-text {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.fancy-gst-loading-subtitle {
+    font-size: 13px;
+    color: #9aa0a6;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-loading-subtitle {
+        color: #666;
+    }
+}
+
+.fancy-gst-loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #1a73e8;
+    border-radius: 50%;
+    animation: fancy-gst-spin 1s linear infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-loading-spinner {
+        border-color: #333;
+        border-top-color: #8ab4f8;
+    }
+}
+
+@keyframes fancy-gst-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error states */
+.fancy-gst-error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    gap: 16px;
+}
+
+.fancy-gst-error-icon {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+.fancy-gst-error-title {
+    font-size: 20px;
+    font-weight: 500;
+    color: #ea4335;
+    margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-error-title {
+        color: #ff6b6b;
+    }
+}
+
+.fancy-gst-error-message {
+    font-size: 14px;
+    color: #5f6368;
+    max-width: 400px;
+    line-height: 1.4;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-error-message {
+        color: #9aa0a6;
+    }
+}
+
+.fancy-gst-error-retry {
+    padding: 8px 16px;
+    border: 1px solid #1a73e8;
+    border-radius: 6px;
+    background: #1a73e8;
+    color: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.fancy-gst-error-retry:hover {
+    background: #1557b0;
+    border-color: #1557b0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-error-retry {
+        background: #8ab4f8;
+        color: #001122;
+        border-color: #8ab4f8;
+    }
+    
+    .fancy-gst-error-retry:hover {
+        background: #aecbfa;
+        border-color: #aecbfa;
+    }
+}
+
+/* Footer section */
+.fancy-gst-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e8eaed;
+    font-size: 12px;
+    color: #5f6368;
+}
+
+.fancy-gst-footer a {
+    color: #2020ff;
+}
+
+.fancy-gst-footer a:hover {
+    color: #8585ff;
+}
+
+.fancy-gst-footer a:visited {
+    color: #0000b8;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-footer {
+        background: #1e1e1e;
+        border-color: #333;
+        color: #9aa0a6;
+    }
+
+    .fancy-gst-footer a {
+        color: #ff9a5c;
+    }
+
+    .fancy-gst-footer a:hover {
+        color: #ffd9c2;
+    }
+
+    .fancy-gst-footer a:visited {
+        color: #c48862;
+    }
+}
+
+.fancy-gst-footer-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.fancy-gst-version {
+    font-weight: 500;
+    color: #1a73e8;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-version {
+        color: #ea885e;
+    }
+}
+
+.fancy-gst-separator {
+    color: #dadce0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-separator {
+        color: #444;
+    }
+}
+
+.fancy-gst-footer-right {
+    display: flex;
+    gap: 4px;
+}
+
+/* Fullscreen mode */
+.fancy-gst-fullscreen {
+    padding: 0;
+}
+
+.fancy-gst-fullscreen .fancy-gst-table-container {
+    border-radius: 0;
+    border: none;
+}
+
+.fancy-gst-fullscreen .fancy-gst-footer {
+    border-radius: 0;
+    margin-top: 0;
+}
+
+/* Accessibility improvements */
+#fancy-gst-toggle-button:focus-visible,
+#fancy-gst-completed-toggle-button:focus-visible,
+.fancy-gst-error-retry:focus-visible {
+    outline: 2px solid #1a73e8;
+    outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+    #fancy-gst-toggle-button:focus-visible,
+    #fancy-gst-completed-toggle-button:focus-visible,
+    .fancy-gst-error-retry:focus-visible {
+        outline-color: #8ab4f8;
+    }
+}
+
+/* Animation for container appearance */
+@keyframes fancy-gst-container-fadein {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#fancy-gst-container {
+    animation: fancy-gst-container-fadein 0.3s ease;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    #fancy-gst-toggle-button {
+        bottom: 15px;
+        right: 15px;
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+    
+    #fancy-gst-completed-toggle-button {
+        bottom: 15px;
+        right: 53px; /* Adjusted for smaller button */
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+}

@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "Fancy Google Space Tasks",
+  "version": "0.1.0",
+  "description": "Enhanced Google Space Tasks with better UI and features - Modular Architecture v2 with Operation Verification",
+  
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://chat.google.com/*",
+    "https://tasks.google.com/*"
+  ],
+
+  "content_scripts": [
+    {
+      "comment": "Google Chat Main Page - iframe detection and bridge",
+      "matches": [
+        "https://mail.google.com/chat/*", 
+        "https://chat.google.com/u/*"
+      ],
+      "js": ["src/iframe_bridge.js"],
+      "run_at": "document_end"
+    },
+    {
+      "comment": "Tasks iframe - modular DOM manipulation with operation verification",
+      "matches": ["https://tasks.google.com/embed/*"],
+      "js": [
+        "bundles/linkify.js",
+        "bundles/linkify-string.js",
+        "bundles/color-thief.min.js",
+        "src/core/dom_utils.js",
+        "src/core/interaction_utils.js",
+        "src/core/notification_utils.js",
+        "src/core/event_utils.js",
+        "src/core/task_id_utils.js",
+        "src/core/change_detector.js",
+        "src/core/operation_verifier.js",
+        "src/category/category_parser.js",
+        "src/category/category_utils.js",
+        "src/modal/modal_base.js",
+        "src/modal/date_modal.js",
+        "src/modal/delete_modal.js",
+        "src/modal/add_task_modal.js",
+        "src/assignee/assignee_utils.js",
+        "src/assignee/assignee_dropdown.js",
+        "src/assignee/assignee_color_utils.js",
+        "src/table/table_renderer.js",
+        "src/table/table_events.js",
+        "src/container/container_ui.js",
+        "src/container/container_manager.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_end"
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/modal/modal.css",
+        "src/table/table.css",
+        "src/container/container.css"
+      ],
+      "matches": ["https://mail.google.com/*", "https://chat.google.com/*", "https://tasks.google.com/*"]
+    }
+  ],
+
+  "icons": {
+    "16": "16px.png",
+    "48": "48px.png", 
+    "128": "128px.svg"
+  }
+}
