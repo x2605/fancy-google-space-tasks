@@ -73,6 +73,11 @@
 }
 
 /* Category cells - ENHANCED with grouping support (BLACK TEXT FIXED) */
+
+td.fancy-gst-category-cell {
+    font-size: 10px;
+}
+
 .fancy-gst-category-cell {
     background: #f8f9fa;
     font-weight: 500;
@@ -80,7 +85,6 @@
     text-align: center;
     border-right: 1px solid #dadce0;
     word-wrap: break-word;
-    font-size: 11px;
     padding: 6px 4px;
     position: relative;
     vertical-align: middle;
@@ -444,5 +448,39 @@
     .fancy-gst-task-checkbox:focus-visible,
     .fancy-gst-action-btn:focus-visible {
         outline-color: #8ab4f8;
+    }
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    td.fancy-gst-category-cell {
+        font-size: 9px;
+        padding: 4px;
+    }
+}
+
+/* Responsive design for more small screens */
+@media (max-width: 375px) {
+    td.fancy-gst-category-cell {
+        font-size: 8px;
+        word-break: break-all;
+        padding: 2px;
+    }
+    th.fancy-gst-category-header {
+        font-size: 9px;
+    }
+}
+
+/* Responsive design for extremely small screens */
+@media (max-width: 320px) {
+    td.fancy-gst-category-cell {
+        padding: 1px;
+        font-size: 6px;
+        overflow: hidden;
+    }
+    th.fancy-gst-category-header {
+        padding: 1px;
+        font-size: 7px;
+        overflow: hidden;
     }
 }

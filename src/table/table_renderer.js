@@ -50,7 +50,7 @@ class TableRenderer {
             backgroundColor: backgroundColor,
             color: '#000', // ALWAYS BLACK TEXT
             fontWeight: '500',
-            fontSize: Math.max(12, 16 - level) + 'px',
+            fontSize: Math.max(1.2, 1.6 - level*0.1) + 'em',
             hue: hue
         };
     }
@@ -333,7 +333,7 @@ class TableRenderer {
                 
                 // Create inline style string
                 const styleString = category ? 
-                    `background-color: ${colorStyle.backgroundColor}; color: ${colorStyle.color}; font-weight: ${colorStyle.fontWeight}; font-size: ${colorStyle.fontSize};` : 
+                    `background-color: ${colorStyle.backgroundColor}; color: ${colorStyle.color}; font-weight: ${colorStyle.fontWeight};` : 
                     '';
                 
                 // Add rowspan attribute if this cell spans multiple rows
@@ -346,10 +346,10 @@ class TableRenderer {
                     'grouped' : '';
                 
                 rowHTML += `<td class="${this.namespace}-category-cell ${additionalClasses}" 
-                               style="${styleString}" 
+                               style="${styleString}"
                                data-seed="${CoreDOMUtils.escapeHtml(seed)}"
                                data-level="${level}"
-                               ${rowspanAttr}>${CoreDOMUtils.escapeHtml(category)}</td>`;
+                               ${rowspanAttr}><div style="font-size: ${colorStyle.fontSize};">${CoreDOMUtils.escapeHtml(category)}</div></td>`;
             }
         }
         
