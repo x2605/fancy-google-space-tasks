@@ -56,85 +56,111 @@ class TableRenderer {
     }
 
     /**
-     * Sort tasks according to category rules and calculate rowspan info
-     * @param {Map} tasks - Tasks data
-     * @returns {Array} - Sorted task array with rowspan info
+     * Group and sort tasks hierarchically
      */
     groupAndSortTasks(tasks) {
-        // Convert Map to Array for processing
         const tasksArray = Array.from(tasks.values());
         
-        // Add original index to maintain order within same category
+        // Add original index
         tasksArray.forEach((task, index) => {
             task.originalIndex = index;
         });
-
-        // Sort tasks by rules
-        const sortedTasks = tasksArray.sort((a, b) => {
-            const aCats = a.categories || [];
-            const bCats = b.categories || [];
-            
-            // Rule 1: Uncategorized tasks first (categoryDepth = 0)
-            if (aCats.length === 0 && bCats.length > 0) return -1;
-            if (aCats.length > 0 && bCats.length === 0) return 1;
-            
-            // Rule 2: Lower category depth first
-            if (aCats.length !== bCats.length) {
-                return aCats.length - bCats.length;
+        
+        // Build hierarchical structure
+        const result = [];
+        const firstOccurrence = new Map(); // Track first occurrence of each category path
+        
+        // 1. First, add uncategorized tasks
+        const uncategorized = tasksArray.filter(t => !t.categories || t.categories.length === 0);
+        result.push(...uncategorized.sort((a, b) => a.originalIndex - b.originalIndex));
+        
+        // 2. Build category tree with first occurrence tracking
+        const categorized = tasksArray.filter(t => t.categories && t.categories.length > 0);
+        
+        // Group by full category path
+        categorized.forEach(task => {
+            const path = task.categories.join('|');
+            if (!firstOccurrence.has(path)) {
+                firstOccurrence.set(path, task.originalIndex);
             }
-            
-            // Rule 3: Alphabetical comparison of category combinations
-            for (let i = 0; i < Math.max(aCats.length, bCats.length); i++) {
-                const aCat = aCats[i] || '';
-                const bCat = bCats[i] || '';
-                
-                if (aCat !== bCat) {
-                    return aCat.localeCompare(bCat);
-                }
-            }
-            
-            // Rule 4: Original order for same category combination
-            return a.originalIndex - b.originalIndex;
         });
-
-        return sortedTasks;
+        
+        // 3. Recursively process each level
+        const processLevel = (tasks, level = 0) => {
+            if (tasks.length === 0) return [];
+            
+            const grouped = new Map();
+            const categoryOrder = [];
+            
+            // Group by category at current level
+            tasks.forEach(task => {
+                const categoryAtLevel = task.categories[level] || '';
+                
+                if (!grouped.has(categoryAtLevel)) {
+                    grouped.set(categoryAtLevel, []);
+                    categoryOrder.push(categoryAtLevel);
+                }
+                grouped.get(categoryAtLevel).push(task);
+            });
+            
+            const result = [];
+            
+            // Process each group in order of first occurrence
+            categoryOrder.forEach(category => {
+                const groupTasks = grouped.get(category);
+                
+                // Separate tasks: those with only current level vs those with deeper levels
+                const exactDepth = groupTasks.filter(t => t.categories.length === level + 1);
+                const deeper = groupTasks.filter(t => t.categories.length > level + 1);
+                
+                // Add exact depth tasks first (sorted by original index)
+                result.push(...exactDepth.sort((a, b) => a.originalIndex - b.originalIndex));
+                
+                // Recursively process deeper tasks
+                if (deeper.length > 0) {
+                    result.push(...processLevel(deeper, level + 1));
+                }
+            });
+            
+            return result;
+        };
+        
+        // Process categorized tasks hierarchically
+        result.push(...processLevel(categorized, 0));
+        
+        return result;
     }
-
     /**
-     * Calculate rowspan information for each level of categories
-     * @param {Array} sortedTasks - Sorted tasks array
-     * @param {number} maxCategoryDepth - Maximum category depth
-     * @returns {Array} - Tasks with rowspan info
+     * Calculate rowspan with parent level awareness
      */
     calculateRowspanInfo(sortedTasks, maxCategoryDepth) {
         if (maxCategoryDepth === 0) {
             return sortedTasks.map(task => ({ ...task, rowspanInfo: {} }));
         }
 
-        // Calculate rowspan for each level
         for (let level = 0; level < maxCategoryDepth; level++) {
-            let currentCategory = null;
+            let currentCategoryPath = null; // 상위 레벨까지 포함한 전체 경로
             let groupStart = 0;
             
             for (let i = 0; i <= sortedTasks.length; i++) {
                 const task = sortedTasks[i];
-                const categoryAtLevel = task?.categories?.[level] || '';
                 
-                // Check if we've reached end or category changed
-                if (i === sortedTasks.length || categoryAtLevel !== currentCategory) {
+                // Build category path up to current level
+                const categoryPath = task?.categories?.slice(0, level + 1).join('|') || '';
+                
+                // Check if group ended
+                if (i === sortedTasks.length || categoryPath !== currentCategoryPath) {
                     // Set rowspan for previous group
-                    if (currentCategory !== null && groupStart < i) {
+                    if (currentCategoryPath !== null && groupStart < i) {
                         const groupSize = i - groupStart;
+                        const categoryAtLevel = sortedTasks[groupStart].categories?.[level];
                         
-                        // Only set rowspan if group has more than 1 task and category is not empty
-                        if (groupSize > 1 && currentCategory) {
-                            // Set rowspan info for the first task in group
+                        if (groupSize > 1 && categoryAtLevel) {
                             if (!sortedTasks[groupStart].rowspanInfo) {
                                 sortedTasks[groupStart].rowspanInfo = {};
                             }
                             sortedTasks[groupStart].rowspanInfo[level] = groupSize;
                             
-                            // Mark other tasks in group to skip this level
                             for (let j = groupStart + 1; j < i; j++) {
                                 if (!sortedTasks[j].rowspanInfo) {
                                     sortedTasks[j].rowspanInfo = {};
@@ -146,7 +172,7 @@ class TableRenderer {
                     
                     // Start new group
                     if (i < sortedTasks.length) {
-                        currentCategory = categoryAtLevel;
+                        currentCategoryPath = categoryPath;
                         groupStart = i;
                     }
                 }
@@ -155,7 +181,6 @@ class TableRenderer {
 
         return sortedTasks;
     }
-
     /**
      * Render complete table structure - ENHANCED WITH ASYNC COLOR LOADING
      * @param {Map} filteredTasks - Filtered tasks data (for display)
