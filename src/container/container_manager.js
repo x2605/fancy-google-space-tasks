@@ -72,20 +72,20 @@ class ContainerManager {
     }
 
     /**
-     * Load state from storage.session
+     * Load state from storage.local (changed from session)
      * @returns {Promise<Object>} - Loaded state or defaults
      */
     async loadStateFromStorage() {
         try {
-            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.session) {
-                console.warn('⚠️ chrome.storage.session not available, using defaults');
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                console.warn('⚠️ chrome.storage.local not available, using defaults');
                 return {
                     isCustomUIVisible: true,
                     showCompleted: false
                 };
             }
 
-            const result = await chrome.storage.session.get(this.storageKey);
+            const result = await chrome.storage.local.get(this.storageKey);
             const savedState = result[this.storageKey];
 
             if (savedState) {
@@ -108,12 +108,12 @@ class ContainerManager {
     }
 
     /**
-     * Save state to storage.session
+     * Save state to storage.local (changed from session)
      */
     async saveStateToStorage() {
         try {
-            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.session) {
-                console.warn('⚠️ chrome.storage.session not available, state not saved');
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                console.warn('⚠️ chrome.storage.local not available, state not saved');
                 return;
             }
 
@@ -122,7 +122,7 @@ class ContainerManager {
                 showCompleted: this.showCompleted
             };
 
-            await chrome.storage.session.set({
+            await chrome.storage.local.set({
                 [this.storageKey]: state
             });
 
