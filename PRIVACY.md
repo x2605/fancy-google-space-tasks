@@ -1,49 +1,21 @@
-# Privacy Policy for Fancy Google Space Tasks
+# Privacy
+- **NOT SENDING INFORMATION ELSEWHERE:**  
+  This extension does not send any information to paths other than those utilized by the original Tasks page.
 
-**Last Updated:** September 2025
+- **ACCESSING ONLY FORMS WHICH USER CAN ACCESS VISIBLY:**  
+  The maximum this extension can do is read existing content in Tasks, and then fill out forms or click original buttons on the original Tasks page on behalf of the user, without direct user input.
 
-## Data Collection and Usage
+- **MODIFYING ONLY VISUAL STATE OF ORIGINAL PAGE:**  
+  It only uses CSS to hide parts of the Original UI and display the Custom UI, fills out forms that users could originally input, and clicks buttons that users could originally click. It does not modify the original page in any other way that would interfere with its core functionality.
 
-**Fancy Google Space Tasks does not collect, store, or transmit any user data.**
+- **NOT EXPLOITING VULNERABILITIES:**  
+  It does not exploit vulnerabilities to implement features.
 
-This extension:
-- ✅ **Does NOT collect** any personal information
-- ✅ **Does NOT store** any data on external servers
-- ✅ **Does NOT transmit** any data outside your browser
-- ✅ **Does NOT use** analytics or cookies
+- **NOT COLLECTING INFORMATIONS:**  
+  It does not collect anonymous information, even for code maintenance.
 
-## What This Extension Does
+- **EVERYTHING HAPPENS LOCALLY:**  
+  Everything happens solely within the browser. The extension itself does not directly communicate with the internet, except for accessing the user's profile picture once to determine their theme color.
 
-Fancy Google Space Tasks is a client-side browser extension that:
-- Reads your Google Tasks data **only from your browser's local DOM**
-- Enhances the visual display of your tasks
-- Processes all data **locally in your browser**
-- All operations happen **entirely on your device**
-
-## Permissions Explanation
-
-This extension requires the following permissions:
-
-- **`storage`**: Used only for storing your UI preferences (theme, display settings) locally in your browser
-- **`activeTab`**: Required to access and enhance the Google Tasks interface you're viewing
-- **`host_permissions`**: Needed to run on Google Chat and Tasks pages where you use the extension
-
-## Third-Party Services
-
-This extension does **NOT**:
-- Use any third-party analytics services
-- Connect to any external servers
-- Share data with any third parties
-- Use advertising services
-
-## Changes to This Policy
-
-Any updates to this privacy policy will be posted here and in the extension's changelog.
-
-## Contact
-
-If you have questions about this privacy policy, please contact us through our [GitHub repository](https://github.com/x2605/fancy-google-space-tasks).
-
----
-
-**In short:** Your tasks stay yours. We see nothing, store nothing, and send nothing. Everything happens in your browser.
+- **OPEN SOURCE:**  
+  Code is served in a readable, uncompiled form. You can check everything.
