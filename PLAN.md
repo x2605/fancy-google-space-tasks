@@ -103,18 +103,6 @@ graph TD
     J --> G
     K --> G
     L --> G
-    
-    G --> Q[iframe_bridge.js]
-    
-    style A fill:#e1f5fe
-    style B fill:#fff3e0
-    style E fill:#e8f5e8
-    style G fill:#c8e6c9
-    style Q fill:#fff3e0
-    style N fill:#ffe0b2
-    style O fill:#ffccbc
-    style P fill:#f3e5f5
-    style L fill:#f3e5f5
 ```
 
 ### Loading Sequence
