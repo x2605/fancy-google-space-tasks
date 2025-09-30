@@ -1,5 +1,5 @@
-// container/container_manager.js - Main container management with depth filtering
-console.log('📋 Container Manager loading...');
+// container/container_manager.js - Main container management with optimized initialization
+fgtlog('📋 Container Manager loading...');
 
 /**
  * Main container management for the entire extension
@@ -27,6 +27,10 @@ class ContainerManager {
         this.maxCategoryDepth = 0;
         this.observer = null;
 
+        // Storage key for current space
+        this.spaceId = null;
+        this.storageKey = null;
+
         // UI elements
         this.customContainer = null;
         this.toggleButton = null;
@@ -38,17 +42,117 @@ class ContainerManager {
     }
 
     /**
+     * Extract space ID from current URL
+     * @returns {string} - Space ID or 'personal'
+     */
+    getSpaceIdFromUrl() {
+        const url = window.location.href;
+
+        // Remove query params
+        const baseUrl = url.split('?')[0];
+
+        // Pattern: https://tasks.google.com/embed/room/{SPACE_ID}/list/~default
+        const roomMatch = baseUrl.match(/\/room\/([^/]+)\//);
+        if (roomMatch) {
+            return roomMatch[1];
+        }
+
+        // Pattern: https://tasks.google.com/embed/
+        // This is personal tasks
+        return 'personal';
+    }
+
+    /**
+     * Initialize storage key for current space
+     */
+    initializeStorageKey() {
+        this.spaceId = this.getSpaceIdFromUrl();
+        this.storageKey = `space_${this.spaceId}`;
+        fgtlog(`💾 Storage key initialized: ${this.storageKey}`);
+    }
+
+    /**
+     * Load state from storage.local (changed from session)
+     * @returns {Promise<Object>} - Loaded state or defaults
+     */
+    async loadStateFromStorage() {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                fgtwarn('⚠️ chrome.storage.local not available, using defaults');
+                return {
+                    isCustomUIVisible: true,
+                    showCompleted: false
+                };
+            }
+
+            const result = await chrome.storage.local.get(this.storageKey);
+            const savedState = result[this.storageKey];
+
+            if (savedState) {
+                fgtlog(`✅ State loaded from storage for ${this.spaceId}:`, savedState);
+                return savedState;
+            } else {
+                fgtlog(`ℹ️ No saved state for ${this.spaceId}, using defaults`);
+                return {
+                    isCustomUIVisible: true,
+                    showCompleted: false
+                };
+            }
+        } catch (error) {
+            fgterror('❌ Failed to load state from storage:', error);
+            return {
+                isCustomUIVisible: true,
+                showCompleted: false
+            };
+        }
+    }
+
+    /**
+     * Save state to storage.local (changed from session)
+     */
+    async saveStateToStorage() {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                fgtwarn('⚠️ chrome.storage.local not available, state not saved');
+                return;
+            }
+
+            const state = {
+                isCustomUIVisible: this.isCustomUIVisible,
+                showCompleted: this.showCompleted
+            };
+
+            await chrome.storage.local.set({
+                [this.storageKey]: state
+            });
+
+            fgtlog(`💾 State saved to storage for ${this.spaceId}:`, state);
+        } catch (error) {
+            fgterror('❌ Failed to save state to storage:', error);
+        }
+    }
+
+    /**
      * Initialize the container manager
      */
     async initialize() {
         if (this.isInitialized) {
-            console.log('⚠️ Container Manager already initialized');
+            fgtlog('⚠️ Container Manager already initialized');
             return;
         }
 
-        console.log('🚀 Container Manager initializing...');
+        fgtlog('🚀 Container Manager initializing...');
 
         try {
+            // Initialize storage key for current space
+            this.initializeStorageKey();
+
+            // Load saved state from storage
+            const savedState = await this.loadStateFromStorage();
+            this.isCustomUIVisible = savedState.isCustomUIVisible;
+            this.showCompleted = savedState.showCompleted;
+            fgtlog(`📊 Initial state: customUI=${this.isCustomUIVisible}, showCompleted=${this.showCompleted}`);
+
             // Wait for required modules
             await this.waitForDependencies();
 
@@ -61,17 +165,21 @@ class ContainerManager {
             // Setup UI
             await this.setupUI();
 
-            // Extract and display initial data
-            this.extractAndDisplayTasks();
+            // Extract and display initial data - CONDITIONAL RENDERING
+            if (this.isCustomUIVisible) {
+                this.extractAndDisplayTasks();
+            } else {
+                fgtlog('⏭️ Skipping initial render (Original UI mode)');
+            }
 
             // Start change detection
             this.startObserving();
 
             this.isInitialized = true;
-            console.log('✅ Container Manager initialized successfully');
+            fgtlog('✅ Container Manager initialized successfully');
 
         } catch (error) {
-            console.error('❌ Container Manager initialization failed:', error);
+            fgterror('❌ Container Manager initialization failed:', error);
             CoreNotificationUtils.error('Failed to initialize extension', this.namespace);
         }
     }
@@ -95,7 +203,7 @@ class ContainerManager {
                 window.TaskIdUtils &&
                 window.TaskChangeDetector &&
                 window.OperationVerifier) {
-                console.log('✅ All dependencies loaded');
+                fgtlog('✅ All dependencies loaded');
                 return;
             }
 
@@ -115,21 +223,18 @@ class ContainerManager {
         this.tableEvents = new TableEvents(this.namespace);
         this.interactionHandler = new CoreInteractionUtils(this.namespace);
         this.operationVerifier = new OperationVerifier(this.namespace);
-        
+
         // Initialize lock and depth styles
         CoreDOMUtils.initLockStyles();
         CoreDOMUtils.initDepthStyles();
-        
-        console.log('🔧 Components initialized');
+
+        fgtlog('🔧 Components initialized');
     }
 
     /**
      * Setup the complete UI
      */
     async setupUI() {
-        // Hide original DOM
-        this.hideOriginalDOM();
-
         // Create container UI
         await this.containerUI.createContainer();
         this.customContainer = this.containerUI.getContainer();
@@ -139,6 +244,23 @@ class ContainerManager {
         this.toggleButton = this.containerUI.getToggleIndicator();
         this.completedToggleButton = this.containerUI.getCompletedToggleIndicator();
 
+        // Apply loaded state to UI
+        if (this.isCustomUIVisible) {
+            this.hideOriginalDOM();
+            if (this.customContainer) {
+                this.customContainer.style.display = 'block';
+            }
+            // Show completed toggle button
+            this.containerUI.showCompletedToggleButton();
+        } else {
+            this.showOriginalDOM();
+            if (this.customContainer) {
+                this.customContainer.style.display = 'none';
+            }
+            // Hide completed toggle button (not needed in Original UI)
+            this.containerUI.hideCompletedToggleButton();
+        }
+
         // Update toggle button states
         this.containerUI.updateToggleButton(this.isCustomUIVisible);
         this.containerUI.updateCompletedToggleButton(this.showCompleted);
@@ -146,7 +268,7 @@ class ContainerManager {
         // Attach container events
         this.attachContainerEvents();
 
-        console.log('🎨 UI setup complete');
+        fgtlog('🎨 UI setup complete');
     }
 
     /**
@@ -165,7 +287,7 @@ class ContainerManager {
             }
         });
 
-        console.log('👁️ Original DOM hidden');
+        fgtlog('👁️ Original DOM hidden');
     }
 
     /**
@@ -181,7 +303,7 @@ class ContainerManager {
         });
         this.originalZIndexes.clear();
 
-        console.log('👁️ Original DOM restored');
+        fgtlog('👁️ Original DOM restored');
     }
 
     /**
@@ -225,7 +347,7 @@ class ContainerManager {
         }
 
         this.cleanupFunctions.push(cleanup1, cleanup2);
-        console.log('⚡ Container events attached');
+        fgtlog('⚡ Container events attached');
     }
 
     /**
@@ -240,13 +362,16 @@ class ContainerManager {
         // Re-render table with new filter and depth adjustment
         this.updateDisplay();
 
+        // Save state to storage
+        this.saveStateToStorage();
+
         // Show notification
         CoreNotificationUtils.success(
             `${this.showCompleted ? 'Showing' : 'Hiding'} completed tasks`,
             this.namespace
         );
 
-        console.log(`📋 Completed tasks toggled: ${this.showCompleted ? 'visible' : 'hidden'}`);
+        fgtlog(`📋 Completed tasks toggled: ${this.showCompleted ? 'visible' : 'hidden'}`);
     }
 
     /**
@@ -255,8 +380,8 @@ class ContainerManager {
      */
     handleTableAction(event) {
         const { action, taskId } = event.detail;
-        
-        console.log(`🎯 Table action received: ${action} for task ${taskId}`);
+
+        fgtlog(`🎯 Table action received: ${action} for task ${taskId}`);
 
         switch (action) {
             case 'date':
@@ -269,7 +394,7 @@ class ContainerManager {
                 this.showDeleteModal(taskId);
                 break;
             default:
-                console.warn('Unknown table action:', action);
+                fgtwarn('Unknown table action:', action);
         }
     }
 
@@ -277,7 +402,7 @@ class ContainerManager {
      * Handle table data change
      */
     handleTableDataChange() {
-        console.log('📊 Table data changed, refreshing...');
+        fgtlog('📊 Table data changed, refreshing...');
         CoreEventUtils.timeouts.create(() => {
             this.extractAndDisplayTasks();
         }, 1000);
@@ -296,7 +421,7 @@ class ContainerManager {
             // Initialize change detector on first run
             if (!this.changeDetector) {
                 this.changeDetector = TaskChangeDetector.create(this.namespace);
-                console.log('🔍 Change detector initialized after DOM ready');
+                fgtlog('🔍 Change detector initialized after DOM ready');
             } else {
                 // Update change detector with current state
                 this.changeDetector.updateTaskData();
@@ -305,10 +430,10 @@ class ContainerManager {
             // Update container content
             this.updateDisplay();
 
-            console.log(`📊 Extracted ${this.tasks.size} tasks with max category depth: ${this.maxCategoryDepth}`);
+            fgtlog(`📊 Extracted ${this.tasks.size} tasks with max category depth: ${this.maxCategoryDepth}`);
 
         } catch (error) {
-            console.error('❌ Failed to extract tasks:', error);
+            fgterror('❌ Failed to extract tasks:', error);
             CoreNotificationUtils.error('Failed to load tasks', this.namespace);
         }
     }
@@ -322,7 +447,7 @@ class ContainerManager {
 
         // Find task elements in original DOM
         const taskElements = document.querySelectorAll('[role="listitem"][data-id][data-type="0"]');
-        console.log(`🔍 Found ${taskElements.length} task elements in DOM`);
+        fgtlog(`🔍 Found ${taskElements.length} task elements in DOM`);
 
         taskElements.forEach((element, index) => {
             try {
@@ -332,7 +457,7 @@ class ContainerManager {
                     maxCategoryDepth = Math.max(maxCategoryDepth, task.categories.length);
                 }
             } catch (error) {
-                console.warn('Failed to parse task element:', error);
+                fgtwarn('Failed to parse task element:', error);
             }
         });
 
@@ -351,8 +476,8 @@ class ContainerManager {
 
         // Extract title
         const titleElement = element.querySelector('[data-max-length]:not([data-multiline])');
-        const rawTitle = titleElement?.querySelector('[jsname][title]')?.textContent?.trim() || 
-                        titleElement?.textContent?.trim() || 'Untitled Task';
+        const rawTitle = titleElement?.querySelector('[jsname][title]')?.textContent?.trim() ||
+            titleElement?.textContent?.trim() || 'Untitled Task';
 
         // Parse categories and clean title
         const { categories, cleanTitle } = CategoryParser.parseTaskTitle(rawTitle);
@@ -360,8 +485,8 @@ class ContainerManager {
         // Extract description
         const descElement = element.querySelector('[data-multiline][data-max-length]');
         const descPlaceHolder = descElement?.getAttribute('data-placeholder') || '';
-        let description = descElement?.querySelector('[jsname][title]')?.textContent?.trim() || 
-                           descElement?.textContent?.trim() || '';
+        let description = descElement?.querySelector('[jsname][title]')?.textContent?.trim() ||
+            descElement?.textContent?.trim() || '';
         if (description == descPlaceHolder) {
             description = '';
         }
@@ -386,15 +511,15 @@ class ContainerManager {
             const spanWithTitle = assigneeElement.querySelector('span[title]');
             assignee = spanWithTitle?.textContent?.trim() || '😶';
             assigneeTitle = spanWithTitle?.getAttribute('title') || 'assign';
-            
+
             const imgElement = assigneeElement.querySelector('div[style*="background-image"]');
             if (imgElement) {
-                assigneeIcon = imgElement.style.backgroundImage || 
-                              `url(${imgElement.src})` || '';
+                assigneeIcon = imgElement.style.backgroundImage ||
+                    `url(${imgElement.src})` || '';
             }
         }
 
-        console.log(`🔍 Parsed task: ${taskId} - "${cleanTitle}" (${categories.length} categories) (date: ${date}) (assignee: ${assignee}) (completed: ${isCompleted})`);
+        fgtlog(`🔍 Parsed task: ${taskId} - "${cleanTitle}" (${categories.length} categories) (date: ${date}) (assignee: ${assignee}) (completed: ${isCompleted})`);
 
         const taskData = {
             id: taskId,
@@ -419,7 +544,7 @@ class ContainerManager {
                     this.updateAssigneeColors(taskId, colors);
                 })
                 .catch(error => {
-                    console.warn(`Failed to load colors for ${assignee}:`, error);
+                    fgtwarn(`Failed to load colors for ${assignee}:`, error);
                 });
         }
 
@@ -437,7 +562,7 @@ class ContainerManager {
 
         // Get filtered tasks and calculate max depth for visible items
         const { tasks: filteredTasks, maxDepth } = this.getFilteredTasks();
-        
+
         // Update depth visibility
         if (this.showCompleted) {
             // Show all depths when completed tasks are visible
@@ -446,9 +571,9 @@ class ContainerManager {
             // Hide depths beyond what's needed for incomplete tasks
             CoreDOMUtils.hideDepthsAbove(maxDepth - 1); // Convert to 0-based
         }
-        
-        console.log(`📏 Max visible depth: ${maxDepth} (showCompleted: ${this.showCompleted})`);
-        
+
+        fgtlog(`🔍 Max visible depth: ${maxDepth} (showCompleted: ${this.showCompleted})`);
+
         // Always re-render for completed tasks toggle to handle rowspan properly
         this.renderFullTable(tableContainer, filteredTasks);
     }
@@ -461,17 +586,17 @@ class ContainerManager {
     renderFullTable(tableContainer, filteredTasks) {
         // Pass both filtered tasks (for display) and all tasks (for statistics)
         const tableHTML = this.tableRenderer.renderTable(
-            filteredTasks, 
+            filteredTasks,
             this.maxCategoryDepth,
             this.tasks  // Pass original tasks for statistics
         );
-        
+
         tableContainer.innerHTML = tableHTML;
 
         // Initialize table events
         this.tableEvents.initialize(tableContainer, this.interactionHandler);
-        
-        console.log(`🆕 Table rendered with ${filteredTasks.size} tasks (showCompleted: ${this.showCompleted})`);
+
+        fgtlog(`🆕 Table rendered with ${filteredTasks.size} tasks (showCompleted: ${this.showCompleted})`);
     }
 
     /**
@@ -487,7 +612,7 @@ class ContainerManager {
         // Filter out completed tasks and calculate max depth of visible items
         const filteredTasks = new Map();
         let maxDepth = 0;
-        
+
         this.tasks.forEach((task, taskId) => {
             if (!task.isCompleted) {
                 filteredTasks.set(taskId, task);
@@ -512,10 +637,10 @@ class ContainerManager {
             const assigneeButton = existingTable.querySelector(`[data-task-id="${taskId}"].fgt-assignee`);
             if (assigneeButton && window.assigneeColorUtils) {
                 window.assigneeColorUtils.applyColorsToElement(assigneeButton, colors);
-                console.log(`🎨 Applied colors to assignee button for task: ${taskId}`);
+                fgtlog(`🎨 Applied colors to assignee button for task: ${taskId}`);
             }
         } catch (error) {
-            console.warn(`⚠️ Failed to update assignee colors for task ${taskId}:`, error);
+            fgtwarn(`⚠️ Failed to update assignee colors for task ${taskId}:`, error);
         }
     }
 
@@ -527,28 +652,44 @@ class ContainerManager {
 
         if (this.isCustomUIVisible) {
             // Switch to fancy UI
-            const hasChanges = this.detectAndUpdateChanges();
-            
+
+            // Render if not rendered yet
+            if (this.tasks.size === 0) {
+                fgtlog('🆕 First time rendering fancy UI');
+                this.extractAndDisplayTasks();
+            } else {
+                // Check for changes if already rendered
+                const hasChanges = this.detectAndUpdateChanges();
+                if (hasChanges) {
+                    fgtlog('🔄 Changes detected during mode switch, data refreshed');
+                }
+            }
+
             this.hideOriginalDOM();
             if (this.customContainer) {
                 this.customContainer.style.display = 'block';
             }
-            
-            if (hasChanges) {
-                console.log('🔄 Changes detected during mode switch, data refreshed');
-            }
+
+            // Show completed toggle button
+            this.containerUI.showCompletedToggleButton();
         } else {
             // Switch to original UI
             this.showOriginalDOM();
             if (this.customContainer) {
                 this.customContainer.style.display = 'none';
             }
-            
-            console.log('💡 Switched to original UI - change detection will run on next fancy UI switch');
+
+            // Hide completed toggle button (not needed in Original UI)
+            this.containerUI.hideCompletedToggleButton();
+
+            fgtlog('💡 Switched to original UI - change detection will run on next fancy UI switch');
         }
 
         // Update toggle button appearance
         this.containerUI.updateToggleButton(this.isCustomUIVisible);
+
+        // Save state to storage
+        this.saveStateToStorage();
 
         // Show notification
         CoreNotificationUtils.success(
@@ -556,33 +697,33 @@ class ContainerManager {
             this.namespace
         );
 
-        console.log(`🔄 UI toggled to: ${this.isCustomUIVisible ? 'Fancy' : 'Original'}`);
+        fgtlog(`🔄 UI toggled to: ${this.isCustomUIVisible ? 'Fancy' : 'Original'}`);
     }
-    
+
     /**
      * Detect changes and update if necessary
      * @returns {boolean} - Whether changes were detected and applied
      */
     detectAndUpdateChanges() {
         if (!this.changeDetector) {
-            console.warn('⚠️ Change detector not available');
+            fgtwarn('⚠️ Change detector not available');
             return false;
         }
 
         try {
             const recommendation = this.changeDetector.checkAndRecommendAction();
-            
+
             if (recommendation.needsAction) {
                 const { actionType, detectionResult } = recommendation;
-                
-                console.log(`🔍 Change detection: ${detectionResult.message}`);
-                
+
+                fgtlog(`🔍 Change detection: ${detectionResult.message}`);
+
                 if (actionType === 'full_refresh') {
                     this.extractAndDisplayTasks();
                     this.changeDetector.applyChanges(detectionResult);
                     CoreNotificationUtils.info('Data refreshed due to changes', this.namespace);
                     return true;
-                    
+
                 } else if (actionType === 'incremental_update') {
                     this.extractAndDisplayTasks();
                     this.changeDetector.applyChanges(detectionResult);
@@ -590,18 +731,18 @@ class ContainerManager {
                     return true;
                 }
             } else {
-                console.log('✅ No changes detected');
+                fgtlog('✅ No changes detected');
                 return false;
             }
         } catch (error) {
-            console.error('❌ Error during change detection:', error);
+            fgterror('❌ Error during change detection:', error);
             this.extractAndDisplayTasks();
             if (this.changeDetector) {
                 this.changeDetector.forceRefresh();
             }
             return true;
         }
-        
+
         return false;
     }
 
@@ -620,16 +761,16 @@ class ContainerManager {
         );
 
         const taskContainers = document.querySelectorAll('[role="list"]');
-        
+
         if (taskContainers.length === 0) {
-            console.error('❌ No task containers found - cannot start observing');
+            fgterror('❌ No task containers found - cannot start observing');
             return;
         }
 
-        console.log(`👁️ Found ${taskContainers.length} task containers to observe`);
-        
+        fgtlog(`👁️ Found ${taskContainers.length} task containers to observe`);
+
         taskContainers.forEach((container, index) => {
-            console.log(`👁️ Setting up observer for container ${index + 1}`);
+            fgtlog(`👁️ Setting up observer for container ${index + 1}`);
             this.observer.observe(container, {
                 childList: true,
                 subtree: true,
@@ -639,14 +780,14 @@ class ContainerManager {
             });
         });
 
-        const focusCleanup = CoreEventUtils.addListener(window, 'focus', 
+        const focusCleanup = CoreEventUtils.addListener(window, 'focus',
             CoreEventUtils.debounce(() => {
                 this.handleWindowFocus();
             }, 1000)
         );
         this.cleanupFunctions.push(focusCleanup);
 
-        console.log('👁️ Enhanced DOM observer started for all task containers');
+        fgtlog('👁️ Enhanced DOM observer started for all task containers');
     }
 
     /**
@@ -656,58 +797,58 @@ class ContainerManager {
     handleDOMChanges(mutations) {
         // Skip DOM updates if operation is in progress
         if (this.operationVerifier && this.operationVerifier.isOperationInProgress()) {
-            console.log('⏸️ Skipping DOM update - operation in progress');
+            fgtlog('⏸️ Skipping DOM update - operation in progress');
             return;
         }
-        
-        console.log(`🔄 DOM changes detected (${mutations.length} mutations)`);
-        
+
+        fgtlog(`🔄 DOM changes detected (${mutations.length} mutations)`);
+
         if (this.changeDetector) {
             const recommendation = this.changeDetector.checkAndRecommendAction();
-            
+
             if (recommendation.needsAction) {
-                console.log(`🔍 Background change detection: ${recommendation.detectionResult.message}`);
-                
+                fgtlog(`🔍 Background change detection: ${recommendation.detectionResult.message}`);
+
                 if (this.isCustomUIVisible) {
                     this.applyDetectedChanges(recommendation);
                 } else {
-                    console.log('🔍 Changes detected in background (original mode)');
+                    fgtlog('🔍 Changes detected in background (original mode)');
                 }
             }
         }
-        
+
         // Legacy fallback for obvious changes
         let shouldUpdate = false;
-        
+
         for (const mutation of mutations) {
             if (mutation.type === 'childList') {
-                const hasTaskChanges = Array.from(mutation.addedNodes).some(node => 
-                    node.nodeType === Node.ELEMENT_NODE && 
-                    (node.matches && node.matches('[role="listitem"][data-id]') || 
-                     node.querySelector && node.querySelector('[role="listitem"][data-id]'))
-                ) || Array.from(mutation.removedNodes).some(node =>
-                    node.nodeType === Node.ELEMENT_NODE && 
+                const hasTaskChanges = Array.from(mutation.addedNodes).some(node =>
+                    node.nodeType === Node.ELEMENT_NODE &&
                     (node.matches && node.matches('[role="listitem"][data-id]') ||
-                     node.querySelector && node.querySelector('[role="listitem"][data-id]'))
+                        node.querySelector && node.querySelector('[role="listitem"][data-id]'))
+                ) || Array.from(mutation.removedNodes).some(node =>
+                    node.nodeType === Node.ELEMENT_NODE &&
+                    (node.matches && node.matches('[role="listitem"][data-id]') ||
+                        node.querySelector && node.querySelector('[role="listitem"][data-id]'))
                 );
-                
+
                 if (hasTaskChanges) {
                     shouldUpdate = true;
                     break;
                 }
             }
-            
-            if (mutation.type === 'attributes' && 
+
+            if (mutation.type === 'attributes' &&
                 mutation.attributeName === 'aria-pressed' &&
-                mutation.target.matches && 
+                mutation.target.matches &&
                 mutation.target.matches('button[aria-pressed]')) {
                 shouldUpdate = true;
                 break;
             }
         }
-        
+
         if (shouldUpdate && this.isCustomUIVisible) {
-            console.log('🔄 Applying legacy DOM change update');
+            fgtlog('🔄 Applying legacy DOM change update');
             this.extractAndDisplayTasks();
         }
     }
@@ -716,12 +857,12 @@ class ContainerManager {
      * Handle window focus events
      */
     handleWindowFocus() {
-        console.log('👁️ Window focus detected - checking for background changes');
-        
+        fgtlog('👁️ Window focus detected - checking for background changes');
+
         if (this.isCustomUIVisible && this.changeDetector) {
             const recommendation = this.changeDetector.checkAndRecommendAction();
             if (recommendation.needsAction) {
-                console.log('🔄 Background sync changes detected');
+                fgtlog('🔄 Background sync changes detected');
                 this.applyDetectedChanges(recommendation);
             }
         }
@@ -733,15 +874,15 @@ class ContainerManager {
      */
     applyDetectedChanges(recommendation) {
         const { actionType, detectionResult } = recommendation;
-        
+
         if (actionType === 'full_refresh') {
             this.extractAndDisplayTasks();
             this.changeDetector.applyChanges(detectionResult);
-            console.log('🔄 Tasks refreshed');
+            fgtlog('🔄 Tasks refreshed');
         } else if (actionType === 'incremental_update') {
             this.extractAndDisplayTasks();
             this.changeDetector.applyChanges(detectionResult);
-            console.log('🔄 Tasks updated');
+            fgtlog('🔄 Tasks updated');
         }
     }
 
@@ -752,7 +893,7 @@ class ContainerManager {
         if (this.observer) {
             this.observer.disconnect();
             this.observer = null;
-            console.log('👁️ DOM observer stopped');
+            fgtlog('👁️ DOM observer stopped');
         }
     }
 
@@ -778,34 +919,34 @@ class ContainerManager {
     showDeleteModal(taskId) {
         // Check if modal is already showing
         if (this.isShowingDeleteModal) {
-            console.log('⏸️ Ignoring duplicate delete - modal already showing');
+            fgtlog('⏸️ Ignoring duplicate delete - modal already showing');
             return;
         }
-        
+
         // Check if operation is in progress
         if (this.operationVerifier && this.operationVerifier.isOperationInProgress()) {
-            console.log('⏸️ Ignoring duplicate delete - operation in progress');
+            fgtlog('⏸️ Ignoring duplicate delete - operation in progress');
             return;
         }
-        
+
         // Set flag to prevent duplicate modal calls
         this.isShowingDeleteModal = true;
-        
+
         const task = this.tasks.get(taskId);
         const taskTitle = task ? task.displayTitle : `task ${taskId}`;
-        
+
         // Show DeleteModal with both confirm and cancel callbacks
         DeleteModal.show(
-            taskId, 
-            taskTitle, 
+            taskId,
+            taskTitle,
             this.namespace,
             (confirmedTaskId) => {
                 // User confirmed deletion
-                console.log(`🗑️ User confirmed deletion for task: ${confirmedTaskId}`);
-                
+                fgtlog(`🗑️ User confirmed deletion for task: ${confirmedTaskId}`);
+
                 // Clear modal flag
                 this.isShowingDeleteModal = false;
-                
+
                 // Lock UI and start delete operation with verification
                 this.operationVerifier.lockAndVerify(
                     // Operation function
@@ -826,17 +967,17 @@ class ContainerManager {
                     }
                 ).then(() => {
                     // Refresh data after successful deletion
-                    console.log('✅ Task deletion completed and verified');
+                    fgtlog('✅ Task deletion completed and verified');
                     this.extractAndDisplayTasks();
                 }).catch((error) => {
-                    console.error('❌ Task deletion failed:', error);
+                    fgterror('❌ Task deletion failed:', error);
                     // Still refresh in case of partial changes
                     this.extractAndDisplayTasks();
                 });
             },
             () => {
                 // User cancelled or closed modal
-                console.log('🗑️ Delete cancelled by user');
+                fgtlog('🗑️ Delete cancelled by user');
                 this.isShowingDeleteModal = false;
             }
         );
@@ -882,14 +1023,14 @@ class ContainerManager {
         // Cleanup lock and depth styles
         CoreDOMUtils.cleanupLockStyles();
         CoreDOMUtils.cleanupDepthStyles();
-        
+
         // Cleanup all timers
         CoreEventUtils.cleanupAll();
 
         this.isInitialized = false;
         this.tasks.clear();
 
-        console.log('🧹 Container Manager destroyed');
+        fgtlog('🧹 Container Manager destroyed');
     }
 }
 
@@ -899,7 +1040,7 @@ window.ContainerManager = ContainerManager;
 // Auto-initialize when this script loads
 if (typeof window !== 'undefined' && window.location && window.location.href.includes('tasks.google.com')) {
     if (!window.fancyGSTManager) {
-        console.log('🚀 Auto-initializing Container Manager...');
+        fgtlog('🚀 Auto-initializing Container Manager...');
 
         const autoInit = () => {
             const manager = new ContainerManager();
@@ -915,4 +1056,4 @@ if (typeof window !== 'undefined' && window.location && window.location.href.inc
     }
 }
 
-console.log('✅ Enhanced Container Manager loaded successfully with depth filtering');
+fgtlog('✅ Enhanced Container Manager loaded successfully with optimized initialization');

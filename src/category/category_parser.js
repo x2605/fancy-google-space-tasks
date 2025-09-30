@@ -1,5 +1,5 @@
 // category/category_parser.js - Category parsing utilities
-console.log('🏷️ Category Parser loading...');
+fgtlog('🏷️ Category Parser loading...');
 
 /**
  * Category parsing utilities for task titles
@@ -61,7 +61,7 @@ class CategoryParser {
         }
 
         const trimmed = category.trim();
-        
+
         // Check length
         if (trimmed.length === 0 || trimmed.length > 50) {
             return false;
@@ -154,7 +154,7 @@ class CategoryParser {
 
         tasks.forEach(task => {
             const firstCategory = task.categories && task.categories[0];
-            
+
             if (firstCategory) {
                 if (!grouped[firstCategory]) {
                     grouped[firstCategory] = [];
@@ -182,7 +182,7 @@ class CategoryParser {
             }
 
             let current = hierarchy;
-            
+
             result.categories.forEach(category => {
                 if (!current[category]) {
                     current[category] = {
@@ -198,7 +198,7 @@ class CategoryParser {
             result.categories.forEach(category => {
                 taskLevel = taskLevel[category];
             });
-            
+
             if (taskLevel.tasks) {
                 taskLevel.tasks.push(result);
             }
@@ -219,21 +219,21 @@ class CategoryParser {
         }
 
         const inputLower = input.toLowerCase().trim();
-        
+
         return existingCategories
-            .filter(category => 
+            .filter(category =>
                 category.toLowerCase().includes(inputLower)
             )
             .sort((a, b) => {
                 // Prioritize exact matches and starts-with matches
                 const aLower = a.toLowerCase();
                 const bLower = b.toLowerCase();
-                
+
                 if (aLower === inputLower) return -1;
                 if (bLower === inputLower) return 1;
                 if (aLower.startsWith(inputLower)) return -1;
                 if (bLower.startsWith(inputLower)) return 1;
-                
+
                 return a.localeCompare(b);
             })
             .slice(0, 5); // Limit to 5 suggestions
@@ -246,8 +246,8 @@ class CategoryParser {
      */
     static parseWithPositions(title) {
         if (!title || typeof title !== 'string') {
-            return { 
-                categories: [], 
+            return {
+                categories: [],
                 cleanTitle: title || '',
                 positions: [],
                 originalTitle: title || ''
@@ -311,4 +311,4 @@ class CategoryParser {
 // Export to global scope
 window.CategoryParser = CategoryParser;
 
-console.log('✅ Category Parser loaded successfully');
+fgtlog('✅ Category Parser loaded successfully');

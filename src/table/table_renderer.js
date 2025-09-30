@@ -1,5 +1,5 @@
 // table/table_renderer.js - Table rendering with unified OKLCH/HSL color logic + Depth Classes
-console.log('📊 Table Renderer loading...');
+fgtlog('📊 Table Renderer loading...');
 
 /**
  * Table rendering utilities for fancy-gst-tasks-table block
@@ -28,29 +28,29 @@ class TableRenderer {
      */
     generateColorFromSeed(seed, level = 0) {
         const oklchSupported = this.checkOKLCHSupport();
-        
+
         // Generate hue from seed
         const hue = CategoryUtils.generateHueFromSeed(seed);
-        
+
         // Base parameters for color generation
         const saturation = 65 + (level * 5) % 20; // 65-85%
         const lightness = 85 + (level * 5) % 15; // 85-100%
-        
+
         // OKLCH parameters
         const oklchLightness = lightness / 100; // Convert to 0-1 range
         const oklchChroma = saturation * 0.004; // Convert to OKLCH chroma
-        
+
         // Generate colors with OKLCH/HSL fallback
         const backgroundColor = oklchSupported ?
             `oklch(${oklchLightness} ${oklchChroma} ${hue})` :
             `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-        
+
         return {
             borderColor: '#000',
             backgroundColor: backgroundColor,
             color: '#000', // ALWAYS BLACK TEXT
             fontWeight: '500',
-            fontSize: Math.max(1.2, 1.6 - level*0.1) + 'em',
+            fontSize: Math.max(1.2, 1.6 - level * 0.1) + 'em',
             hue: hue
         };
     }
@@ -60,23 +60,23 @@ class TableRenderer {
      */
     groupAndSortTasks(tasks) {
         const tasksArray = Array.from(tasks.values());
-        
+
         // Add original index
         tasksArray.forEach((task, index) => {
             task.originalIndex = index;
         });
-        
+
         // Build hierarchical structure
         const result = [];
         const firstOccurrence = new Map(); // Track first occurrence of each category path
-        
+
         // 1. First, add uncategorized tasks
         const uncategorized = tasksArray.filter(t => !t.categories || t.categories.length === 0);
         result.push(...uncategorized.sort((a, b) => a.originalIndex - b.originalIndex));
-        
+
         // 2. Build category tree with first occurrence tracking
         const categorized = tasksArray.filter(t => t.categories && t.categories.length > 0);
-        
+
         // Group by full category path
         categorized.forEach(task => {
             const path = task.categories.join('|');
@@ -84,50 +84,50 @@ class TableRenderer {
                 firstOccurrence.set(path, task.originalIndex);
             }
         });
-        
+
         // 3. Recursively process each level
         const processLevel = (tasks, level = 0) => {
             if (tasks.length === 0) return [];
-            
+
             const grouped = new Map();
             const categoryOrder = [];
-            
+
             // Group by category at current level
             tasks.forEach(task => {
                 const categoryAtLevel = task.categories[level] || '';
-                
+
                 if (!grouped.has(categoryAtLevel)) {
                     grouped.set(categoryAtLevel, []);
                     categoryOrder.push(categoryAtLevel);
                 }
                 grouped.get(categoryAtLevel).push(task);
             });
-            
+
             const result = [];
-            
+
             // Process each group in order of first occurrence
             categoryOrder.forEach(category => {
                 const groupTasks = grouped.get(category);
-                
+
                 // Separate tasks: those with only current level vs those with deeper levels
                 const exactDepth = groupTasks.filter(t => t.categories.length === level + 1);
                 const deeper = groupTasks.filter(t => t.categories.length > level + 1);
-                
+
                 // Add exact depth tasks first (sorted by original index)
                 result.push(...exactDepth.sort((a, b) => a.originalIndex - b.originalIndex));
-                
+
                 // Recursively process deeper tasks
                 if (deeper.length > 0) {
                     result.push(...processLevel(deeper, level + 1));
                 }
             });
-            
+
             return result;
         };
-        
+
         // Process categorized tasks hierarchically
         result.push(...processLevel(categorized, 0));
-        
+
         return result;
     }
     /**
@@ -138,29 +138,34 @@ class TableRenderer {
             return sortedTasks.map(task => ({ ...task, rowspanInfo: {} }));
         }
 
+        // Clear all existing rowspanInfo before recalculation
+        sortedTasks.forEach(task => {
+            task.rowspanInfo = {};
+        });
+
         for (let level = 0; level < maxCategoryDepth; level++) {
             let currentCategoryPath = null;
             let groupStart = 0;
-            
+
             for (let i = 0; i <= sortedTasks.length; i++) {
                 const task = sortedTasks[i];
-                
+
                 // Build category path up to current level
                 const categoryPath = task?.categories?.slice(0, level + 1).join('|') || '';
-                
+
                 // Check if group ended
                 if (i === sortedTasks.length || categoryPath !== currentCategoryPath) {
                     // Set rowspan for previous group
                     if (currentCategoryPath !== null && groupStart < i) {
                         const groupSize = i - groupStart;
                         const categoryAtLevel = sortedTasks[groupStart].categories?.[level];
-                        
+
                         if (groupSize > 1 && categoryAtLevel) {
                             if (!sortedTasks[groupStart].rowspanInfo) {
                                 sortedTasks[groupStart].rowspanInfo = {};
                             }
                             sortedTasks[groupStart].rowspanInfo[level] = groupSize;
-                            
+
                             for (let j = groupStart + 1; j < i; j++) {
                                 if (!sortedTasks[j].rowspanInfo) {
                                     sortedTasks[j].rowspanInfo = {};
@@ -169,7 +174,7 @@ class TableRenderer {
                             }
                         }
                     }
-                    
+
                     // Start new group
                     if (i < sortedTasks.length) {
                         currentCategoryPath = categoryPath;
@@ -181,7 +186,7 @@ class TableRenderer {
 
         return sortedTasks;
     }
-    
+
     /**
      * Render complete table structure - ENHANCED WITH ASYNC COLOR LOADING
      * @param {Map} filteredTasks - Filtered tasks data (for display)
@@ -192,10 +197,10 @@ class TableRenderer {
     renderTable(filteredTasks, maxCategoryDepth, allTasks = null) {
         // Use allTasks for statistics if provided, otherwise use filteredTasks
         const tasksForStats = allTasks || filteredTasks;
-        
+
         const headerHTML = this.createTableHeader(tasksForStats, maxCategoryDepth);
         const bodyHTML = this.createTableBody(filteredTasks, maxCategoryDepth);
-        
+
         const tableHTML = `
             <table class="${this.namespace}-tasks-table" id="${this.namespace}-tasks-table">
                 <thead>
@@ -221,32 +226,32 @@ class TableRenderer {
      */
     async loadAssigneeColorsAsync(tasks) {
         if (!window.assigneeColorUtils) {
-            console.warn('AssigneeColorUtils not available');
+            fgtwarn('AssigneeColorUtils not available');
             return;
         }
 
         const colorPromises = [];
-        
+
         tasks.forEach((task) => {
             if (task.assigneeIcon && !task.assigneeColors) {
                 const colorPromise = window.assigneeColorUtils.getAssigneeColors(task.assigneeIcon, task.assignee)
                     .then(colors => {
                         // Update the task data
                         task.assigneeColors = colors;
-                        
+
                         // Update the UI element
                         const assigneeButton = document.querySelector(`[data-task-id="${task.id}"].fgt-assignee`);
                         if (assigneeButton) {
                             window.assigneeColorUtils.applyColorsToElement(assigneeButton, colors);
                         }
-                        
+
                         return { taskId: task.id, colors };
                     })
                     .catch(error => {
-                        console.warn(`Failed to load colors for task ${task.id}:`, error);
+                        fgtwarn(`Failed to load colors for task ${task.id}:`, error);
                         return null;
                     });
-                
+
                 colorPromises.push(colorPromise);
             }
         });
@@ -255,9 +260,9 @@ class TableRenderer {
             try {
                 const results = await Promise.all(colorPromises);
                 const successCount = results.filter(r => r !== null).length;
-                console.log(`🎨 Loaded colors for ${successCount}/${colorPromises.length} assignee buttons`);
+                fgtlog(`🎨 Loaded colors for ${successCount}/${colorPromises.length} assignee buttons`);
             } catch (error) {
-                console.warn('Some assignee colors failed to load:', error);
+                fgtwarn('Some assignee colors failed to load:', error);
             }
         }
     }
@@ -270,17 +275,17 @@ class TableRenderer {
      */
     createTableHeader(tasks, maxCategoryDepth) {
         let headerHTML = '<tr>';
-        
+
         // Category headers - individual columns for each category level with depth classes
         if (maxCategoryDepth > 0) {
             for (let i = 0; i < maxCategoryDepth; i++) {
                 headerHTML += `<th class="${this.namespace}-category-header fgt-depth-${i}">${i + 1}</th>`;
             }
         }
-        
+
         headerHTML += `<th class="${this.namespace}-task-header">${this.renderStatistics(tasks, maxCategoryDepth)}</th>`;
         headerHTML += '</tr>';
-        
+
         return headerHTML;
     }
 
@@ -293,16 +298,16 @@ class TableRenderer {
     createTableBody(tasks, maxCategoryDepth) {
         // Sort tasks according to rules
         const sortedTasks = this.groupAndSortTasks(tasks);
-        
+
         // Calculate rowspan information
         const tasksWithRowspan = this.calculateRowspanInfo(sortedTasks, maxCategoryDepth);
-        
+
         let bodyHTML = '';
-        
+
         tasksWithRowspan.forEach((task) => {
             bodyHTML += this.createTaskRow(task, maxCategoryDepth);
         });
-        
+
         return bodyHTML;
     }
 
@@ -314,38 +319,38 @@ class TableRenderer {
      */
     createTaskRow(task, maxCategoryDepth) {
         const categoryColumns = maxCategoryDepth > 0 ? maxCategoryDepth : 0;
-        
+
         let rowHTML = `<tr class="${this.namespace}-task-row" data-task-id="${task.id || task.taskId}">`;
-        
+
         // Category cells with proper rowspan support and depth classes
         if (maxCategoryDepth > 0) {
             for (let level = 0; level < categoryColumns; level++) {
                 const category = task.categories && task.categories[level] ? task.categories[level] : '';
                 const rowspanInfo = task.rowspanInfo || {};
-                
+
                 // Skip this cell if it's part of a rowspan group (but not the first)
                 if (rowspanInfo[level] === 'skip') {
                     continue; // Don't render this cell
                 }
-                
+
                 // Generate seed for this level using CategoryUtils
                 const seed = CategoryUtils.generateCategorySeed(task.categories || [], level);
                 const colorStyle = this.generateColorFromSeed(seed, level);
-                
+
                 // Create inline style string
-                const styleString = category ? 
-                    `background-color: ${colorStyle.backgroundColor}; color: ${colorStyle.color}; font-weight: ${colorStyle.fontWeight};` : 
+                const styleString = category ?
+                    `background-color: ${colorStyle.backgroundColor}; color: ${colorStyle.color}; font-weight: ${colorStyle.fontWeight};` :
                     '';
-                
+
                 // Add rowspan attribute if this cell spans multiple rows
                 const rowspanValue = rowspanInfo[level];
-                const rowspanAttr = (typeof rowspanValue === 'number' && rowspanValue > 1) ? 
+                const rowspanAttr = (typeof rowspanValue === 'number' && rowspanValue > 1) ?
                     `rowspan="${rowspanValue}"` : '';
-                
+
                 // Add additional classes for styling
-                const additionalClasses = rowspanValue && typeof rowspanValue === 'number' && rowspanValue > 1 ? 
+                const additionalClasses = rowspanValue && typeof rowspanValue === 'number' && rowspanValue > 1 ?
                     'grouped' : '';
-                
+
                 rowHTML += `<td class="${this.namespace}-category-cell fgt-depth-${level} ${additionalClasses}" 
                                style="${styleString}"
                                data-seed="${CoreDOMUtils.escapeHtml(seed)}"
@@ -353,7 +358,7 @@ class TableRenderer {
                                ${rowspanAttr}><div style="font-size: ${colorStyle.fontSize};">${CoreDOMUtils.escapeHtml(category)}</div></td>`;
             }
         }
-        
+
         // Task content cell
         rowHTML += `
             <td class="${this.namespace}-task-content-cell">
@@ -363,7 +368,7 @@ class TableRenderer {
                 </div>
             </td>
         `;
-        
+
         rowHTML += '</tr>';
         return rowHTML;
     }
@@ -436,7 +441,7 @@ class TableRenderer {
     renderTaskActions(task) {
         // Generate assignee button with color styling
         const assigneeColorStyle = this.getAssigneeButtonStyle(task);
-        
+
         return `
             <div class="${this.namespace}-task-actions">
                 <button class="${this.namespace}-action-btn fgt-date" data-action="date" data-task-id="${task.id || task.taskId}" data-meta="${CoreDOMUtils.escapeHtml(task.dateFull)}" title="Edit Task">${CoreDOMUtils.escapeHtml(task.date)}</button>
@@ -461,13 +466,13 @@ class TableRenderer {
         if (task.assigneeColors && window.assigneeColorUtils) {
             return window.assigneeColorUtils.createStyleString(task.assigneeColors);
         }
-        
+
         // If assignee name exists but no colors yet, use name-based fallback
         if (task.assignee && task.assignee !== '😶' && window.AssigneeUtils) {
             const fallbackColors = window.AssigneeUtils.getAvatarColor(task.assignee);
             return `background-color: ${fallbackColors.background}; color: ${fallbackColors.color};`;
         }
-        
+
         // No assignee or no color utils available
         return '';
     }
@@ -480,7 +485,7 @@ class TableRenderer {
      */
     renderStatistics(tasks, maxCategoryDepth) {
         const stats = this.calculateStatistics(tasks);
-        
+
         return `
             <span class="${this.namespace}-stats">
                 <span class="${this.namespace}-stat-item">
@@ -523,7 +528,7 @@ class TableRenderer {
             }
             if (task.categories && task.categories.length > 0) {
                 categorized++;
-                
+
                 // Use seed format for grouping
                 const seed = CategoryUtils.generateCategorySeed(task.categories, task.categories.length - 1);
                 categoryKeys.add(seed);
@@ -553,4 +558,4 @@ class TableRenderer {
 // Export to global scope
 window.TableRenderer = TableRenderer;
 
-console.log('✅ Table Renderer loaded successfully with depth classes');
+fgtlog('✅ Table Renderer loaded successfully with depth classes');

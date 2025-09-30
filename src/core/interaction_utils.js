@@ -1,5 +1,5 @@
 // core/interaction_utils.js - Original DOM interaction utilities with verification
-console.log('🔄 Core Interaction Utils loading...');
+fgtlog('🔄 Core Interaction Utils loading...');
 
 /**
  * Core interaction utilities for manipulating original Google Tasks DOM
@@ -18,7 +18,7 @@ class CoreInteractionUtils {
     findTaskElement(taskId) {
         if (!taskId) return null;
         const element = document.querySelector(`[role="listitem"][data-id="${taskId}"][data-type="0"]`);
-        console.log(`🔍 Finding task element for ID: ${taskId}`, element);
+        fgtlog(`🔍 Finding task element for ID: ${taskId}`, element);
         return element;
     }
 
@@ -28,7 +28,7 @@ class CoreInteractionUtils {
      */
     findViewMore() {
         const element = document.querySelector(`[role="listitem"][data-id][data-type="5"]`);
-        console.log(`🔍 Finding viewMore element`, element);
+        fgtlog(`🔍 Finding viewMore element`, element);
         return element;
     }
 
@@ -42,22 +42,22 @@ class CoreInteractionUtils {
     waitForElement(selector, timeout = 3000, parent = document) {
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
-            
+
             const checkElement = () => {
                 const element = parent.querySelector(selector);
                 if (element) {
                     resolve(element);
                     return;
                 }
-                
+
                 if (Date.now() - startTime >= timeout) {
                     reject(new Error(`Element ${selector} not found within ${timeout}ms`));
                     return;
                 }
-                
+
                 CoreEventUtils.timeouts.create(checkElement, 100);
             };
-            
+
             checkElement();
         });
     }
@@ -68,10 +68,10 @@ class CoreInteractionUtils {
      */
     triggerClick(element) {
         if (!element) return;
-        
+
         const event = CoreDOMUtils.createMouseEvent('click');
         element.dispatchEvent(event);
-        console.log('🖱️ Click triggered on element:', element);
+        fgtlog('🖱️ Click triggered on element:', element);
     }
 
     /**
@@ -80,7 +80,7 @@ class CoreInteractionUtils {
      */
     triggerBlur(element) {
         if (!element) return;
-        
+
         const event = new Event('blur', { bubbles: true });
         element.dispatchEvent(event);
     }
@@ -91,8 +91,8 @@ class CoreInteractionUtils {
      */
     async ensureTaskUIVisible(taskElement) {
         if (!taskElement) return;
-        
-        console.log('👁️ Ensuring task UI is visible');
+
+        fgtlog('👁️ Ensuring task UI is visible');
         // Click first div child to ensure UI elements are visible
         const firstDiv = taskElement.querySelector('div');
         if (firstDiv) {
@@ -109,7 +109,7 @@ class CoreInteractionUtils {
      */
     async toggleTask(taskId, onComplete) {
         try {
-            console.log(`🔄 Toggling task: ${taskId}`);
+            fgtlog(`🔄 Toggling task: ${taskId}`);
             const taskElement = this.findTaskElement(taskId);
             if (!taskElement) {
                 throw new Error(`Task element not found for ID: ${taskId}`);
@@ -124,9 +124,9 @@ class CoreInteractionUtils {
             const wasPressed = toggleButton.getAttribute('aria-pressed') === 'true';
             const expectedState = wasPressed ? 'false' : 'true';
 
-            console.log('🎯 Found toggle button:', toggleButton);
+            fgtlog('🎯 Found toggle button:', toggleButton);
             this.triggerClick(toggleButton);
-            
+
             // Verify toggle completed
             this.verifier.verifyOperation(
                 () => {
@@ -145,7 +145,7 @@ class CoreInteractionUtils {
             );
 
         } catch (error) {
-            console.error('❌ Toggle task error:', error);
+            fgterror('❌ Toggle task error:', error);
             CoreNotificationUtils.error('Failed to update task status', this.namespace);
         }
     }
@@ -156,7 +156,7 @@ class CoreInteractionUtils {
      */
     async showInChat(taskId) {
         try {
-            console.log(`💬 Showing task in chat: ${taskId}`);
+            fgtlog(`💬 Showing task in chat: ${taskId}`);
             const taskElement = this.findTaskElement(taskId);
             if (!taskElement) {
                 throw new Error(`Task element not found for ID: ${taskId}`);
@@ -171,12 +171,12 @@ class CoreInteractionUtils {
                 throw new Error('Chat button not found');
             }
 
-            console.log('🎯 Found chat button:', chatButton);
+            fgtlog('🎯 Found chat button:', chatButton);
             this.triggerClick(chatButton);
             CoreNotificationUtils.success('Showing task in chat', this.namespace);
 
         } catch (error) {
-            console.error('❌ Show in chat error:', error);
+            fgterror('❌ Show in chat error:', error);
             CoreNotificationUtils.error('Failed to show task in chat', this.namespace);
         }
     }
@@ -188,7 +188,7 @@ class CoreInteractionUtils {
      */
     async deleteTask(taskId, onComplete) {
         try {
-            console.log(`🗑️ Deleting task: ${taskId}`);
+            fgtlog(`🗑️ Deleting task: ${taskId}`);
             const taskElement = this.findTaskElement(taskId);
             if (!taskElement) {
                 throw new Error(`Task element not found for ID: ${taskId}`);
@@ -203,13 +203,13 @@ class CoreInteractionUtils {
                 throw new Error('Delete button not found');
             }
 
-            console.log('🎯 Found delete button:', deleteButton);
+            fgtlog('🎯 Found delete button:', deleteButton);
             this.triggerClick(deleteButton);
 
             // Wait for confirmation dialog
-            console.log('⏳ Waiting for confirmation dialog...');
+            fgtlog('⏳ Waiting for confirmation dialog...');
             const dialogContent = await this.waitForElement('div[aria-modal="true"][role="dialog"]', 3000);
-            console.log('📋 Dialog appeared:', dialogContent);
+            fgtlog('📋 Dialog appeared:', dialogContent);
 
             // Click OK to confirm deletion
             const okButton = dialogContent.querySelector('button[data-mdc-dialog-action="ok"]');
@@ -217,21 +217,21 @@ class CoreInteractionUtils {
                 throw new Error('Confirmation OK button not found');
             }
 
-            console.log('✅ Clicking OK button:', okButton);
+            fgtlog('✅ Clicking OK button:', okButton);
             this.triggerClick(okButton);
 
             // Verify deletion completed using OperationVerifier
-            console.log('🔍 Starting deletion verification...');
+            fgtlog('🔍 Starting deletion verification...');
             this.verifier.verifyOperation(
                 OperationVerifier.waitForTaskDelete(taskId),
                 5000,
                 () => {
-                    console.log('✅ Task deletion verified');
+                    fgtlog('✅ Task deletion verified');
                     if (onComplete) onComplete();
                     CoreNotificationUtils.success('Task deleted successfully', this.namespace);
                 },
                 (error) => {
-                    console.error('❌ Task deletion verification failed:', error);
+                    fgterror('❌ Task deletion verification failed:', error);
                     CoreNotificationUtils.error('Failed to verify task deletion', this.namespace);
                     // Still call onComplete to refresh UI
                     if (onComplete) onComplete();
@@ -240,7 +240,7 @@ class CoreInteractionUtils {
             );
 
         } catch (error) {
-            console.error('❌ Delete task error:', error);
+            fgterror('❌ Delete task error:', error);
             CoreNotificationUtils.error('Failed to delete task', this.namespace);
         }
     }
@@ -253,7 +253,7 @@ class CoreInteractionUtils {
      */
     async updateTaskTitle(taskId, newTitle, onComplete) {
         try {
-            console.log(`📝 Updating title for task ${taskId}: "${newTitle}"`);
+            fgtlog(`📝 Updating title for task ${taskId}: "${newTitle}"`);
             const taskElement = this.findTaskElement(taskId);
             if (!taskElement) {
                 throw new Error(`Task element not found for ID: ${taskId}`);
@@ -265,7 +265,7 @@ class CoreInteractionUtils {
                 throw new Error('First div not found');
             }
 
-            console.log('🎯 Clicking first div to enter edit mode');
+            fgtlog('🎯 Clicking first div to enter edit mode');
             this.triggerClick(firstDiv);
 
             // Wait for title textarea to become available
@@ -275,7 +275,7 @@ class CoreInteractionUtils {
                 taskElement
             );
 
-            console.log('📝 Found title textarea:', titleTextarea);
+            fgtlog('📝 Found title textarea:', titleTextarea);
 
             // Update title
             titleTextarea.value = newTitle;
@@ -295,7 +295,7 @@ class CoreInteractionUtils {
             }, 1000);
 
         } catch (error) {
-            console.error('❌ Update task title error:', error);
+            fgterror('❌ Update task title error:', error);
             CoreNotificationUtils.error('Failed to update task title', this.namespace);
         }
     }
@@ -308,7 +308,7 @@ class CoreInteractionUtils {
      */
     async updateTaskDescription(taskId, newDescription, onComplete) {
         try {
-            console.log(`📝 Updating description for task ${taskId}: "${newDescription}"`);
+            fgtlog(`📝 Updating description for task ${taskId}: "${newDescription}"`);
             const taskElement = this.findTaskElement(taskId);
             if (!taskElement) {
                 throw new Error(`Task element not found for ID: ${taskId}`);
@@ -320,7 +320,7 @@ class CoreInteractionUtils {
                 throw new Error('First div not found');
             }
 
-            console.log('🎯 Clicking first div to enter edit mode');
+            fgtlog('🎯 Clicking first div to enter edit mode');
             this.triggerClick(firstDiv);
 
             // Wait for title textarea to appear first
@@ -336,12 +336,12 @@ class CoreInteractionUtils {
                 throw new Error('Description wrapper not found');
             }
 
-            console.log('🎯 Clicking description wrapper');
+            fgtlog('🎯 Clicking description wrapper');
             this.triggerClick(descWrapper);
 
             // Wait for description textarea
             const descTextarea = await this.waitForElement('textarea[rows][maxlength]', 2000, descWrapper);
-            console.log('📝 Found description textarea:', descTextarea);
+            fgtlog('📝 Found description textarea:', descTextarea);
 
             // Update description
             descTextarea.value = newDescription;
@@ -361,7 +361,7 @@ class CoreInteractionUtils {
             }, 1000);
 
         } catch (error) {
-            console.error('❌ Update task description error:', error);
+            fgterror('❌ Update task description error:', error);
             CoreNotificationUtils.error('Failed to update task description', this.namespace);
         }
     }
@@ -374,7 +374,7 @@ class CoreInteractionUtils {
      */
     async setTaskDate(taskId, dateString, onComplete) {
         try {
-            console.log(`📅 Setting date for task ${taskId}: "${dateString}"`);
+            fgtlog(`📅 Setting date for task ${taskId}: "${dateString}"`);
             const taskElement = this.findTaskElement(taskId);
             if (!taskElement) {
                 throw new Error(`Task element not found for ID: ${taskId}`);
@@ -395,25 +395,25 @@ class CoreInteractionUtils {
                 throw new Error('Date button not found');
             }
 
-            console.log('🎯 Found date button:', dateButton);
+            fgtlog('🎯 Found date button:', dateButton);
             this.triggerClick(dateButton);
 
             // Wait for date dialog
             const dialogContent = await this.waitForElement('div[aria-modal="true"][role="dialog"]', 3000);
-            console.log('📅 Date dialog appeared:', dialogContent);
+            fgtlog('📅 Date dialog appeared:', dialogContent);
 
             if (!dateString) {
                 // Delete existing date
                 const deleteButton = dialogContent.querySelector('button:not([data-mdc-dialog-action])');
                 if (deleteButton) {
-                    console.log('🗑️ Deleting existing date');
+                    fgtlog('🗑️ Deleting existing date');
                     this.triggerClick(deleteButton);
                 } else {
                     // No existing date, just cancel
                     const cancelButton = dialogContent.querySelector('button[data-mdc-dialog-action="cancel"]');
                     if (cancelButton) this.triggerClick(cancelButton);
                 }
-                
+
                 if (onComplete) onComplete();
                 return;
             }
@@ -422,7 +422,7 @@ class CoreInteractionUtils {
             const [datePart, timePart] = dateString.includes('T') ? dateString.split('T') : [dateString, null];
             const [year, month, day] = datePart.split('-').map(Number);
 
-            console.log(`📅 Parsed date: ${year}-${month}-${day}${timePart ? ` ${timePart}` : ''}`);
+            fgtlog(`📅 Parsed date: ${year}-${month}-${day}${timePart ? ` ${timePart}` : ''}`);
 
             // Navigate to correct month/year
             await this.navigateToMonth(dialogContent, year, month);
@@ -433,7 +433,7 @@ class CoreInteractionUtils {
                 throw new Error(`Day ${day} not found in calendar`);
             }
 
-            console.log('🎯 Clicking day button:', dayButton);
+            fgtlog('🎯 Clicking day button:', dayButton);
             this.triggerClick(dayButton);
 
             // Wait for DOM to update after day selection
@@ -452,7 +452,7 @@ class CoreInteractionUtils {
                 throw new Error('OK button not found');
             }
 
-            console.log('✅ Clicking OK button:', okButton);
+            fgtlog('✅ Clicking OK button:', okButton);
             this.triggerClick(okButton);
 
             // Verify completion
@@ -462,7 +462,7 @@ class CoreInteractionUtils {
             }, 1000);
 
         } catch (error) {
-            console.error('❌ Set task date error:', error);
+            fgterror('❌ Set task date error:', error);
             CoreNotificationUtils.error('Failed to set task date', this.namespace);
         }
     }
@@ -516,10 +516,10 @@ class CoreInteractionUtils {
         // This is a simplified parser - adjust based on actual format
         const yearMatch = text.match(/(\d{4})/);
         const monthMatch = text.match(/(\d{1,2})월/);
-        
+
         const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
         const month = monthMatch ? parseInt(monthMatch[1]) : new Date().getMonth() + 1;
-        
+
         return [year, month];
     }
 
@@ -563,7 +563,7 @@ class CoreInteractionUtils {
      */
     async setTaskAssignee(taskId, assigneeName, onComplete) {
         try {
-            console.log(`👤 Setting assignee for task ${taskId}: "${assigneeName}"`);
+            fgtlog(`👤 Setting assignee for task ${taskId}: "${assigneeName}"`);
             const taskElement = this.findTaskElement(taskId);
             if (!taskElement) {
                 throw new Error(`Task element not found for ID: ${taskId}`);
@@ -584,19 +584,19 @@ class CoreInteractionUtils {
                 throw new Error('Assignee button not found');
             }
 
-            console.log('🎯 Found assignee button:', assigneeButton);
+            fgtlog('🎯 Found assignee button:', assigneeButton);
             this.triggerClick(assigneeButton);
 
             // Wait for assignee input to appear
             const inputAssignee = await this.waitForElement('div[data-stable-unique-listbox-id]', 2000, taskElement);
-            console.log('👥 Assignee input appeared:', inputAssignee);
+            fgtlog('👥 Assignee input appeared:', inputAssignee);
 
             // Focus on input to show options
             inputAssignee.focus();
 
             // Wait for listbox to appear
             const listBox = await this.waitForElement('ul[role="listbox"][data-list-type][data-childcount]', 2000, inputAssignee);
-            console.log('📋 Assignee listbox appeared:', listBox);
+            fgtlog('📋 Assignee listbox appeared:', listBox);
 
             // Find matching assignee option
             const options = listBox.querySelectorAll('li[role="option"]');
@@ -627,7 +627,7 @@ class CoreInteractionUtils {
                 throw new Error(`Assignee option not found: ${assigneeName || 'unassign'}`);
             }
 
-            console.log('🎯 Found target option:', targetOption);
+            fgtlog('🎯 Found target option:', targetOption);
             this.triggerClick(targetOption);
 
             // Verify completion
@@ -638,7 +638,7 @@ class CoreInteractionUtils {
             }, 1000);
 
         } catch (error) {
-            console.error('❌ Set task assignee error:', error);
+            fgterror('❌ Set task assignee error:', error);
             CoreNotificationUtils.error('Failed to set task assignee', this.namespace);
         }
     }
@@ -688,7 +688,7 @@ class CoreInteractionUtils {
             return assignees;
 
         } catch (error) {
-            console.error('❌ Get available assignees error:', error);
+            fgterror('❌ Get available assignees error:', error);
             return [];
         }
     }
@@ -704,11 +704,11 @@ class CoreInteractionUtils {
             // This would require finding the "Add task" button in the original UI
             // For now, we'll show a message that this needs to be implemented
             CoreNotificationUtils.info('Add task functionality needs original DOM integration', this.namespace);
-            
+
             if (onComplete) onComplete();
 
         } catch (error) {
-            console.error('❌ Add task error:', error);
+            fgterror('❌ Add task error:', error);
             CoreNotificationUtils.error('Failed to add task', this.namespace);
         }
     }
@@ -726,4 +726,4 @@ class CoreInteractionUtils {
 // Export to global scope
 window.CoreInteractionUtils = CoreInteractionUtils;
 
-console.log('✅ Core Interaction Utils loaded successfully with verification');
+fgtlog('✅ Core Interaction Utils loaded successfully with verification');

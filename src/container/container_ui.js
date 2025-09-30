@@ -1,5 +1,5 @@
-// container/container_ui.js - Container UI creation and management with timer migration
-console.log('🎨 Container UI loading...');
+// container/container_ui.js - Container UI creation and management with toggle visibility
+fgtlog('🎨 Container UI loading...');
 
 /**
  * Container UI management for everything outside the table block
@@ -19,19 +19,19 @@ class ContainerUI {
     async createContainer() {
         // Load CSS first
         await this.loadStyles();
-        
+
         // Create main container
         this.customContainer = CoreDOMUtils.createElement('div', {
             id: this.CONTAINER_ID
         });
-        
+
         // Add container content
         this.customContainer.innerHTML = this.generateContainerHTML();
-        
+
         // Add to document
         document.body.appendChild(this.customContainer);
-        
-        console.log('📦 Main container created');
+
+        fgtlog('📦 Main container created');
         return this.customContainer;
     }
 
@@ -75,7 +75,7 @@ class ContainerUI {
                 <div class="${this.namespace}-footer-left">
                     <span class="${this.namespace}-status">Fancy Google Space Tasks</span>
                     <span class="${this.namespace}-separator">•</span>
-                    <span class="${this.namespace}-version">v0.1.1</span>
+                    <span class="${this.namespace}-version">v0.1.2</span>
                     <span class="${this.namespace}-separator">•</span>
                     <span class="${this.namespace}-github"><a target="_blank" href="https://github.com/x2605/fancy-google-space-tasks">github</a></span>
                 </div>
@@ -106,8 +106,8 @@ class ContainerUI {
         // Add both buttons to document
         document.body.appendChild(this.completedToggleIndicator);
         document.body.appendChild(this.toggleIndicator);
-        
-        console.log('🎯 Floating toggle buttons created');
+
+        fgtlog('🎯 Floating toggle buttons created');
     }
 
     /**
@@ -156,24 +156,36 @@ class ContainerUI {
     }
 
     /**
-     * Show toggle buttons
+     * Show main toggle button
      */
     showToggleButton() {
         if (this.toggleIndicator) {
             this.toggleIndicator.style.display = 'flex';
         }
+    }
+
+    /**
+     * Hide main toggle button
+     */
+    hideToggleButton() {
+        if (this.toggleIndicator) {
+            this.toggleIndicator.style.display = 'none';
+        }
+    }
+
+    /**
+     * Show completed toggle button
+     */
+    showCompletedToggleButton() {
         if (this.completedToggleIndicator) {
             this.completedToggleIndicator.style.display = 'flex';
         }
     }
 
     /**
-     * Hide toggle buttons
+     * Hide completed toggle button
      */
-    hideToggleButton() {
-        if (this.toggleIndicator) {
-            this.toggleIndicator.style.display = 'none';
-        }
+    hideCompletedToggleButton() {
         if (this.completedToggleIndicator) {
             this.completedToggleIndicator.style.display = 'none';
         }
@@ -196,7 +208,7 @@ class ContainerUI {
      */
     showLoading(message = 'Loading...') {
         this.updateStatus('Loading...');
-        
+
         const loadingElements = this.customContainer?.querySelectorAll(`.${this.namespace}-loading-text`);
         loadingElements?.forEach(element => {
             element.textContent = message;
@@ -208,12 +220,12 @@ class ContainerUI {
      */
     hideLoading() {
         this.updateStatus('Ready');
-        
+
         const loadingContainers = this.customContainer?.querySelectorAll(`
             .${this.namespace}-loading-stats,
             .${this.namespace}-loading-table
         `);
-        
+
         loadingContainers?.forEach(container => {
             container.style.display = 'none';
         });
@@ -225,7 +237,7 @@ class ContainerUI {
      */
     showError(message) {
         this.updateStatus('Error');
-        
+
         const tableContainer = this.customContainer?.querySelector(`.${this.namespace}-table-container`);
         if (tableContainer) {
             tableContainer.innerHTML = `
@@ -279,10 +291,10 @@ class ContainerUI {
 
         const cssFiles = [
             'src/container/container.css',
-            'src/modal/modal.css', 
+            'src/modal/modal.css',
             'src/table/table.css'
         ];
-        
+
         // File names that need fallbackCSS
         const containerCSS = 'src/container/container.css';
 
@@ -383,11 +395,11 @@ class ContainerUI {
         this.toggleIndicator = null;
         this.completedToggleIndicator = null;
 
-        console.log('🧹 Container UI destroyed');
+        fgtlog('🧹 Container UI destroyed');
     }
 }
 
 // Export to global scope
 window.ContainerUI = ContainerUI;
 
-console.log('✅ Container UI loaded successfully');
+fgtlog('✅ Container UI loaded successfully');

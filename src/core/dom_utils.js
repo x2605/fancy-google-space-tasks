@@ -1,5 +1,5 @@
 // core/dom_utils.js - DOM manipulation utilities with lock and depth styles management
-console.log('🔧 Core DOM Utils loading...');
+fgtlog('🔧 Core DOM Utils loading...');
 
 /**
  * Core DOM manipulation utilities for all modules
@@ -7,7 +7,7 @@ console.log('🔧 Core DOM Utils loading...');
 class CoreDOMUtils {
     // Lock styles management
     static lockStyleElement = null;
-    
+
     // Depth styles management
     static depthStyleElement = null;
 
@@ -74,7 +74,7 @@ class CoreDOMUtils {
      */
     static async waitForElement(parentElement, selector, timeout = 5000) {
         const startTime = Date.now();
-        
+
         while (Date.now() - startTime < timeout) {
             const element = parentElement.querySelector(selector);
             if (element && element.offsetParent !== null) {
@@ -82,7 +82,7 @@ class CoreDOMUtils {
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        
+
         throw new Error(`Element ${selector} not found within timeout`);
     }
 
@@ -95,7 +95,7 @@ class CoreDOMUtils {
     static async waitForTextarea(parentElement, timeout = 5000) {
         return await CoreDOMUtils.waitForElement(parentElement, 'textarea', timeout);
     }
-    
+
     /**
      * Wait for DOM to be ready with task containers
      * @param {number} maxWait - Maximum wait time in milliseconds (default: 2s)
@@ -106,34 +106,34 @@ class CoreDOMUtils {
             // Check immediately first
             const hasTasks = document.querySelector('[role="list"]');
             if (hasTasks) {
-                console.log('✅ Task containers already present');
+                fgtlog('✅ Task containers already present');
                 resolve();
                 return;
             }
-            
+
             let timeoutId;
             let observer;
-            
+
             // Setup one-time observer
             observer = new MutationObserver((mutations) => {
                 const taskContainer = document.querySelector('[role="list"]');
                 if (taskContainer) {
-                    console.log('✅ Task containers detected');
+                    fgtlog('✅ Task containers detected');
                     clearTimeout(timeoutId);
                     observer.disconnect();
                     resolve();
                 }
             });
-            
+
             // Start observing
             observer.observe(document.body, {
                 childList: true,
                 subtree: true
             });
-            
+
             // Timeout fallback (2 seconds)
             timeoutId = setTimeout(() => {
-                console.log('⏰ Timeout waiting for task containers (2s), proceeding anyway');
+                fgtlog('⏰ Timeout waiting for task containers (2s), proceeding anyway');
                 observer.disconnect();
                 resolve();
             }, maxWait);
@@ -150,22 +150,22 @@ class CoreDOMUtils {
      */
     static createElement(tagName, attributes = {}, styles = {}, textContent = '') {
         const element = document.createElement(tagName);
-        
+
         // Set attributes
         Object.entries(attributes).forEach(([key, value]) => {
             element.setAttribute(key, value);
         });
-        
+
         // Set styles
         Object.entries(styles).forEach(([key, value]) => {
             element.style[key] = value;
         });
-        
+
         // Set text content
         if (textContent) {
             element.textContent = textContent;
         }
-        
+
         return element;
     }
 
@@ -182,23 +182,23 @@ class CoreDOMUtils {
                 link.rel = 'stylesheet';
                 link.type = 'text/css';
                 link.href = chrome.runtime.getURL(cssPath);
-                
+
                 link.onload = () => {
-                    console.log(`✅ CSS file loaded: ${cssPath}`);
+                    fgtlog(`✅ CSS file loaded: ${cssPath}`);
                     resolve(true);
                 };
-                
+
                 link.onerror = () => {
-                    console.warn(`⚠️ CSS file loading failed: ${cssPath}, using fallback`);
+                    fgtwarn(`⚠️ CSS file loading failed: ${cssPath}, using fallback`);
                     if (fallbackCSS) {
                         CoreDOMUtils.injectCSS(fallbackCSS);
                     }
                     resolve(false);
                 };
-                
+
                 document.head.appendChild(link);
             } else {
-                console.warn(`⚠️ Not a Chrome extension environment, using fallback CSS`);
+                fgtwarn(`⚠️ Not a Chrome extension environment, using fallback CSS`);
                 if (fallbackCSS) {
                     CoreDOMUtils.injectCSS(fallbackCSS);
                 }
@@ -215,7 +215,7 @@ class CoreDOMUtils {
         const style = document.createElement('style');
         style.textContent = cssContent;
         document.head.appendChild(style);
-        console.log('✅ Fallback CSS injected');
+        fgtlog('✅ Fallback CSS injected');
     }
 
     // ========== Lock Styles Management ==========
@@ -228,7 +228,7 @@ class CoreDOMUtils {
             this.lockStyleElement = document.createElement('style');
             this.lockStyleElement.id = 'fancy-gst-lock-styles';
             document.head.appendChild(this.lockStyleElement);
-            console.log('🔒 Lock styles element initialized');
+            fgtlog('🔒 Lock styles element initialized');
         }
     }
 
@@ -258,7 +258,7 @@ class CoreDOMUtils {
 }
         `;
 
-        console.log('🔒 Lock styles enabled');
+        fgtlog('🔒 Lock styles enabled');
     }
 
     /**
@@ -267,7 +267,7 @@ class CoreDOMUtils {
     static disableLockStyles() {
         if (this.lockStyleElement) {
             this.lockStyleElement.textContent = '';
-            console.log('🔓 Lock styles disabled');
+            fgtlog('🔓 Lock styles disabled');
         }
     }
 
@@ -286,7 +286,7 @@ class CoreDOMUtils {
         if (this.lockStyleElement) {
             this.lockStyleElement.remove();
             this.lockStyleElement = null;
-            console.log('🧹 Lock styles cleaned up');
+            fgtlog('🧹 Lock styles cleaned up');
         }
     }
 
@@ -300,7 +300,7 @@ class CoreDOMUtils {
             this.depthStyleElement = document.createElement('style');
             this.depthStyleElement.id = 'fancy-gst-depth-styles';
             document.head.appendChild(this.depthStyleElement);
-            console.log('📏 Depth styles element initialized');
+            fgtlog('📏 Depth styles element initialized');
         }
     }
 
@@ -312,17 +312,17 @@ class CoreDOMUtils {
         if (!this.depthStyleElement) {
             this.initDepthStyles();
         }
-        
+
         // Hide depths greater than maxVisibleDepth (0-based)
         let css = '/* Hide unnecessary depth columns */\n';
-        
+
         // Support up to depth 20 (should be more than enough)
         for (let i = maxVisibleDepth + 1; i <= 20; i++) {
             css += `.fgt-depth-${i} { display: none !important; }\n`;
         }
-        
+
         this.depthStyleElement.textContent = css;
-        console.log(`📏 Hiding depths above ${maxVisibleDepth}`);
+        fgtlog(`📏 Hiding depths above ${maxVisibleDepth}`);
     }
 
     /**
@@ -331,7 +331,7 @@ class CoreDOMUtils {
     static showAllDepths() {
         if (this.depthStyleElement) {
             this.depthStyleElement.textContent = '';
-            console.log('📏 Showing all depths');
+            fgtlog('📏 Showing all depths');
         }
     }
 
@@ -342,7 +342,7 @@ class CoreDOMUtils {
         if (this.depthStyleElement) {
             this.depthStyleElement.remove();
             this.depthStyleElement = null;
-            console.log('🧹 Depth styles cleaned up');
+            fgtlog('🧹 Depth styles cleaned up');
         }
     }
 }
@@ -350,4 +350,4 @@ class CoreDOMUtils {
 // Export to global scope
 window.CoreDOMUtils = CoreDOMUtils;
 
-console.log('✅ Core DOM Utils loaded successfully with lock and depth styles management');
+fgtlog('✅ Core DOM Utils loaded successfully with lock and depth styles management');

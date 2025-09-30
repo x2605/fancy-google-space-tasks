@@ -106,7 +106,7 @@
     .fancy-gst-modal-close {
         color: #9aa0a6;
     }
-    
+
     .fancy-gst-modal-close:hover {
         background: #3d3d3d;
         color: #e0e0e0;
@@ -198,29 +198,29 @@
         color: #e0e0e0;
         border-color: #444;
     }
-    
+
     .fancy-gst-btn:hover {
         background: #3d3d3d;
         border-color: #555;
     }
-    
+
     .fancy-gst-btn.primary {
         background: #8ab4f8;
         color: #001122;
         border-color: #8ab4f8;
     }
-    
+
     .fancy-gst-btn.primary:hover:not(:disabled) {
         background: #aecbfa;
         border-color: #aecbfa;
     }
-    
+
     .fancy-gst-btn.danger {
         background: #ff6b6b;
         color: #001122;
         border-color: #ff6b6b;
     }
-    
+
     .fancy-gst-btn.danger:hover:not(:disabled) {
         background: #ff5252;
         border-color: #ff5252;
@@ -256,8 +256,13 @@
 }
 
 @keyframes fancy-gst-modal-spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .fancy-gst-loading-message,
@@ -267,6 +272,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
+
     .fancy-gst-loading-message,
     .fancy-gst-error-message {
         color: #9aa0a6;
@@ -294,6 +300,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
+
     .fancy-gst-quick-dates h4,
     .fancy-gst-custom-date h4 {
         color: #9aa0a6;
@@ -334,12 +341,12 @@
         color: #e0e0e0;
         border-color: #444;
     }
-    
+
     .fancy-gst-quick-date-btn:hover {
         background: #3d3d3d;
         border-color: #8ab4f8;
     }
-    
+
     .fancy-gst-quick-date-btn.selected {
         background: #1e2a3a;
         border-color: #8ab4f8;
@@ -385,7 +392,7 @@
         border-color: #444;
         color: #e0e0e0;
     }
-    
+
     .fancy-gst-date-input:focus {
         border-color: #8ab4f8;
         box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.2);
@@ -633,7 +640,7 @@
         border-color: #444;
         color: #e0e0e0;
     }
-    
+
     .fancy-gst-form-input:focus {
         border-color: #8ab4f8;
         box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.2);
@@ -728,7 +735,7 @@
         color: #001122;
         border-color: #8ab4f8;
     }
-    
+
     .fancy-gst-add-category-btn:hover {
         background: #aecbfa;
         border-color: #aecbfa;
@@ -843,21 +850,21 @@
         width: 95%;
         margin: 10px;
     }
-    
+
     .fancy-gst-modal-header,
     .fancy-gst-modal-body,
     .fancy-gst-modal-footer {
         padding: 16px;
     }
-    
+
     .fancy-gst-modal-footer {
         flex-direction: column;
     }
-    
+
     .fancy-gst-quick-date-buttons {
         flex-direction: column;
     }
-    
+
     .fancy-gst-category-input-wrapper {
         flex-direction: column;
         align-items: stretch;
@@ -874,6 +881,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
+
     .fancy-gst-modal input:focus-visible,
     .fancy-gst-modal textarea:focus-visible,
     .fancy-gst-modal button:focus-visible,

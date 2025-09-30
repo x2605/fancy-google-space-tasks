@@ -1,5 +1,5 @@
 // core/task_id_utils.js - TaskId extraction utilities for change detection
-console.log('🆔 Task ID Utils loading...');
+fgtlog('🆔 Task ID Utils loading...');
 
 /**
  * TaskId extraction utilities for efficient change detection
@@ -13,15 +13,15 @@ class TaskIdUtils {
      */
     static extractTaskId(element, fallbackIndex) {
         if (!element) return null;
-        
+
         // Extract task ID - same logic as parseTaskElement
         const taskId = element.getAttribute('data-id') || `task-${fallbackIndex}`;
-        
+
         // Validate it's actually a task element
         if (!element.matches('[role="listitem"][data-id][data-type="0"]')) {
             return null;
         }
-        
+
         return taskId;
     }
 
@@ -32,14 +32,14 @@ class TaskIdUtils {
     static extractAllTaskIds() {
         const taskElements = document.querySelectorAll('[role="listitem"][data-id][data-type="0"]');
         const taskIds = new Set();
-        
+
         taskElements.forEach((element, index) => {
             const taskId = TaskIdUtils.extractTaskId(element, index);
             if (taskId) {
                 taskIds.add(taskId);
             }
         });
-        
+
         return taskIds;
     }
 
@@ -56,8 +56,8 @@ class TaskIdUtils {
         try {
             // Extract minimal data for comparison
             const titleElement = element.querySelector('[data-max-length]:not([data-multiline])');
-            const rawTitle = titleElement?.querySelector('[jsname][title]')?.textContent?.trim() || 
-                            titleElement?.textContent?.trim() || 'Untitled Task';
+            const rawTitle = titleElement?.querySelector('[jsname][title]')?.textContent?.trim() ||
+                titleElement?.textContent?.trim() || 'Untitled Task';
 
             const checkboxElement = element.querySelector('button[aria-pressed]');
             const isCompleted = checkboxElement?.getAttribute('aria-pressed') === 'true';
@@ -78,7 +78,7 @@ class TaskIdUtils {
                 hash: TaskIdUtils.createDataHash(rawTitle, isCompleted, date, assignee)
             };
         } catch (error) {
-            console.warn(`Failed to extract lightweight data for task ${taskId}:`, error);
+            fgtwarn(`Failed to extract lightweight data for task ${taskId}:`, error);
             return { id: taskId, hash: 'error' };
         }
     }
@@ -109,14 +109,14 @@ class TaskIdUtils {
     static extractAllLightweightTaskData() {
         const taskElements = document.querySelectorAll('[role="listitem"][data-id][data-type="0"]');
         const taskData = new Map();
-        
+
         taskElements.forEach((element, index) => {
             const data = TaskIdUtils.extractLightweightTaskData(element, index);
             if (data) {
                 taskData.set(data.id, data);
             }
         });
-        
+
         return taskData;
     }
 
@@ -153,9 +153,9 @@ class TaskIdUtils {
             }
         });
 
-        changes.hasChanges = changes.added.length > 0 || 
-                           changes.removed.length > 0 || 
-                           changes.modified.length > 0;
+        changes.hasChanges = changes.added.length > 0 ||
+            changes.removed.length > 0 ||
+            changes.modified.length > 0;
 
         return changes;
     }
@@ -166,9 +166,9 @@ class TaskIdUtils {
      * @returns {boolean} - Is DOM still valid
      */
     static isDOMValid(savedTaskContainer) {
-        return savedTaskContainer && 
-               document.contains(savedTaskContainer) &&
-               savedTaskContainer.querySelector('[role="listitem"][data-id]');
+        return savedTaskContainer &&
+            document.contains(savedTaskContainer) &&
+            savedTaskContainer.querySelector('[role="listitem"][data-id]');
     }
 
     /**
@@ -178,13 +178,13 @@ class TaskIdUtils {
     static findTaskContainer() {
         // Find all task list containers
         const containers = document.querySelectorAll('[role="list"]');
-        
+
         if (containers.length > 0) {
-            console.log(`🔍 Found ${containers.length} task containers`);
+            fgtlog(`🔍 Found ${containers.length} task containers`);
             return containers[0]; // Return first container as representative
         }
-        
-        console.error('❌ No task containers found - page not ready');
+
+        fgterror('❌ No task containers found - page not ready');
         return null;
     }
 }
@@ -192,4 +192,4 @@ class TaskIdUtils {
 // Export to global scope
 window.TaskIdUtils = TaskIdUtils;
 
-console.log('✅ Task ID Utils loaded successfully');
+fgtlog('✅ Task ID Utils loaded successfully');

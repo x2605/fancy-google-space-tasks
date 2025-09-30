@@ -1,5 +1,5 @@
 // category/category_utils.js - Category parsing and seed generation (REFACTORED - No color logic)
-console.log('🏷️ Category Utils loading...');
+fgtlog('🏷️ Category Utils loading...');
 
 /**
  * Category utilities for parsing and seed generation (Color logic moved to TableRenderer)
@@ -15,7 +15,7 @@ class CategoryUtils {
         if (!categories || categories.length === 0 || level < 0) {
             return '';
         }
-        
+
         // Create cumulative seed up to this level: [cat1][cat2][cat3]
         const relevantCategories = categories.slice(0, level + 1);
         return relevantCategories.map(cat => `[${cat}]`).join('');
@@ -29,7 +29,7 @@ class CategoryUtils {
     static hashString(str) {
         let hash = 0;
         if (!str || str.length === 0) return hash;
-        
+
         // Enhanced hash function for better distribution
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
@@ -42,7 +42,7 @@ class CategoryUtils {
             hash *= 0xc2b2ae35;
             hash ^= hash >>> 16;
         }
-        
+
         return Math.abs(hash);
     }
 
@@ -76,11 +76,11 @@ class CategoryUtils {
     static getCategoryBadgeHTML(category, level = 1, options = {}, fullCategories = []) {
         const className = options.className || 'category-badge';
         const extraStyles = options.styles || {};
-        
+
         // Generate seed for this level (0-based)
         const seed = CategoryUtils.generateCategorySeed(fullCategories, level - 1);
         const hue = CategoryUtils.generateHueFromSeed(seed);
-        
+
         // Basic styling (color generation will be handled by CSS or inline from TableRenderer)
         const basicStyle = {
             fontWeight: level <= 2 ? '600' : '500',
@@ -88,11 +88,11 @@ class CategoryUtils {
             borderRadius: '4px',
             padding: '2px 6px'
         };
-        
+
         const styleString = Object.entries({ ...basicStyle, ...extraStyles })
             .map(([key, value]) => `${CategoryUtils.camelToKebab(key)}: ${value}`)
             .join('; ');
-        
+
         return `<span class="${className}" 
                       style="${styleString}" 
                       data-category="${CoreDOMUtils.escapeHtml(category)}" 
@@ -117,7 +117,7 @@ class CategoryUtils {
             const seed = CategoryUtils.generateCategorySeed(currentCategories, level - 1);
             const taskCount = node.tasks ? node.tasks.length : 0;
             const hasChildren = Object.keys(node.children || {}).length > 0;
-            
+
             let html = `
                 <div class="${namespace}-hierarchy-node" 
                      data-level="${level}" 
@@ -127,7 +127,7 @@ class CategoryUtils {
                         ${taskCount > 0 ? `<span class="${namespace}-task-count">(${taskCount})</span>` : ''}
                     </div>
             `;
-            
+
             if (hasChildren) {
                 html += `<div class="${namespace}-hierarchy-children">`;
                 Object.entries(node.children).forEach(([childName, childNode]) => {
@@ -135,7 +135,7 @@ class CategoryUtils {
                 });
                 html += '</div>';
             }
-            
+
             html += '</div>';
             return html;
         };
@@ -158,13 +158,13 @@ class CategoryUtils {
      */
     static generateCategoryCSS(categories, groupMappings = {}, namespace = 'fancy-gst') {
         let css = `:root {\n`;
-        
+
         // Individual categories
         categories.forEach((category, index) => {
             const seed = CategoryUtils.generateCategorySeed([category], 0);
             const hue = CategoryUtils.generateHueFromSeed(seed);
             const safeName = category.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-            
+
             css += `  --${namespace}-category-${safeName}-seed: "${seed}";\n`;
             css += `  --${namespace}-category-${safeName}-hue: ${hue};\n`;
         });
@@ -172,7 +172,7 @@ class CategoryUtils {
         // Category groups
         Object.entries(groupMappings).forEach(([groupKey, groupData]) => {
             const safeName = groupKey.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-            
+
             groupData.categories.forEach((category, level) => {
                 const seed = CategoryUtils.generateCategorySeed(groupData.categories, level);
                 const hue = CategoryUtils.generateHueFromSeed(seed);
@@ -180,7 +180,7 @@ class CategoryUtils {
                 css += `  --${namespace}-group-${safeName}-${level}-hue: ${hue};\n`;
             });
         });
-        
+
         css += `}\n`;
         return css;
     }
@@ -206,10 +206,10 @@ class CategoryUtils {
             if (task.categories && task.categories.length > 0) {
                 stats.categorizedTasks++;
                 stats.maxDepth = Math.max(stats.maxDepth, task.categories.length);
-                
+
                 const depth = task.categories.length;
                 stats.levelDistribution[depth] = (stats.levelDistribution[depth] || 0) + 1;
-                
+
                 task.categories.forEach(category => {
                     stats.uniqueCategories.add(category);
                     stats.categoryUsage[category] = (stats.categoryUsage[category] || 0) + 1;
@@ -227,14 +227,14 @@ class CategoryUtils {
         });
 
         stats.uniqueCategories = Array.from(stats.uniqueCategories);
-        
+
         stats.groupingsArray = Array.from(stats.groupings.entries()).map(([seed, count]) => ({
             seed: seed,
             categories: seed ? seed.match(/\[([^\]]+)\]/g)?.map(s => s.slice(1, -1)) || [] : [],
             taskCount: count,
             isUncategorized: !seed
         })).sort((a, b) => b.taskCount - a.taskCount);
-        
+
         return stats;
     }
 
@@ -248,7 +248,7 @@ class CategoryUtils {
      */
     static createCategorySelectorHTML(availableCategories, selectedCategories = [], namespace = 'fancy-gst', groupSuggestions = {}) {
         let html = `<div class="${namespace}-category-selector">`;
-        
+
         // Selected categories display
         if (selectedCategories.length > 0) {
             html += `<div class="${namespace}-selected-categories">`;
@@ -265,7 +265,7 @@ class CategoryUtils {
             });
             html += `</div>`;
         }
-        
+
         // Group suggestions
         if (Object.keys(groupSuggestions).length > 0) {
             html += `
@@ -273,7 +273,7 @@ class CategoryUtils {
                     <label>Quick Category Groups:</label>
                     <div class="${namespace}-suggestion-buttons">
             `;
-            
+
             Object.entries(groupSuggestions).forEach(([groupName, categories]) => {
                 const seed = CategoryUtils.generateCategorySeed(categories, categories.length - 1);
                 html += `
@@ -284,10 +284,10 @@ class CategoryUtils {
                     </button>
                 `;
             });
-            
+
             html += `</div></div>`;
         }
-        
+
         // Category input
         html += `
             <div class="${namespace}-category-input-wrapper">
@@ -297,17 +297,17 @@ class CategoryUtils {
                        list="${namespace}-category-datalist">
                 <datalist id="${namespace}-category-datalist">
         `;
-        
+
         availableCategories.forEach(category => {
             html += `<option value="${CoreDOMUtils.escapeHtml(category)}">`;
         });
-        
+
         html += `
                 </datalist>
                 <button class="${namespace}-add-category">Add</button>
             </div>
         `;
-        
+
         html += `</div>`;
         return html;
     }
@@ -316,4 +316,4 @@ class CategoryUtils {
 // Export to global scope
 window.CategoryUtils = CategoryUtils;
 
-console.log('✅ Category Utils loaded successfully');
+fgtlog('✅ Category Utils loaded successfully');

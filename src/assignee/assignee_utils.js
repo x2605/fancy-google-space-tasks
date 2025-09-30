@@ -1,5 +1,5 @@
 // assignee/assignee_utils.js - Assignee utility functions
-console.log('👥 Assignee Utils loading...');
+fgtlog('👥 Assignee Utils loading...');
 
 /**
  * Assignee utilities for team member management
@@ -17,12 +17,12 @@ class AssigneeUtils {
 
         // Clean the name
         const cleanName = name.trim();
-        
+
         // Handle email addresses
         if (cleanName.includes('@')) {
             const emailParts = cleanName.split('@');
             const localPart = emailParts[0];
-            
+
             // Try to extract name from email local part
             const nameParts = localPart.split(/[._-]/);
             if (nameParts.length >= 2) {
@@ -34,7 +34,7 @@ class AssigneeUtils {
 
         // Handle regular names
         const words = cleanName.split(/\s+/).filter(word => word.length > 0);
-        
+
         if (words.length === 0) {
             return '?';
         } else if (words.length === 1) {
@@ -53,7 +53,7 @@ class AssigneeUtils {
      */
     static getStatus(assignee) {
         if (!assignee) return '';
-        
+
         // This is a placeholder implementation
         // In a real application, this would check actual user status
         const statuses = ['Available', 'Busy', 'Away', 'In Meeting'];
@@ -85,10 +85,10 @@ class AssigneeUtils {
         const hue = hash % 360;
         const saturation = 60 + (hash % 20); // 60-80%
         const lightness = 45 + (hash % 15); // 45-60%
-        
+
         const backgroundColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         const textColor = lightness > 50 ? '#000000' : '#ffffff';
-        
+
         return {
             background: backgroundColor,
             color: textColor
@@ -103,13 +103,13 @@ class AssigneeUtils {
     static hashString(str) {
         let hash = 0;
         if (!str || str.length === 0) return hash;
-        
+
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash; // Convert to 32-bit integer
         }
-        
+
         return Math.abs(hash);
     }
 
@@ -124,18 +124,18 @@ class AssigneeUtils {
         }
 
         const cleanName = name.trim();
-        
+
         // Handle email addresses
         if (cleanName.includes('@')) {
             const emailParts = cleanName.split('@');
             const localPart = emailParts[0];
-            
+
             // Try to convert email to readable name
             const nameParts = localPart.split(/[._-]/);
-            const formattedParts = nameParts.map(part => 
+            const formattedParts = nameParts.map(part =>
                 part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
             );
-            
+
             if (formattedParts.length >= 2) {
                 return formattedParts.join(' ');
             } else {
@@ -166,13 +166,13 @@ class AssigneeUtils {
         const className = options.className || 'assignee-badge';
         const showName = options.showName !== false;
         const size = options.size || 'medium';
-        
+
         const sizeClasses = {
             small: 'assignee-badge-small',
             medium: 'assignee-badge-medium',
             large: 'assignee-badge-large'
         };
-        
+
         return `
             <div class="${className} ${sizeClasses[size]}" data-assignee="${CoreDOMUtils.escapeHtml(assignee)}">
                 <div class="assignee-avatar" style="background: ${colors.background}; color: ${colors.color};">
@@ -190,7 +190,7 @@ class AssigneeUtils {
      */
     static extractTeamMembers(tasks) {
         const assignees = new Set();
-        
+
         if (tasks && tasks.size > 0) {
             tasks.forEach(task => {
                 if (task.assignee && task.assignee.trim()) {
@@ -198,7 +198,7 @@ class AssigneeUtils {
                 }
             });
         }
-        
+
         return Array.from(assignees).sort();
     }
 
@@ -219,11 +219,11 @@ class AssigneeUtils {
         if (tasks && tasks.size > 0) {
             tasks.forEach(task => {
                 stats.totalTasks++;
-                
+
                 if (task.assignee && task.assignee.trim()) {
                     stats.assignedTasks++;
                     const assignee = task.assignee.trim();
-                    
+
                     if (!stats.assignees[assignee]) {
                         stats.assignees[assignee] = {
                             name: assignee,
@@ -232,9 +232,9 @@ class AssigneeUtils {
                             pendingTasks: 0
                         };
                     }
-                    
+
                     stats.assignees[assignee].totalTasks++;
-                    
+
                     if (task.isCompleted) {
                         stats.assignees[assignee].completedTasks++;
                     } else {
@@ -265,7 +265,7 @@ class AssigneeUtils {
         }
 
         const cleanAssignee = assignee.trim();
-        
+
         // Check length
         if (cleanAssignee.length === 0 || cleanAssignee.length > 100) {
             return false;
@@ -310,23 +310,23 @@ class AssigneeUtils {
         }
 
         const queryLower = query.toLowerCase().trim();
-        
+
         return assignees.filter(assignee => {
             const assigneeLower = assignee.toLowerCase();
             const displayName = AssigneeUtils.formatDisplayName(assignee).toLowerCase();
-            
-            return assigneeLower.includes(queryLower) || 
-                   displayName.includes(queryLower);
+
+            return assigneeLower.includes(queryLower) ||
+                displayName.includes(queryLower);
         }).sort((a, b) => {
             // Prioritize exact matches and starts-with matches
             const aLower = a.toLowerCase();
             const bLower = b.toLowerCase();
-            
+
             if (aLower === queryLower) return -1;
             if (bLower === queryLower) return 1;
             if (aLower.startsWith(queryLower)) return -1;
             if (bLower.startsWith(queryLower)) return 1;
-            
+
             return a.localeCompare(b);
         });
     }
@@ -344,7 +344,7 @@ class AssigneeUtils {
         if (tasks && tasks.size > 0) {
             tasks.forEach(task => {
                 const assignee = task.assignee && task.assignee.trim();
-                
+
                 if (assignee) {
                     if (!grouped[assignee]) {
                         grouped[assignee] = [];
@@ -369,11 +369,11 @@ class AssigneeUtils {
 
         Object.entries(groupedTasks).forEach(([assignee, tasks]) => {
             if (assignee === 'unassigned') return;
-            
+
             const completedTasks = tasks.filter(task => task.isCompleted).length;
             const pendingTasks = tasks.length - completedTasks;
             const completionRate = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
-            
+
             workloads.push({
                 assignee,
                 displayName: AssigneeUtils.formatDisplayName(assignee),
@@ -409,7 +409,7 @@ class AssigneeUtils {
      */
     static generateDropdownOptions(assignees, selected = '') {
         let optionsHTML = '<option value="">Unassigned</option>';
-        
+
         if (Array.isArray(assignees)) {
             assignees.forEach(assignee => {
                 const isSelected = assignee === selected ? 'selected' : '';
@@ -417,7 +417,7 @@ class AssigneeUtils {
                 optionsHTML += `<option value="${CoreDOMUtils.escapeHtml(assignee)}" ${isSelected}>${CoreDOMUtils.escapeHtml(displayName)}</option>`;
             });
         }
-        
+
         return optionsHTML;
     }
 
@@ -431,19 +431,19 @@ class AssigneeUtils {
         const namespace = options.namespace || 'fancy-gst';
         const showStats = options.showStats !== false;
         const allowSelection = options.allowSelection === true;
-        
+
         if (!Array.isArray(assignees) || assignees.length === 0) {
             return `<div class="${namespace}-no-team-members">No team members found</div>`;
         }
 
         let listHTML = `<div class="${namespace}-team-list">`;
-        
+
         assignees.forEach(assignee => {
             const colors = AssigneeUtils.getAvatarColor(assignee);
             const initials = AssigneeUtils.getInitials(assignee);
             const displayName = AssigneeUtils.formatDisplayName(assignee);
             const status = AssigneeUtils.getStatus(assignee);
-            
+
             listHTML += `
                 <div class="${namespace}-team-member ${allowSelection ? 'selectable' : ''}" 
                      data-assignee="${CoreDOMUtils.escapeHtml(assignee)}">
@@ -458,7 +458,7 @@ class AssigneeUtils {
                 </div>
             `;
         });
-        
+
         listHTML += '</div>';
         return listHTML;
     }
@@ -467,4 +467,4 @@ class AssigneeUtils {
 // Export to global scope
 window.AssigneeUtils = AssigneeUtils;
 
-console.log('✅ Assignee Utils loaded successfully');
+fgtlog('✅ Assignee Utils loaded successfully');

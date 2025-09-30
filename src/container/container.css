@@ -1,7 +1,8 @@
 /* container/container.css - Container styles for everything outside table block (UPDATED - Added Completed Tasks Toggle) */
 
 /* Reset and base styles */
-html, body {
+html,
+body {
     height: 100% !important;
     overflow-y: auto !important;
     margin: 0 !important;
@@ -60,7 +61,8 @@ html, body {
 #fancy-gst-completed-toggle-button {
     position: fixed;
     bottom: 20px;
-    right: 60px; /* 30px width + 10px gap from main toggle */
+    right: 60px;
+    /* 30px width + 10px gap from main toggle */
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -133,6 +135,7 @@ html, body {
 
 /* Dark mode adjustments for toggle buttons */
 @media (prefers-color-scheme: dark) {
+
     #fancy-gst-toggle-button,
     #fancy-gst-completed-toggle-button {
         color: black;
@@ -142,16 +145,16 @@ html, body {
         background: linear-gradient(135deg, #ff6b6b, #ff5252);
         box-shadow: 0 4px 16px rgba(255, 107, 107, 0.4);
     }
-    
+
     #fancy-gst-toggle-button.fgt-enhanced:hover {
         box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
     }
-    
+
     #fancy-gst-toggle-button.fgt-original {
         background: linear-gradient(135deg, #8ab4f8, #aecbfa);
         box-shadow: 0 4px 16px rgba(138, 180, 248, 0.4);
     }
-    
+
     #fancy-gst-toggle-button.fgt-original:hover {
         box-shadow: 0 6px 20px rgba(138, 180, 248, 0.6);
     }
@@ -160,16 +163,16 @@ html, body {
         background: linear-gradient(135deg, #ce93d8, #ba68c8);
         box-shadow: 0 4px 16px rgba(206, 147, 216, 0.4);
     }
-    
+
     #fancy-gst-completed-toggle-button.fgt-completed-hidden:hover {
         box-shadow: 0 6px 20px rgba(206, 147, 216, 0.6);
     }
-    
+
     #fancy-gst-completed-toggle-button.fgt-completed-visible {
         background: linear-gradient(135deg, #ffcc02, #ffc107);
         box-shadow: 0 4px 16px rgba(255, 204, 2, 0.4);
     }
-    
+
     #fancy-gst-completed-toggle-button.fgt-completed-visible:hover {
         box-shadow: 0 6px 20px rgba(255, 204, 2, 0.6);
     }
@@ -177,15 +180,31 @@ html, body {
 
 /* Pulse animation for attention */
 @keyframes toggle-pulse {
-    0% { box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4); }
-    50% { box-shadow: 0 4px 20px rgba(26, 115, 232, 0.8); }
-    100% { box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4); }
+    0% {
+        box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 4px 20px rgba(26, 115, 232, 0.8);
+    }
+
+    100% {
+        box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4);
+    }
 }
 
 @keyframes completed-toggle-pulse {
-    0% { box-shadow: 0 4px 16px rgba(156, 39, 176, 0.4); }
-    50% { box-shadow: 0 4px 20px rgba(156, 39, 176, 0.8); }
-    100% { box-shadow: 0 4px 16px rgba(156, 39, 176, 0.4); }
+    0% {
+        box-shadow: 0 4px 16px rgba(156, 39, 176, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 4px 20px rgba(156, 39, 176, 0.8);
+    }
+
+    100% {
+        box-shadow: 0 4px 16px rgba(156, 39, 176, 0.4);
+    }
 }
 
 #fancy-gst-toggle-button.pulse {
@@ -202,7 +221,7 @@ html, body {
     background: white;
     border-radius: 8px;
     border: 1px solid #e8eaed;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
 
@@ -210,7 +229,7 @@ html, body {
     .fancy-gst-table-container {
         background: #1e1e1e;
         border-color: #333;
-        box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+        box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
     }
 }
 
@@ -227,6 +246,7 @@ html, body {
 }
 
 @media (prefers-color-scheme: dark) {
+
     .fancy-gst-loading-stats,
     .fancy-gst-loading-table {
         color: #9aa0a6;
@@ -275,8 +295,13 @@ html, body {
 }
 
 @keyframes fancy-gst-spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* Error states */
@@ -343,7 +368,7 @@ html, body {
         color: #001122;
         border-color: #8ab4f8;
     }
-    
+
     .fancy-gst-error-retry:hover {
         background: #aecbfa;
         border-color: #aecbfa;
@@ -451,6 +476,7 @@ html, body {
 }
 
 @media (prefers-color-scheme: dark) {
+
     #fancy-gst-toggle-button:focus-visible,
     #fancy-gst-completed-toggle-button:focus-visible,
     .fancy-gst-error-retry:focus-visible {
@@ -464,6 +490,7 @@ html, body {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -483,10 +510,11 @@ html, body {
         height: 28px;
         font-size: 14px;
     }
-    
+
     #fancy-gst-completed-toggle-button {
         bottom: 15px;
-        right: 53px; /* Adjusted for smaller button */
+        right: 53px;
+        /* Adjusted for smaller button */
         width: 28px;
         height: 28px;
         font-size: 9px;

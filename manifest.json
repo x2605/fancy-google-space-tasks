@@ -1,36 +1,25 @@
 {
   "manifest_version": 3,
   "name": "Fancy Google Space Tasks",
-  "version": "0.1.1",
-  "description": "Enhanced Google Space Tasks with better UI and features - Modular Architecture v2 with Operation Verification",
-  
+  "version": "0.1.2",
+  "description": "Enhanced Google Space Tasks with better UI and features",
   "permissions": [
     "storage"
   ],
-
   "host_permissions": [
-    "https://mail.google.com/*",
-    "https://chat.google.com/*",
     "https://tasks.google.com/*"
   ],
-
   "content_scripts": [
     {
-      "comment": "Google Chat Main Page - iframe detection and bridge",
+      "comment": "Tasks - modular DOM manipulation with storage support",
       "matches": [
-        "https://mail.google.com/chat/*", 
-        "https://chat.google.com/u/*"
+        "https://tasks.google.com/embed/*"
       ],
-      "js": ["src/iframe_bridge.js"],
-      "run_at": "document_end"
-    },
-    {
-      "comment": "Tasks iframe - modular DOM manipulation with operation verification",
-      "matches": ["https://tasks.google.com/embed/*"],
       "js": [
         "bundles/linkify.js",
         "bundles/linkify-string.js",
         "bundles/color-thief.min.js",
+        "src/core/logger.js",
         "src/core/dom_utils.js",
         "src/core/interaction_utils.js",
         "src/core/notification_utils.js",
@@ -56,7 +45,6 @@
       "run_at": "document_end"
     }
   ],
-
   "web_accessible_resources": [
     {
       "resources": [
@@ -64,13 +52,14 @@
         "src/table/table.css",
         "src/container/container.css"
       ],
-      "matches": ["https://mail.google.com/*", "https://chat.google.com/*", "https://tasks.google.com/*"]
+      "matches": [
+        "https://tasks.google.com/*"
+      ]
     }
   ],
-
   "icons": {
     "16": "16px.png",
-    "48": "48px.png", 
+    "48": "48px.png",
     "128": "128px.svg"
   }
 }

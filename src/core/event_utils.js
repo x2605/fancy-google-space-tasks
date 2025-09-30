@@ -1,5 +1,5 @@
 // core/event_utils.js - Event handling utilities with integrated timer management
-console.log('⚡ Core Event Utils loading...');
+fgtlog('⚡ Core Event Utils loading...');
 
 /**
  * Timeout manager for centralized timeout control
@@ -19,12 +19,12 @@ class TimeoutManager {
      */
     create(callback, delay = 0, autoCleanup = true) {
         const id = this.nextId++;
-        
+
         const timeoutId = setTimeout(() => {
             try {
                 callback();
             } catch (error) {
-                console.error('Timeout callback error:', error);
+                fgterror('Timeout callback error:', error);
             } finally {
                 if (autoCleanup) {
                     this.timeouts.delete(id);
@@ -65,7 +65,7 @@ class TimeoutManager {
             clearTimeout(timeout.timeoutId);
         });
         this.timeouts.clear();
-        console.log('🧹 All timeouts cleared');
+        fgtlog('🧹 All timeouts cleared');
     }
 
     /**
@@ -140,13 +140,13 @@ class IntervalManager {
             try {
                 execCount++;
                 callback(execCount);
-                
+
                 // Auto-clear if max executions reached
                 if (maxExecutions > 0 && execCount >= maxExecutions) {
                     this.clear(id);
                 }
             } catch (error) {
-                console.error('Interval callback error:', error);
+                fgterror('Interval callback error:', error);
             }
         }, delay);
 
@@ -185,7 +185,7 @@ class IntervalManager {
             clearInterval(interval.intervalId);
         });
         this.intervals.clear();
-        console.log('🧹 All intervals cleared');
+        fgtlog('🧹 All intervals cleared');
     }
 
     /**
@@ -256,12 +256,12 @@ class CoreEventUtils {
      */
     static addListener(element, event, handler, options = {}) {
         if (!element || !event || !handler) {
-            console.warn('Invalid parameters for addListener');
-            return () => {};
+            fgtwarn('Invalid parameters for addListener');
+            return () => { };
         }
 
         element.addEventListener(event, handler, options);
-        
+
         // Return cleanup function
         return () => {
             element.removeEventListener(event, handler, options);
@@ -307,7 +307,7 @@ class CoreEventUtils {
      */
     static debounce(handler, delay = 300) {
         let timeoutId;
-        
+
         return function (...args) {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => handler.apply(this, args), delay);
@@ -322,7 +322,7 @@ class CoreEventUtils {
      */
     static throttle(handler, delay = 100) {
         let lastCall = 0;
-        
+
         return function (...args) {
             const now = Date.now();
             if (now - lastCall >= delay) {
@@ -342,16 +342,16 @@ class CoreEventUtils {
     static handleFormSubmit(form, onSubmit, validate = null) {
         const handler = (event) => {
             event.preventDefault();
-            
+
             // Run validation if provided
             if (validate && !validate(form)) {
                 return;
             }
-            
+
             // Extract form data
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
-            
+
             // Call submit handler
             onSubmit(data, form);
         };
@@ -477,7 +477,7 @@ class CoreEventUtils {
                     stopPropagation: () => originalEvent.stopPropagation(),
                     stopImmediatePropagation: () => originalEvent.stopImmediatePropagation()
                 };
-                
+
                 // Call handler with custom event
                 handler.call(target, customEvent);
             }
@@ -505,7 +505,7 @@ class CoreEventUtils {
             };
 
             cleanup = CoreEventUtils.addListener(element, event, handler);
-            
+
             timeoutId = CoreEventUtils.timeouts.create(() => {
                 cleanup();
                 reject(new Error(`Event ${event} timeout after ${timeout}ms`));
@@ -519,7 +519,7 @@ class CoreEventUtils {
     static cleanupAll() {
         CoreEventUtils.timeouts.clearAll();
         CoreEventUtils.intervals.clearAll();
-        console.log('🧹 CoreEventUtils: All resources cleaned up');
+        fgtlog('🧹 CoreEventUtils: All resources cleaned up');
     }
 
     /**
@@ -539,4 +539,4 @@ window.CoreEventUtils = CoreEventUtils;
 window.TimeoutManager = TimeoutManager;
 window.IntervalManager = IntervalManager;
 
-console.log('✅ Core Event Utils loaded successfully with timer management');
+fgtlog('✅ Core Event Utils loaded successfully with timer management');

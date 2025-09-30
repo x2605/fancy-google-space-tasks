@@ -1,5 +1,5 @@
 // assignee/assignee_color_utils.js - Color extraction and management for assignee avatars
-console.log('🎨 Assignee Color Utils loading...');
+fgtlog('🎨 Assignee Color Utils loading...');
 
 /**
  * Color utilities for extracting dominant colors from assignee avatars
@@ -8,10 +8,10 @@ class AssigneeColorUtils {
     constructor() {
         // Cache for storing processed colors by URL
         this.colorCache = new Map();
-        
+
         // Cache for storing loaded image elements
         this.imageCache = new Map();
-        
+
         // Default colors for fallback
         this.defaultColors = {
             backgroundColor: '#9aa0a6',
@@ -29,7 +29,7 @@ class AssigneeColorUtils {
         try {
             // Clean and extract URL from style string
             const imageUrl = this.extractImageUrl(assigneeIconUrl);
-            
+
             if (!imageUrl) {
                 // No image URL, return name-based colors
                 return this.getNameBasedColors(assigneeName);
@@ -42,14 +42,14 @@ class AssigneeColorUtils {
 
             // Extract color from image
             const colors = await this.extractColorFromImage(imageUrl);
-            
+
             // Cache the result
             this.colorCache.set(imageUrl, colors);
-            
+
             return colors;
 
         } catch (error) {
-            console.warn('Failed to extract color from assignee icon:', error);
+            fgtwarn('Failed to extract color from assignee icon:', error);
             return this.getNameBasedColors(assigneeName);
         }
     }
@@ -87,16 +87,16 @@ class AssigneeColorUtils {
         try {
             // Get or load image element
             const imgElement = await this.loadImage(imageUrl);
-            
+
             // Extract dominant color using ColorThief
             const dominantColor = await this.getDominantColor(imgElement);
-            
+
             // Calculate appropriate text color
             const textColor = this.calculateTextColor(dominantColor);
-            
+
             // Convert to CSS color strings
             const backgroundColor = this.rgbToCss(dominantColor);
-            
+
             return {
                 backgroundColor,
                 textColor,
@@ -104,7 +104,7 @@ class AssigneeColorUtils {
             };
 
         } catch (error) {
-            console.warn('Failed to extract color from image:', imageUrl, error);
+            fgtwarn('Failed to extract color from image:', imageUrl, error);
             return this.defaultColors;
         }
     }
@@ -126,19 +126,19 @@ class AssigneeColorUtils {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = 'anonymous'; // Handle CORS for external images
-            
+
             img.onload = () => {
                 // Cache the loaded image
                 this.imageCache.set(imageUrl, img);
                 resolve(img);
             };
-            
+
             img.onerror = () => {
                 reject(new Error(`Failed to load image: ${imageUrl}`));
             };
-            
+
             img.src = imageUrl;
-            
+
             // Set timeout to prevent hanging
             setTimeout(() => {
                 if (!img.complete) {
@@ -166,7 +166,7 @@ class AssigneeColorUtils {
                     try {
                         const colorThief = new ColorThief();
                         const color = colorThief.getColor(imgElement, 10);
-                        
+
                         if (!Array.isArray(color) || color.length !== 3) {
                             reject(new Error('Invalid color format from ColorThief'));
                         } else {
@@ -176,7 +176,7 @@ class AssigneeColorUtils {
                         reject(error);
                     }
                 });
-                
+
                 imgElement.addEventListener('error', () => {
                     reject(new Error('Image failed to load for color extraction'));
                 });
@@ -186,7 +186,7 @@ class AssigneeColorUtils {
         // Image is already loaded, safe to extract color
         const colorThief = new ColorThief();
         const color = colorThief.getColor(imgElement, 10);
-        
+
         // Ensure we have a valid RGB array
         if (!Array.isArray(color) || color.length !== 3) {
             throw new Error('Invalid color format from ColorThief');
@@ -202,10 +202,10 @@ class AssigneeColorUtils {
      */
     calculateTextColor(rgbColor) {
         const [r, g, b] = rgbColor;
-        
+
         // Calculate relative luminance using sRGB formula
         const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        
+
         // Use black text for bright backgrounds, white text for dark backgrounds
         return luminance > 0.5 ? '#000000' : '#ffffff';
     }
@@ -232,7 +232,7 @@ class AssigneeColorUtils {
 
         // Use existing AssigneeUtils color generation as fallback
         const colors = AssigneeUtils.getAvatarColor(assigneeName);
-        
+
         return {
             backgroundColor: colors.background,
             textColor: colors.color,
@@ -284,12 +284,12 @@ class AssigneeColorUtils {
      */
     clearCache(clearImages = false) {
         this.colorCache.clear();
-        
+
         if (clearImages) {
             this.imageCache.clear();
         }
-        
-        console.log('🎨 Assignee color cache cleared');
+
+        fgtlog('🎨 Assignee color cache cleared');
     }
 
     /**
@@ -321,4 +321,4 @@ window.AssigneeColorUtils = AssigneeColorUtils;
 // Create singleton instance for easy access
 window.assigneeColorUtils = new AssigneeColorUtils();
 
-console.log('✅ Assignee Color Utils loaded successfully');
+fgtlog('✅ Assignee Color Utils loaded successfully');

@@ -1,5 +1,5 @@
 // core/change_detector.js - Task change detection system with migrated timer management
-console.log('🔍 Change Detector loading...');
+fgtlog('🔍 Change Detector loading...');
 
 /**
  * Task change detection system for monitoring DOM updates
@@ -7,23 +7,23 @@ console.log('🔍 Change Detector loading...');
 class TaskChangeDetector {
     constructor(namespace = 'fancy-gst') {
         this.namespace = namespace;
-        
+
         // Stored references and data
         this.savedDOMRefs = {
             taskContainer: null,
             lastValidContainer: null
         };
-        
+
         this.lastTaskData = new Map(); // taskId -> lightweight data
         this.lastTaskIds = new Set();
         this.lastCheckTime = Date.now();
-        
+
         // Configuration
         this.config = {
             forceRefreshThreshold: 10000, // 10 seconds - force refresh if too much time passed
             maxTaskDifference: 50, // If more than 50 tasks changed, force full refresh
         };
-        
+
         // Timer tracking
         this.activeTimers = {
             timeouts: [],
@@ -37,7 +37,7 @@ class TaskChangeDetector {
     initialize() {
         this.updateDOMReferences();
         this.updateTaskData();
-        console.log('🔍 Change detector initialized');
+        fgtlog('🔍 Change detector initialized');
     }
 
     /**
@@ -45,13 +45,13 @@ class TaskChangeDetector {
      */
     updateDOMReferences() {
         const taskContainer = TaskIdUtils.findTaskContainer();
-        
+
         if (taskContainer) {
             this.savedDOMRefs.taskContainer = taskContainer;
             this.savedDOMRefs.lastValidContainer = taskContainer;
-            console.log('📌 DOM references updated');
+            fgtlog('📌 DOM references updated');
         } else {
-            console.error('📌 Could not find task containers - page not ready or corrupted');
+            fgterror('📌 Could not find task containers - page not ready or corrupted');
             // Don't set references if containers don't exist
         }
     }
@@ -63,14 +63,14 @@ class TaskChangeDetector {
         try {
             const currentTaskData = TaskIdUtils.extractAllLightweightTaskData();
             const currentTaskIds = new Set(currentTaskData.keys());
-            
+
             this.lastTaskData = currentTaskData;
             this.lastTaskIds = currentTaskIds;
             this.lastCheckTime = Date.now();
-            
-            console.log(`📊 Task data updated: ${currentTaskIds.size} tasks`);
+
+            fgtlog(`📊 Task data updated: ${currentTaskIds.size} tasks`);
         } catch (error) {
-            console.warn('📊 Could not update task data yet:', error.message);
+            fgtwarn('📊 Could not update task data yet:', error.message);
             // Initialize with empty data for now
             this.lastTaskData = new Map();
             this.lastTaskIds = new Set();
@@ -108,7 +108,7 @@ class TaskChangeDetector {
                 result.shouldForceRefresh = true;
                 result.changeType = 'dom_invalid';
                 result.message = 'DOM structure changed or became invalid';
-                
+
                 // Try to find new container
                 this.updateDOMReferences();
                 return result;
@@ -116,14 +116,14 @@ class TaskChangeDetector {
 
             // 3. Extract current task data
             const currentTaskData = TaskIdUtils.extractAllLightweightTaskData();
-            
+
             // 4. Compare with stored data
             const changes = TaskIdUtils.detectChanges(this.lastTaskData, currentTaskData);
-            
+
             if (changes.hasChanges) {
                 result.hasChanges = true;
                 result.changes = changes;
-                
+
                 // Check if changes are too extensive (force full refresh)
                 const totalChanges = changes.added.length + changes.removed.length + changes.modified.length;
                 if (totalChanges > this.config.maxTaskDifference) {
@@ -139,7 +139,7 @@ class TaskChangeDetector {
             return result;
 
         } catch (error) {
-            console.error('❌ Error during change detection:', error);
+            fgterror('❌ Error during change detection:', error);
             result.shouldForceRefresh = true;
             result.changeType = 'error';
             result.message = `Detection error: ${error.message}`;
@@ -160,8 +160,8 @@ class TaskChangeDetector {
             // Update only what changed
             this.updateTaskData();
         }
-        
-        console.log(`🔄 Changes applied: ${detectionResult.message}`);
+
+        fgtlog(`🔄 Changes applied: ${detectionResult.message}`);
     }
 
     /**
@@ -178,7 +178,7 @@ class TaskChangeDetector {
      */
     checkAndRecommendAction() {
         const detectionResult = this.detectChanges();
-        
+
         const recommendation = {
             needsAction: false,
             actionType: 'none',
@@ -200,7 +200,7 @@ class TaskChangeDetector {
      * Force a complete refresh of stored data
      */
     forceRefresh() {
-        console.log('🔄 Forcing complete refresh...');
+        fgtlog('🔄 Forcing complete refresh...');
         this.updateDOMReferences();
         this.updateTaskData();
     }
@@ -229,7 +229,7 @@ class TaskChangeDetector {
         this.lastTaskIds.clear();
         this.savedDOMRefs.taskContainer = null;
         this.lastCheckTime = 0;
-        
+
         // Cleanup all timers using CoreEventUtils
         this.activeTimers.timeouts.forEach(id => {
             CoreEventUtils.timeouts.clear(id);
@@ -237,11 +237,11 @@ class TaskChangeDetector {
         this.activeTimers.intervals.forEach(id => {
             CoreEventUtils.intervals.clear(id);
         });
-        
+
         this.activeTimers.timeouts = [];
         this.activeTimers.intervals = [];
-        
-        console.log('🔄 Change detector reset');
+
+        fgtlog('🔄 Change detector reset');
     }
 
     /**
@@ -249,7 +249,7 @@ class TaskChangeDetector {
      */
     cleanup() {
         this.reset();
-        console.log('🧹 Change detector cleaned up');
+        fgtlog('🧹 Change detector cleaned up');
     }
 
     /**
@@ -267,4 +267,4 @@ class TaskChangeDetector {
 // Export to global scope
 window.TaskChangeDetector = TaskChangeDetector;
 
-console.log('✅ Change Detector loaded successfully with timer management');
+fgtlog('✅ Change Detector loaded successfully with timer management');
