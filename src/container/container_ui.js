@@ -1,4 +1,4 @@
-// container/container_ui.js - Container UI creation and management with timer migration
+// container/container_ui.js - Container UI creation and management with toggle visibility
 console.log('🎨 Container UI loading...');
 
 /**
@@ -156,24 +156,36 @@ class ContainerUI {
     }
 
     /**
-     * Show toggle buttons
+     * Show main toggle button
      */
     showToggleButton() {
         if (this.toggleIndicator) {
             this.toggleIndicator.style.display = 'flex';
         }
+    }
+
+    /**
+     * Hide main toggle button
+     */
+    hideToggleButton() {
+        if (this.toggleIndicator) {
+            this.toggleIndicator.style.display = 'none';
+        }
+    }
+
+    /**
+     * Show completed toggle button
+     */
+    showCompletedToggleButton() {
         if (this.completedToggleIndicator) {
             this.completedToggleIndicator.style.display = 'flex';
         }
     }
 
     /**
-     * Hide toggle buttons
+     * Hide completed toggle button
      */
-    hideToggleButton() {
-        if (this.toggleIndicator) {
-            this.toggleIndicator.style.display = 'none';
-        }
+    hideCompletedToggleButton() {
         if (this.completedToggleIndicator) {
             this.completedToggleIndicator.style.display = 'none';
         }

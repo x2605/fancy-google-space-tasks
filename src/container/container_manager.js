@@ -1,4 +1,4 @@
-// container/container_manager.js - Main container management with depth filtering
+// container/container_manager.js - Main container management with optimized initialization
 console.log('📋 Container Manager loading...');
 
 /**
@@ -26,6 +26,10 @@ class ContainerManager {
         this.tasks = new Map();
         this.maxCategoryDepth = 0;
         this.observer = null;
+        
+        // Storage key for current space
+        this.spaceId = null;
+        this.storageKey = null;
 
         // UI elements
         this.customContainer = null;
@@ -35,6 +39,97 @@ class ContainerManager {
 
         // Cleanup functions
         this.cleanupFunctions = [];
+    }
+
+    /**
+     * Extract space ID from current URL
+     * @returns {string} - Space ID or 'personal'
+     */
+    getSpaceIdFromUrl() {
+        const url = window.location.href;
+        
+        // Remove query params
+        const baseUrl = url.split('?')[0];
+        
+        // Pattern: https://tasks.google.com/embed/room/{SPACE_ID}/list/~default
+        const roomMatch = baseUrl.match(/\/room\/([^/]+)\//);
+        if (roomMatch) {
+            return roomMatch[1];
+        }
+        
+        // Pattern: https://tasks.google.com/embed/
+        // This is personal tasks
+        return 'personal';
+    }
+
+    /**
+     * Initialize storage key for current space
+     */
+    initializeStorageKey() {
+        this.spaceId = this.getSpaceIdFromUrl();
+        this.storageKey = `space_${this.spaceId}`;
+        console.log(`💾 Storage key initialized: ${this.storageKey}`);
+    }
+
+    /**
+     * Load state from storage.session
+     * @returns {Promise<Object>} - Loaded state or defaults
+     */
+    async loadStateFromStorage() {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.session) {
+                console.warn('⚠️ chrome.storage.session not available, using defaults');
+                return {
+                    isCustomUIVisible: true,
+                    showCompleted: false
+                };
+            }
+
+            const result = await chrome.storage.session.get(this.storageKey);
+            const savedState = result[this.storageKey];
+
+            if (savedState) {
+                console.log(`✅ State loaded from storage for ${this.spaceId}:`, savedState);
+                return savedState;
+            } else {
+                console.log(`ℹ️ No saved state for ${this.spaceId}, using defaults`);
+                return {
+                    isCustomUIVisible: true,
+                    showCompleted: false
+                };
+            }
+        } catch (error) {
+            console.error('❌ Failed to load state from storage:', error);
+            return {
+                isCustomUIVisible: true,
+                showCompleted: false
+            };
+        }
+    }
+
+    /**
+     * Save state to storage.session
+     */
+    async saveStateToStorage() {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.session) {
+                console.warn('⚠️ chrome.storage.session not available, state not saved');
+                return;
+            }
+
+            const state = {
+                isCustomUIVisible: this.isCustomUIVisible,
+                showCompleted: this.showCompleted
+            };
+
+            await chrome.storage.session.set({
+                [this.storageKey]: state
+            });
+
+            console.log(`💾 State saved to storage for ${this.spaceId}:`, state);
+        } catch (error) {
+            console.error('❌ Failed to save state to storage:', error);
+        }
     }
 
     /**
@@ -49,6 +144,15 @@ class ContainerManager {
         console.log('🚀 Container Manager initializing...');
 
         try {
+            // Initialize storage key for current space
+            this.initializeStorageKey();
+
+            // Load saved state from storage
+            const savedState = await this.loadStateFromStorage();
+            this.isCustomUIVisible = savedState.isCustomUIVisible;
+            this.showCompleted = savedState.showCompleted;
+            console.log(`📊 Initial state: customUI=${this.isCustomUIVisible}, showCompleted=${this.showCompleted}`);
+
             // Wait for required modules
             await this.waitForDependencies();
 
@@ -61,8 +165,12 @@ class ContainerManager {
             // Setup UI
             await this.setupUI();
 
-            // Extract and display initial data
-            this.extractAndDisplayTasks();
+            // Extract and display initial data - CONDITIONAL RENDERING
+            if (this.isCustomUIVisible) {
+                this.extractAndDisplayTasks();
+            } else {
+                console.log('⏭️ Skipping initial render (Original UI mode)');
+            }
 
             // Start change detection
             this.startObserving();
@@ -127,9 +235,6 @@ class ContainerManager {
      * Setup the complete UI
      */
     async setupUI() {
-        // Hide original DOM
-        this.hideOriginalDOM();
-
         // Create container UI
         await this.containerUI.createContainer();
         this.customContainer = this.containerUI.getContainer();
@@ -138,6 +243,23 @@ class ContainerManager {
         this.containerUI.createToggleButtons();
         this.toggleButton = this.containerUI.getToggleIndicator();
         this.completedToggleButton = this.containerUI.getCompletedToggleIndicator();
+
+        // Apply loaded state to UI
+        if (this.isCustomUIVisible) {
+            this.hideOriginalDOM();
+            if (this.customContainer) {
+                this.customContainer.style.display = 'block';
+            }
+            // Show completed toggle button
+            this.containerUI.showCompletedToggleButton();
+        } else {
+            this.showOriginalDOM();
+            if (this.customContainer) {
+                this.customContainer.style.display = 'none';
+            }
+            // Hide completed toggle button (not needed in Original UI)
+            this.containerUI.hideCompletedToggleButton();
+        }
 
         // Update toggle button states
         this.containerUI.updateToggleButton(this.isCustomUIVisible);
@@ -239,6 +361,9 @@ class ContainerManager {
 
         // Re-render table with new filter and depth adjustment
         this.updateDisplay();
+
+        // Save state to storage
+        this.saveStateToStorage();
 
         // Show notification
         CoreNotificationUtils.success(
@@ -447,7 +572,7 @@ class ContainerManager {
             CoreDOMUtils.hideDepthsAbove(maxDepth - 1); // Convert to 0-based
         }
         
-        console.log(`📏 Max visible depth: ${maxDepth} (showCompleted: ${this.showCompleted})`);
+        console.log(`🔍 Max visible depth: ${maxDepth} (showCompleted: ${this.showCompleted})`);
         
         // Always re-render for completed tasks toggle to handle rowspan properly
         this.renderFullTable(tableContainer, filteredTasks);
@@ -527,16 +652,26 @@ class ContainerManager {
 
         if (this.isCustomUIVisible) {
             // Switch to fancy UI
-            const hasChanges = this.detectAndUpdateChanges();
+            
+            // Render if not rendered yet
+            if (this.tasks.size === 0) {
+                console.log('🆕 First time rendering fancy UI');
+                this.extractAndDisplayTasks();
+            } else {
+                // Check for changes if already rendered
+                const hasChanges = this.detectAndUpdateChanges();
+                if (hasChanges) {
+                    console.log('🔄 Changes detected during mode switch, data refreshed');
+                }
+            }
             
             this.hideOriginalDOM();
             if (this.customContainer) {
                 this.customContainer.style.display = 'block';
             }
             
-            if (hasChanges) {
-                console.log('🔄 Changes detected during mode switch, data refreshed');
-            }
+            // Show completed toggle button
+            this.containerUI.showCompletedToggleButton();
         } else {
             // Switch to original UI
             this.showOriginalDOM();
@@ -544,11 +679,17 @@ class ContainerManager {
                 this.customContainer.style.display = 'none';
             }
             
+            // Hide completed toggle button (not needed in Original UI)
+            this.containerUI.hideCompletedToggleButton();
+            
             console.log('💡 Switched to original UI - change detection will run on next fancy UI switch');
         }
 
         // Update toggle button appearance
         this.containerUI.updateToggleButton(this.isCustomUIVisible);
+
+        // Save state to storage
+        this.saveStateToStorage();
 
         // Show notification
         CoreNotificationUtils.success(
@@ -915,4 +1056,4 @@ if (typeof window !== 'undefined' && window.location && window.location.href.inc
     }
 }
 
-console.log('✅ Enhanced Container Manager loaded successfully with depth filtering');
+console.log('✅ Enhanced Container Manager loaded successfully with optimized initialization');

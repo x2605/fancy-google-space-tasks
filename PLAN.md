@@ -12,6 +12,7 @@ Enhanced Google Space Tasks with better UI and features using completely restruc
 - **Enhanced DOM Monitoring**: Smart change detection system for real-time updates and background sync
 - **Operation Verification**: UI locking and polling-based verification for safe task operations
 - **Timer Management**: Centralized timeout/interval management with automatic cleanup
+- **State Persistence**: Remember UI preferences per space using storage.session API
 - **Modal Editing**: Click one of date of assignee button to edit a task(TODO)
 - **Modal Interfaces**: Editing title with dynamically generated category dropdown boxes, editing description, date picker, assignee selector, and delete confirmation with dedicated modules(TODO)
 - **UI Toggle**: Floating button to switch between enhanced and original Google Tasks UI
@@ -47,7 +48,7 @@ Enhanced Google Space Tasks with better UI and features using completely restruc
     │   └── table.css              # Table-specific styles with grouping support
     │
     ├── 📁 container/              # Container management (outside table)
-    │   ├── container_manager.js   # Main container orchestration with enhanced change detection and completed tasks toggle
+    │   ├── container_manager.js   # Main container orchestration with storage.session state persistence
     │   ├── container_ui.js        # Container UI creation & management with dual toggle buttons
     │   └── container.css          # Container-specific styles with toggle buttons
     │
@@ -162,7 +163,7 @@ All CSS files include comprehensive dark mode support using `@media (prefers-col
 - **Table Events**: Event handling specific to table interactions (editing, checkboxes, actions)
 
 ### Container Modules
-- **Container Manager**: Main orchestration, task extraction, change detection, modal coordination, background DOM monitoring, completed tasks filter management, **operation verification integration**
+- **Container Manager**: Main orchestration, task extraction, change detection, modal coordination, background DOM monitoring, completed tasks filter management, **storage.session state persistence**, **operation verification integration**
 - **Container UI**: Footer, statistics, loading states, toggle functionality, and dual toggle button management (UI mode + completed tasks)
 
 ### Category Modules
@@ -180,6 +181,38 @@ All CSS files include comprehensive dark mode support using `@media (prefers-col
 - **Assignee Color Utils**: Color extraction from assignee avatar images using ColorThief library
 - **Assignee Dropdown** (TODO): Team member selection with search and management
 
+## 💾 State Persistence
+
+### Storage.session Usage
+The extension uses Chrome's `storage.session` API to remember user preferences per space:
+
+#### Stored States
+- **UI Mode**: Fancy UI vs Original UI (`isCustomUIVisible`)
+- **Completed Tasks**: Show vs Hide completed tasks (`showCompleted`)
+
+#### Space Identification
+States are stored separately for each space:
+- **Space Tasks**: URL pattern `https://tasks.google.com/embed/room/{SPACE_ID}/list/~default`
+  - Space ID is extracted from the URL path
+- **Personal Tasks**: URL pattern `https://tasks.google.com/embed/`
+  - Uses special identifier "personal"
+
+#### Storage Key Format
+```javascript
+{
+    "space_{SPACE_ID}": {
+        "isCustomUIVisible": true/false,
+        "showCompleted": true/false
+    }
+}
+```
+
+#### Behavior
+- States are **session-scoped** (cleared when browser closes)
+- Each space maintains independent preferences
+- Preferences are restored automatically when revisiting a space
+- No manual storage permission prompt required (uses session storage)
+
 ## 🎮 User Interface
 
 ### Enhanced Features
@@ -191,6 +224,7 @@ All CSS files include comprehensive dark mode support using `@media (prefers-col
 - **Background Sync Detection**: Automatic updates when changes occur from other devices or apps
 - **Operation Verification**: UI locking and polling-based verification for safe operations (prevents double-submission)
 - **Timer Management**: Automatic cleanup of all timeouts/intervals preventing memory leaks
+- **State Persistence**: Remembers UI preferences per space using storage.session
 - **Modal System** (TODO): Specialized modals for different actions
 - **Team Management** (TODO): Assignee selection with avatar generation and color extraction
 
@@ -199,7 +233,7 @@ All CSS files include comprehensive dark mode support using `@media (prefers-col
 - **Original UI**: Standard Google Tasks interface
 - **Main Toggle Button**: Seamless switching between modes with automatic change detection
 - **Completed Tasks Toggle**: Show/hide completed tasks independently (default: hidden)
-- **State Persistence** (NEED-VERIFY): Remembers preferred mode
+- **State Persistence**: Preferences are saved per space and restored on next visit
 
 ### Change Detection Features
 - **Mode Switch Detection**: Automatically detects and applies changes when switching from original to fancy mode
