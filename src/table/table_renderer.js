@@ -138,6 +138,11 @@ class TableRenderer {
             return sortedTasks.map(task => ({ ...task, rowspanInfo: {} }));
         }
 
+        // Clear all existing rowspanInfo before recalculation
+        sortedTasks.forEach(task => {
+            task.rowspanInfo = {};
+        });
+
         for (let level = 0; level < maxCategoryDepth; level++) {
             let currentCategoryPath = null;
             let groupStart = 0;
