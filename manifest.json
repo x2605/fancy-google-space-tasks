@@ -5,8 +5,7 @@
   "description": "Enhanced Google Space Tasks with better UI and features - Modular Architecture v2 with Operation Verification",
   
   "permissions": [
-    "storage",
-    "activeTab"
+    "storage"
   ],
 
   "host_permissions": [
