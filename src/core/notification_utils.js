@@ -1,5 +1,5 @@
 // core/notification_utils.js - Notification system utilities
-console.log('📢 Core Notification Utils loading...');
+fgtlog('📢 Core Notification Utils loading...');
 
 /**
  * Core notification utilities for all modules
@@ -63,7 +63,7 @@ class CoreNotificationUtils {
             CoreNotificationUtils.remove(notification);
         });
 
-        console.log(`📢 Notification (${type}): ${message}`);
+        fgtlog(`📢 Notification (${type}): ${message}`);
     }
 
     /**
@@ -106,7 +106,7 @@ class CoreNotificationUtils {
         if (notification && notification.parentNode) {
             notification.style.opacity = '0';
             notification.style.transform = 'translateX(100%)';
-            
+
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
@@ -225,7 +225,7 @@ class CoreNotificationUtils {
             notification.style.transform = 'translateX(0)';
         }, 10);
 
-        console.log(`⏳ Loading notification: ${message}`);
+        fgtlog(`⏳ Loading notification: ${message}`);
         return notification;
     }
 }
@@ -233,4 +233,4 @@ class CoreNotificationUtils {
 // Export to global scope
 window.CoreNotificationUtils = CoreNotificationUtils;
 
-console.log('✅ Core Notification Utils loaded successfully');
+fgtlog('✅ Core Notification Utils loaded successfully');

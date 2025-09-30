@@ -31,8 +31,6 @@ Enhanced Google Space Tasks with better UI and features using completely restruc
 │   ├── linkify-string.js          # String module of linkifyjs
 │   └── color-thief.min.js         # Color extractor from image [lokesh/color-thief v2.6.0]
 └── 📁 src/
-    ├── iframe_bridge.js           # Main page iframe detection & injection
-    │
     ├── 📁 core/                   # Core utilities (shared by all modules)
     │   ├── dom_utils.js           # DOM manipulation utilities with lock styles management
     │   ├── interaction_utils.js   # Original DOM interaction utilities with verification
@@ -121,14 +119,7 @@ graph TD
 
 ### Loading Sequence
 
-The `iframe_bridge.js` loads modules in strict dependency order:
-
-1. **Core Layer**: `dom_utils.js` → `notification_utils.js` → `event_utils.js` → `interaction_utils.js` → `task_id_utils.js` → `change_detector.js` → `operation_verifier.js`
-2. **Foundation Layer**: `category_parser.js` → `category_utils.js`
-3. **Modal Layer**: `modal_base.js` → `date_modal.js` → `delete_modal.js` → `add_task_modal.js`
-4. **Feature Layer**: `assignee_utils.js` → `assignee_color_utils.js` → `assignee_dropdown.js`
-5. **UI Layer**: `table_renderer.js` → `table_events.js`
-6. **Application Layer**: `container_ui.js` → `container_manager.js`
+- The js files listed in the content_scripts section of manifest.json are loaded in order
 
 ## 🎨 Styling Architecture
 
@@ -251,4 +242,4 @@ States are stored separately for each space:
 
 ### Refactoring Information
 
-Cooperated with AI
+- **Cooperated with AI**

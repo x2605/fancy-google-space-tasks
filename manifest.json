@@ -19,6 +19,7 @@
         "bundles/linkify.js",
         "bundles/linkify-string.js",
         "bundles/color-thief.min.js",
+        "src/core/logger.js",
         "src/core/dom_utils.js",
         "src/core/interaction_utils.js",
         "src/core/notification_utils.js",

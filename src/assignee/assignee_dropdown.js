@@ -1,5 +1,5 @@
 // assignee/assignee_dropdown.js - Assignee dropdown modal
-console.log('👤 Assignee Dropdown loading...');
+fgtlog('👤 Assignee Dropdown loading...');
 
 /**
  * Assignee dropdown modal for task assignment
@@ -53,7 +53,7 @@ class AssigneeDropdown extends ModalBase {
             }
         }, 100);
 
-        console.log(`👤 Assignee dropdown opened for task: ${taskId}`);
+        fgtlog(`👤 Assignee dropdown opened for task: ${taskId}`);
     }
 
     /**
@@ -69,14 +69,14 @@ class AssigneeDropdown extends ModalBase {
                     <div class="${this.namespace}-current-assignee">
                         <div class="${this.namespace}-assignee-label">Current Assignee:</div>
                         <div class="${this.namespace}-assignee-display">
-                            ${this.currentAssignee ? 
-                                `<div class="${this.namespace}-assignee-item current">
+                            ${this.currentAssignee ?
+                `<div class="${this.namespace}-assignee-item current">
                                     <div class="${this.namespace}-assignee-avatar">${AssigneeUtils.getInitials(this.currentAssignee)}</div>
                                     <div class="${this.namespace}-assignee-name">${CoreDOMUtils.escapeHtml(this.currentAssignee)}</div>
                                     <div class="${this.namespace}-assignee-badge">Current</div>
-                                </div>` : 
-                                `<div class="${this.namespace}-no-assignee">No one assigned</div>`
-                            }
+                                </div>` :
+                `<div class="${this.namespace}-no-assignee">No one assigned</div>`
+            }
                         </div>
                     </div>
 
@@ -137,7 +137,7 @@ class AssigneeDropdown extends ModalBase {
         // Apply search filter
         if (filter) {
             const filterLower = filter.toLowerCase();
-            assignees = assignees.filter(assignee => 
+            assignees = assignees.filter(assignee =>
                 assignee.toLowerCase().includes(filterLower)
             );
         }
@@ -182,7 +182,7 @@ class AssigneeDropdown extends ModalBase {
         // Search input handler
         const searchInput = this.modal.querySelector(`.${this.namespace}-assignee-search`);
         if (searchInput) {
-            const cleanup = CoreEventUtils.addListener(searchInput, 'input', 
+            const cleanup = CoreEventUtils.addListener(searchInput, 'input',
                 CoreEventUtils.debounce((event) => this.handleSearch(event.target.value), 300)
             );
             this.cleanupFunctions.push(cleanup);
@@ -235,7 +235,7 @@ class AssigneeDropdown extends ModalBase {
      */
     attachQuickActionHandlers() {
         const quickActionButtons = this.modal.querySelectorAll(`.${this.namespace}-quick-action-btn`);
-        
+
         quickActionButtons.forEach(button => {
             const cleanup = CoreEventUtils.addListener(button, 'click', (event) => {
                 const action = event.target.dataset.action;
@@ -351,7 +351,7 @@ class AssigneeDropdown extends ModalBase {
                     CoreNotificationUtils.warning('Cannot determine current user', this.namespace);
                 }
                 break;
-                
+
             case 'unassign':
                 this.selectAssignee('');
                 break;
@@ -400,14 +400,14 @@ class AssigneeDropdown extends ModalBase {
             if (this.onAssigneeSet) {
                 this.onAssigneeSet(this.currentAssignee);
             }
-            
-            const message = this.currentAssignee ? 
-                `Task assigned to ${this.currentAssignee}` : 
+
+            const message = this.currentAssignee ?
+                `Task assigned to ${this.currentAssignee}` :
                 'Task unassigned';
             CoreNotificationUtils.success(message, this.namespace);
 
         } catch (error) {
-            console.error('Assign task error:', error);
+            fgterror('Assign task error:', error);
             this.isLoading = false;
             this.showError('Failed to assign task. Please try again.');
         }
@@ -461,4 +461,4 @@ class AssigneeDropdown extends ModalBase {
 // Export to global scope
 window.AssigneeDropdown = AssigneeDropdown;
 
-console.log('✅ Assignee Dropdown loaded successfully');
+fgtlog('✅ Assignee Dropdown loaded successfully');

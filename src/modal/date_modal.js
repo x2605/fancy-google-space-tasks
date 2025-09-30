@@ -1,5 +1,5 @@
 // modal/date_modal.js - Date picker modal
-console.log('📅 Date Modal loading...');
+fgtlog('📅 Date Modal loading...');
 
 /**
  * Date picker modal for setting task due dates
@@ -41,7 +41,7 @@ class DateModal extends ModalBase {
         // Open modal
         this.open();
 
-        console.log(`📅 Date modal opened for task: ${taskId}`);
+        fgtlog(`📅 Date modal opened for task: ${taskId}`);
     }
 
     /**
@@ -107,10 +107,10 @@ class DateModal extends ModalBase {
                 </div>
             `)}
             ${this.createFooter([
-                { text: 'Clear Date', action: 'clear', danger: true },
-                { text: 'Cancel', action: 'cancel' },
-                { text: 'Set Date', action: 'set', primary: true }
-            ])}
+            { text: 'Clear Date', action: 'clear', danger: true },
+            { text: 'Cancel', action: 'cancel' },
+            { text: 'Set Date', action: 'set', primary: true }
+        ])}
         `;
     }
 
@@ -172,7 +172,7 @@ class DateModal extends ModalBase {
      */
     selectDate(date) {
         this.currentDate = date;
-        
+
         // Update date input
         const dateInput = this.modal.querySelector(`.${this.namespace}-date-input`);
         if (dateInput) {
@@ -206,7 +206,7 @@ class DateModal extends ModalBase {
 
         try {
             this.showLoading('Clearing date...');
-            
+
             // Clear date through interaction handler
             await this.interactionHandler.setTaskDate(this.taskId, '', () => {
                 this.close();
@@ -217,7 +217,7 @@ class DateModal extends ModalBase {
             });
 
         } catch (error) {
-            console.error('Clear date error:', error);
+            fgterror('Clear date error:', error);
             this.showError('Failed to clear date. Please try again.');
         }
     }
@@ -238,17 +238,17 @@ class DateModal extends ModalBase {
 
         try {
             let finalDate = this.currentDate;
-            
+
             // Include time if specified
             const timeCheckbox = this.modal.querySelector(`.${this.namespace}-include-time`);
             const timeInput = this.modal.querySelector(`.${this.namespace}-time-input`);
-            
+
             if (timeCheckbox && timeCheckbox.checked && timeInput && timeInput.value) {
                 finalDate = `${this.currentDate}T${timeInput.value}:00`;
             }
 
             this.showLoading('Setting date...');
-            
+
             // Set date through interaction handler
             await this.interactionHandler.setTaskDate(this.taskId, finalDate, () => {
                 this.close();
@@ -259,7 +259,7 @@ class DateModal extends ModalBase {
             });
 
         } catch (error) {
-            console.error('Set date error:', error);
+            fgterror('Set date error:', error);
             this.showError('Failed to set date. Please try again.');
         }
     }
@@ -271,12 +271,12 @@ class DateModal extends ModalBase {
      */
     formatDateForDisplay(dateString) {
         if (!dateString) return '';
-        
+
         try {
             const date = new Date(dateString + 'T00:00:00');
             const today = new Date();
             const tomorrow = new Date(Date.now() + 86400000);
-            
+
             // Check if it's today or tomorrow
             if (this.isSameDate(date, today)) {
                 return 'Today (' + date.toLocaleDateString() + ')';
@@ -303,8 +303,8 @@ class DateModal extends ModalBase {
      */
     isSameDate(date1, date2) {
         return date1.getFullYear() === date2.getFullYear() &&
-               date1.getMonth() === date2.getMonth() &&
-               date1.getDate() === date2.getDate();
+            date1.getMonth() === date2.getMonth() &&
+            date1.getDate() === date2.getDate();
     }
 
     /**
@@ -342,4 +342,4 @@ class DateModal extends ModalBase {
 // Export to global scope
 window.DateModal = DateModal;
 
-console.log('✅ Date Modal loaded successfully');
+fgtlog('✅ Date Modal loaded successfully');

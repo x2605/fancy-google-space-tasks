@@ -1,5 +1,5 @@
 // container/container_ui.js - Container UI creation and management with toggle visibility
-console.log('🎨 Container UI loading...');
+fgtlog('🎨 Container UI loading...');
 
 /**
  * Container UI management for everything outside the table block
@@ -19,19 +19,19 @@ class ContainerUI {
     async createContainer() {
         // Load CSS first
         await this.loadStyles();
-        
+
         // Create main container
         this.customContainer = CoreDOMUtils.createElement('div', {
             id: this.CONTAINER_ID
         });
-        
+
         // Add container content
         this.customContainer.innerHTML = this.generateContainerHTML();
-        
+
         // Add to document
         document.body.appendChild(this.customContainer);
-        
-        console.log('📦 Main container created');
+
+        fgtlog('📦 Main container created');
         return this.customContainer;
     }
 
@@ -106,8 +106,8 @@ class ContainerUI {
         // Add both buttons to document
         document.body.appendChild(this.completedToggleIndicator);
         document.body.appendChild(this.toggleIndicator);
-        
-        console.log('🎯 Floating toggle buttons created');
+
+        fgtlog('🎯 Floating toggle buttons created');
     }
 
     /**
@@ -208,7 +208,7 @@ class ContainerUI {
      */
     showLoading(message = 'Loading...') {
         this.updateStatus('Loading...');
-        
+
         const loadingElements = this.customContainer?.querySelectorAll(`.${this.namespace}-loading-text`);
         loadingElements?.forEach(element => {
             element.textContent = message;
@@ -220,12 +220,12 @@ class ContainerUI {
      */
     hideLoading() {
         this.updateStatus('Ready');
-        
+
         const loadingContainers = this.customContainer?.querySelectorAll(`
             .${this.namespace}-loading-stats,
             .${this.namespace}-loading-table
         `);
-        
+
         loadingContainers?.forEach(container => {
             container.style.display = 'none';
         });
@@ -237,7 +237,7 @@ class ContainerUI {
      */
     showError(message) {
         this.updateStatus('Error');
-        
+
         const tableContainer = this.customContainer?.querySelector(`.${this.namespace}-table-container`);
         if (tableContainer) {
             tableContainer.innerHTML = `
@@ -291,10 +291,10 @@ class ContainerUI {
 
         const cssFiles = [
             'src/container/container.css',
-            'src/modal/modal.css', 
+            'src/modal/modal.css',
             'src/table/table.css'
         ];
-        
+
         // File names that need fallbackCSS
         const containerCSS = 'src/container/container.css';
 
@@ -395,11 +395,11 @@ class ContainerUI {
         this.toggleIndicator = null;
         this.completedToggleIndicator = null;
 
-        console.log('🧹 Container UI destroyed');
+        fgtlog('🧹 Container UI destroyed');
     }
 }
 
 // Export to global scope
 window.ContainerUI = ContainerUI;
 
-console.log('✅ Container UI loaded successfully');
+fgtlog('✅ Container UI loaded successfully');

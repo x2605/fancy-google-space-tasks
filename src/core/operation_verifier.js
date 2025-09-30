@@ -1,5 +1,5 @@
 // core/operation_verifier.js - Operation verification with UI lock management
-console.log('🔍 Operation Verifier loading...');
+fgtlog('🔍 Operation Verifier loading...');
 
 /**
  * Operation verifier for ensuring operations complete successfully
@@ -20,15 +20,15 @@ class OperationVerifier {
      */
     lockUI(targetContainer = null, message = '') {
         const container = targetContainer || document.getElementById(`${this.namespace}-container`);
-        
+
         if (!container) {
-            console.warn('⚠️ Cannot lock UI: container not found');
+            fgtwarn('⚠️ Cannot lock UI: container not found');
             return;
         }
 
         // Add locked class to container
         container.classList.add(`${this.namespace}-locked`);
-        
+
         // Enable lock styles
         CoreDOMUtils.enableLockStyles();
 
@@ -37,7 +37,7 @@ class OperationVerifier {
             this.showLockOverlay(message);
         }
 
-        console.log('🔒 UI locked');
+        fgtlog('🔒 UI locked');
     }
 
     /**
@@ -46,22 +46,22 @@ class OperationVerifier {
      */
     unlockUI(targetContainer = null) {
         const container = targetContainer || document.getElementById(`${this.namespace}-container`);
-        
+
         if (!container) {
-            console.warn('⚠️ Cannot unlock UI: container not found');
+            fgtwarn('⚠️ Cannot unlock UI: container not found');
             return;
         }
 
         // Remove locked class from container
         container.classList.remove(`${this.namespace}-locked`);
-        
+
         // Disable lock styles
         CoreDOMUtils.disableLockStyles();
 
         // Remove overlay message
         this.hideLockOverlay();
 
-        console.log('🔓 UI unlocked');
+        fgtlog('🔓 UI unlocked');
     }
 
     /**
@@ -111,7 +111,7 @@ class OperationVerifier {
         const pollInterval = options.pollInterval || 200;
         const startTime = Date.now();
 
-        console.log(`🔍 Starting operation verification (ID: ${operationId}, timeout: ${timeout}ms)`);
+        fgtlog(`🔍 Starting operation verification (ID: ${operationId}, timeout: ${timeout}ms)`);
 
         // Create polling interval
         const intervalId = CoreEventUtils.intervals.create((execCount) => {
@@ -120,19 +120,19 @@ class OperationVerifier {
             // Check if operation completed
             try {
                 if (checkFn()) {
-                    console.log(`✅ Operation ${operationId} verified successfully (${elapsed}ms, ${execCount} checks)`);
+                    fgtlog(`✅ Operation ${operationId} verified successfully (${elapsed}ms, ${execCount} checks)`);
                     this.completeOperation(operationId, true, onSuccess);
                     return;
                 }
             } catch (error) {
-                console.error(`❌ Operation ${operationId} check error:`, error);
+                fgterror(`❌ Operation ${operationId} check error:`, error);
                 this.completeOperation(operationId, false, onFail, error);
                 return;
             }
 
             // Check timeout
             if (elapsed >= timeout) {
-                console.warn(`⏱️ Operation ${operationId} verification timeout (${elapsed}ms, ${execCount} checks)`);
+                fgtwarn(`⏱️ Operation ${operationId} verification timeout (${elapsed}ms, ${execCount} checks)`);
                 this.completeOperation(operationId, false, onFail, new Error('Verification timeout'));
                 return;
             }
@@ -158,11 +158,11 @@ class OperationVerifier {
      */
     completeOperation(operationId, success, callback, error = null) {
         const operation = this.activeOperations.get(operationId);
-        
+
         if (operation) {
             // Clear interval
             CoreEventUtils.intervals.clear(operation.intervalId);
-            
+
             // Remove from active operations
             this.activeOperations.delete(operationId);
         }
@@ -176,7 +176,7 @@ class OperationVerifier {
                     callback(error);
                 }
             } catch (callbackError) {
-                console.error('Operation callback error:', callbackError);
+                fgterror('Operation callback error:', callbackError);
             }
         }
     }
@@ -188,14 +188,14 @@ class OperationVerifier {
      */
     cancelOperation(operationId) {
         const operation = this.activeOperations.get(operationId);
-        
+
         if (operation) {
             CoreEventUtils.intervals.clear(operation.intervalId);
             this.activeOperations.delete(operationId);
-            console.log(`🚫 Operation ${operationId} cancelled`);
+            fgtlog(`🚫 Operation ${operationId} cancelled`);
             return true;
         }
-        
+
         return false;
     }
 
@@ -207,7 +207,7 @@ class OperationVerifier {
             CoreEventUtils.intervals.clear(operation.intervalId);
         });
         this.activeOperations.clear();
-        console.log('🚫 All operations cancelled');
+        fgtlog('🚫 All operations cancelled');
     }
 
     /**
@@ -234,7 +234,7 @@ class OperationVerifier {
      */
     getOperationInfo(operationId) {
         const operation = this.activeOperations.get(operationId);
-        
+
         if (operation) {
             return {
                 operationId,
@@ -243,7 +243,7 @@ class OperationVerifier {
                 remainingTime: operation.timeout - (Date.now() - operation.startTime)
             };
         }
-        
+
         return null;
     }
 
@@ -347,7 +347,7 @@ class OperationVerifier {
         return () => {
             const element = document.querySelector(`[role="listitem"][data-id="${taskId}"][data-type="0"]`);
             if (!element) return false;
-            
+
             const actualValue = element.querySelector(`[${attribute}]`)?.getAttribute(attribute);
             return actualValue === expectedValue;
         };
@@ -359,7 +359,7 @@ class OperationVerifier {
      */
     getDebugInfo() {
         const operations = [];
-        
+
         this.activeOperations.forEach((operation, operationId) => {
             operations.push({
                 operationId,
@@ -382,7 +382,7 @@ class OperationVerifier {
         this.cancelAllOperations();
         this.unlockUI();
         this.hideLockOverlay();
-        console.log('🧹 OperationVerifier cleaned up');
+        fgtlog('🧹 OperationVerifier cleaned up');
     }
 
     /**
@@ -398,4 +398,4 @@ class OperationVerifier {
 // Export to global scope
 window.OperationVerifier = OperationVerifier;
 
-console.log('✅ Operation Verifier loaded successfully');
+fgtlog('✅ Operation Verifier loaded successfully');

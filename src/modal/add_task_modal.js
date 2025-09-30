@@ -1,5 +1,5 @@
 // modal/add_task_modal.js - Add new task modal
-console.log('➕ Add Task Modal loading...');
+fgtlog('➕ Add Task Modal loading...');
 
 /**
  * Add new task modal with title, description, and categories
@@ -49,7 +49,7 @@ class AddTaskModal extends ModalBase {
             }
         }, 100);
 
-        console.log('➕ Add task modal opened');
+        fgtlog('➕ Add task modal opened');
     }
 
     /**
@@ -110,9 +110,9 @@ class AddTaskModal extends ModalBase {
 
                         <!-- Category Suggestions -->
                         <datalist id="${this.namespace}-category-suggestions">
-                            ${this.existingCategories.map(cat => 
-                                `<option value="${CoreDOMUtils.escapeHtml(cat)}">`
-                            ).join('')}
+                            ${this.existingCategories.map(cat =>
+            `<option value="${CoreDOMUtils.escapeHtml(cat)}">`
+        ).join('')}
                         </datalist>
 
                         <!-- Category Help -->
@@ -124,11 +124,11 @@ class AddTaskModal extends ModalBase {
                                 <details class="${this.namespace}-existing-categories">
                                     <summary>Existing Categories (${this.existingCategories.length})</summary>
                                     <div class="${this.namespace}-category-list">
-                                        ${this.existingCategories.map((cat, index) => 
-                                            CategoryUtils.getCategoryBadgeHTML(cat, 1, {
-                                                className: `${this.namespace}-existing-category-badge`
-                                            })
-                                        ).join('')}
+                                        ${this.existingCategories.map((cat, index) =>
+            CategoryUtils.getCategoryBadgeHTML(cat, 1, {
+                className: `${this.namespace}-existing-category-badge`
+            })
+        ).join('')}
                                     </div>
                                 </details>
                             ` : ''}
@@ -147,9 +147,9 @@ class AddTaskModal extends ModalBase {
                 </form>
             `)}
             ${this.createFooter([
-                { text: 'Cancel', action: 'cancel' },
-                { text: 'Add Task', action: 'add', primary: true }
-            ])}
+            { text: 'Cancel', action: 'cancel' },
+            { text: 'Add Task', action: 'add', primary: true }
+        ])}
         `;
     }
 
@@ -192,7 +192,7 @@ class AddTaskModal extends ModalBase {
         const descInput = this.modal.querySelector(`.${this.namespace}-task-desc-input`);
 
         if (titleInput) {
-            const cleanup1 = CoreEventUtils.addListener(titleInput, 'input', 
+            const cleanup1 = CoreEventUtils.addListener(titleInput, 'input',
                 CoreEventUtils.debounce(() => this.updatePreview(), 200)
             );
             this.cleanupFunctions.push(cleanup1);
@@ -203,7 +203,7 @@ class AddTaskModal extends ModalBase {
         }
 
         if (descInput) {
-            const cleanup1 = CoreEventUtils.addListener(descInput, 'input', 
+            const cleanup1 = CoreEventUtils.addListener(descInput, 'input',
                 CoreEventUtils.debounce(() => this.updatePreview(), 200)
             );
             const cleanup2 = CoreEventUtils.handleAutoResizeInput(descInput);
@@ -243,7 +243,7 @@ class AddTaskModal extends ModalBase {
      */
     attachExistingCategoryHandlers() {
         const existingBadges = this.modal.querySelectorAll(`.${this.namespace}-existing-category-badge`);
-        
+
         existingBadges.forEach(badge => {
             const cleanup = CoreEventUtils.addListener(badge, 'click', (event) => {
                 const category = event.target.dataset.category;
@@ -273,7 +273,7 @@ class AddTaskModal extends ModalBase {
         // Clean and add category
         const cleanCategory = CategoryParser.cleanCategory(category);
         this.selectedCategories.push(cleanCategory);
-        
+
         this.updateSelectedCategoriesDisplay();
         this.updatePreview();
     }
@@ -349,10 +349,10 @@ class AddTaskModal extends ModalBase {
 
         // Parse title for categories
         const parsed = CategoryParser.parseTaskTitle(title);
-        
+
         // Update preview
         previewTitle.textContent = parsed.cleanTitle;
-        
+
         if (previewDesc) {
             previewDesc.textContent = description || 'No description';
         }
@@ -360,7 +360,7 @@ class AddTaskModal extends ModalBase {
         if (previewCategories) {
             const allCategories = [...new Set([...parsed.categories, ...this.selectedCategories])];
             if (allCategories.length > 0) {
-                const categoriesHTML = allCategories.map((cat, index) => 
+                const categoriesHTML = allCategories.map((cat, index) =>
                     CategoryUtils.getCategoryBadgeHTML(cat, index + 1, {
                         className: `${this.namespace}-preview-category-badge`
                     })
@@ -379,7 +379,7 @@ class AddTaskModal extends ModalBase {
      */
     validateForm(form) {
         const titleInput = form.querySelector(`.${this.namespace}-task-title-input`);
-        
+
         if (!titleInput || !titleInput.value.trim()) {
             CoreNotificationUtils.warning('Task title is required', this.namespace);
             titleInput?.focus();
@@ -437,7 +437,7 @@ class AddTaskModal extends ModalBase {
             });
 
         } catch (error) {
-            console.error('Add task error:', error);
+            fgterror('Add task error:', error);
             this.isAdding = false;
             this.showError('Failed to add task. Please try again.');
         }
@@ -473,10 +473,10 @@ class AddTaskModal extends ModalBase {
     clearForm() {
         const titleInput = this.modal?.querySelector(`.${this.namespace}-task-title-input`);
         const descInput = this.modal?.querySelector(`.${this.namespace}-task-desc-input`);
-        
+
         if (titleInput) titleInput.value = '';
         if (descInput) descInput.value = '';
-        
+
         this.selectedCategories = [];
         this.updateSelectedCategoriesDisplay();
         this.updatePreview();
@@ -500,4 +500,4 @@ class AddTaskModal extends ModalBase {
 // Export to global scope
 window.AddTaskModal = AddTaskModal;
 
-console.log('✅ Add Task Modal loaded successfully');
+fgtlog('✅ Add Task Modal loaded successfully');

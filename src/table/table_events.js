@@ -1,5 +1,5 @@
 // table/table_events.js - Table event handling (FIXED)
-console.log('⚡ Table Events loading...');
+fgtlog('⚡ Table Events loading...');
 
 /**
  * Table event handling for fancy-gst-tasks-table block
@@ -19,7 +19,7 @@ class TableEvents {
     initialize(tableContainer, interactionHandler) {
         this.interactionHandler = interactionHandler;
         this.attachAllTableEvents(tableContainer);
-        console.log('✅ Table events initialized');
+        fgtlog('✅ Table events initialized');
     }
 
     /**
@@ -44,7 +44,7 @@ class TableEvents {
         );
 
         this.cleanupFunctions.push(cleanup);
-        console.log('🎯 Checkbox events attached');
+        fgtlog('🎯 Checkbox events attached');
     }
 
     /**
@@ -54,40 +54,40 @@ class TableEvents {
     handleCheckboxClick(event) {
         event.preventDefault();
         event.stopPropagation();
-        
+
         const checkbox = event.currentTarget;
         const taskId = checkbox.dataset.taskId;
-        
-        console.log(`🔄 Toggling task: ${taskId}`);
-        
+
+        fgtlog(`🔄 Toggling task: ${taskId}`);
+
         if (taskId && this.interactionHandler) {
             // Show loading state immediately
             const originalContent = checkbox.innerHTML;
             checkbox.innerHTML = '⟳';
             checkbox.style.opacity = '0.6';
-            
+
             this.interactionHandler.toggleTask(taskId, () => {
                 // Reset loading state
                 checkbox.style.opacity = '1';
-                
+
                 // Toggle visual state
                 const wasCompleted = checkbox.classList.contains('fgt-completed');
-                
+
                 if (wasCompleted) {
                     checkbox.classList.remove('fgt-completed');
                     checkbox.innerHTML = '';
-                    console.log(`✅ Task ${taskId} marked as incomplete`);
+                    fgtlog(`✅ Task ${taskId} marked as incomplete`);
                 } else {
                     checkbox.classList.add('fgt-completed');
                     checkbox.innerHTML = '';
-                    console.log(`✅ Task ${taskId} marked as complete`);
+                    fgtlog(`✅ Task ${taskId} marked as complete`);
                 }
-                
+
                 // Notify container to refresh data
                 this.notifyDataChange();
             });
         } else {
-            console.error('❌ Missing taskId or interactionHandler');
+            fgterror('❌ Missing taskId or interactionHandler');
             CoreNotificationUtils.error('Failed to toggle task', this.namespace);
         }
     }
@@ -105,7 +105,7 @@ class TableEvents {
         );
 
         this.cleanupFunctions.push(cleanup);
-        console.log('🎯 Action button events attached');
+        fgtlog('🎯 Action button events attached');
     }
 
     /**
@@ -115,15 +115,15 @@ class TableEvents {
     handleActionButtonClick(event) {
         event.preventDefault();
         event.stopPropagation();
-        
+
         const button = event.currentTarget;
         const action = button.dataset.action;
         const taskId = button.dataset.taskId;
-        
-        console.log(`🎯 Action button clicked: ${action} for task ${taskId}`);
-        
+
+        fgtlog(`🎯 Action button clicked: ${action} for task ${taskId}`);
+
         if (!taskId) {
-            console.error('❌ Missing taskId');
+            fgterror('❌ Missing taskId');
             CoreNotificationUtils.error('Task ID not found', this.namespace);
             return;
         }
@@ -144,7 +144,7 @@ class TableEvents {
                 button.dispatchEvent(actionEvent);
                 break;
             default:
-                console.warn(`⚠️ Unknown action: ${action}`);
+                fgtwarn(`⚠️ Unknown action: ${action}`);
         }
     }
 
@@ -163,7 +163,7 @@ class TableEvents {
         const originalContent = button.innerHTML;
         button.innerHTML = '⟳';
         button.disabled = true;
-        
+
         this.interactionHandler.showInChat(taskId).finally(() => {
             // Reset button state
             button.innerHTML = originalContent;
@@ -178,7 +178,7 @@ class TableEvents {
         const event = new CustomEvent('tableDataChange', {
             bubbles: true
         });
-        
+
         const table = document.querySelector(`#${this.namespace}-tasks-table`);
         if (table) {
             table.dispatchEvent(event);
@@ -191,7 +191,7 @@ class TableEvents {
      */
     updateEventHandlers(tableContainer) {
         // Events are delegated, so no need to re-attach
-        console.log('📊 Table events updated (delegated events)');
+        fgtlog('📊 Table events updated (delegated events)');
     }
 
     /**
@@ -200,7 +200,7 @@ class TableEvents {
     cleanup() {
         this.cleanupFunctions.forEach(cleanup => cleanup());
         this.cleanupFunctions = [];
-        console.log('🧹 Table events cleaned up');
+        fgtlog('🧹 Table events cleaned up');
     }
 
     /**
@@ -215,4 +215,4 @@ class TableEvents {
 // Export to global scope
 window.TableEvents = TableEvents;
 
-console.log('✅ Table Events loaded successfully');
+fgtlog('✅ Table Events loaded successfully');

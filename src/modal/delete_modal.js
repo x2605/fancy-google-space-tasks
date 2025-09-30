@@ -1,5 +1,5 @@
 // modal/delete_modal.js - Simplified delete confirmation modal
-console.log('🗑️ Delete Modal loading...');
+fgtlog('🗑️ Delete Modal loading...');
 
 /**
  * Simplified delete confirmation modal
@@ -46,7 +46,7 @@ class DeleteModal extends ModalBase {
             }
         });
 
-        console.log(`🗑️ Delete modal opened for task: ${taskId}`);
+        fgtlog(`🗑️ Delete modal opened for task: ${taskId}`);
     }
 
     /**
@@ -66,9 +66,9 @@ class DeleteModal extends ModalBase {
                 </div>
             `)}
             ${this.createFooter([
-                { text: 'Cancel', action: 'cancel' },
-                { text: 'Delete', action: 'delete', danger: true }
-            ])}
+            { text: 'Cancel', action: 'cancel' },
+            { text: 'Delete', action: 'delete', danger: true }
+        ])}
         `;
     }
 
@@ -80,7 +80,7 @@ class DeleteModal extends ModalBase {
         this.attachButtonHandlers({
             cancel: () => {
                 this.close();
-                console.log('🗑️ Delete cancelled by user');
+                fgtlog('🗑️ Delete cancelled by user');
             },
             delete: () => this.handleConfirmDelete()
         });
@@ -90,11 +90,11 @@ class DeleteModal extends ModalBase {
      * Handle confirm delete
      */
     handleConfirmDelete() {
-        console.log(`🗑️ Delete confirmed for task: ${this.taskId}`);
-        
+        fgtlog(`🗑️ Delete confirmed for task: ${this.taskId}`);
+
         // Close modal
         this.close();
-        
+
         // Call confirm callback
         if (this.onConfirm) {
             this.onConfirm(this.taskId);
@@ -120,4 +120,4 @@ class DeleteModal extends ModalBase {
 // Export to global scope
 window.DeleteModal = DeleteModal;
 
-console.log('✅ Delete Modal loaded successfully');
+fgtlog('✅ Delete Modal loaded successfully');

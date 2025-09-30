@@ -1,5 +1,5 @@
 // modal/modal_base.js - Base modal class
-console.log('🖼️ Modal Base loading...');
+fgtlog('🖼️ Modal Base loading...');
 
 /**
  * Base modal class for all modal types
@@ -12,7 +12,7 @@ class ModalBase {
         this.isOpen = false;
         this.onClose = null;
         this.cleanupFunctions = [];
-        
+
         // Default options
         this.defaultOptions = {
             closeOnBackdrop: true,
@@ -31,7 +31,7 @@ class ModalBase {
      */
     createModal(options = {}) {
         const config = { ...this.defaultOptions, ...options };
-        
+
         // Create overlay
         this.overlay = CoreDOMUtils.createElement('div', {
             class: `${this.namespace}-modal-overlay`
@@ -76,10 +76,10 @@ class ModalBase {
         }
 
         this.overlay.appendChild(this.modal);
-        
+
         // Setup event handlers
         this.setupEventHandlers(config);
-        
+
         return this.modal;
     }
 
@@ -149,9 +149,9 @@ class ModalBase {
      */
     createFooter(buttons = []) {
         if (!buttons.length) return '';
-        
+
         let footerHTML = `<div class="${this.namespace}-modal-footer">`;
-        
+
         buttons.forEach(button => {
             const btnClass = `${this.namespace}-btn ${button.primary ? 'primary' : ''} ${button.danger ? 'danger' : ''}`;
             footerHTML += `
@@ -163,7 +163,7 @@ class ModalBase {
                 </button>
             `;
         });
-        
+
         footerHTML += '</div>';
         return footerHTML;
     }
@@ -174,23 +174,23 @@ class ModalBase {
      */
     open(onCloseCallback = null) {
         if (this.isOpen) return;
-        
+
         this.onClose = onCloseCallback;
         this.isOpen = true;
-        
+
         // Add to DOM
         document.body.appendChild(this.overlay);
-        
+
         // Trigger animation
         requestAnimationFrame(() => {
             this.overlay.style.opacity = '1';
             this.modal.style.transform = 'scale(1)';
         });
-        
+
         // Focus management
         this.setupFocusManagement();
-        
-        console.log(`📝 Modal opened: ${this.constructor.name}`);
+
+        fgtlog(`📝 Modal opened: ${this.constructor.name}`);
     }
 
     /**
@@ -198,13 +198,13 @@ class ModalBase {
      */
     close() {
         if (!this.isOpen) return;
-        
+
         this.isOpen = false;
-        
+
         // Animate out
         this.overlay.style.opacity = '0';
         this.modal.style.transform = 'scale(0.9)';
-        
+
         // Remove from DOM after animation
         setTimeout(() => {
             if (this.overlay && this.overlay.parentNode) {
@@ -212,13 +212,13 @@ class ModalBase {
             }
             this.cleanup();
         }, 300);
-        
+
         // Call onClose callback
         if (this.onClose) {
             this.onClose();
         }
-        
-        console.log(`📝 Modal closed: ${this.constructor.name}`);
+
+        fgtlog(`📝 Modal closed: ${this.constructor.name}`);
     }
 
     /**
@@ -227,25 +227,25 @@ class ModalBase {
     setupFocusManagement() {
         // Store currently focused element
         this.previouslyFocused = document.activeElement;
-        
+
         // Focus first focusable element in modal
         setTimeout(() => {
             const focusableElements = this.modal.querySelectorAll(
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
             );
-            
+
             if (focusableElements.length > 0) {
                 focusableElements[0].focus();
             }
         }, 100);
-        
+
         // Trap focus within modal
         const cleanup = CoreEventUtils.addListener(document, 'keydown', (event) => {
             if (event.key === 'Tab' && this.isOpen) {
                 this.trapFocus(event);
             }
         });
-        
+
         this.cleanupFunctions.push(cleanup);
     }
 
@@ -257,10 +257,10 @@ class ModalBase {
         const focusableElements = this.modal.querySelectorAll(
             'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
         );
-        
+
         const firstFocusable = focusableElements[0];
         const lastFocusable = focusableElements[focusableElements.length - 1];
-        
+
         if (event.shiftKey) {
             if (document.activeElement === firstFocusable) {
                 lastFocusable.focus();
@@ -285,13 +285,13 @@ class ModalBase {
             const cleanup = CoreEventUtils.addListener(button, 'click', () => this.close());
             this.cleanupFunctions.push(cleanup);
         });
-        
+
         // Action button handlers
         const actionButtons = this.modal.querySelectorAll(`[data-action]`);
         actionButtons.forEach(button => {
             const action = button.dataset.action;
             const handler = handlers[action];
-            
+
             if (handler) {
                 const cleanup = CoreEventUtils.addListener(button, 'click', (event) => {
                     event.preventDefault();
@@ -313,7 +313,7 @@ class ModalBase {
                 <div class="${this.namespace}-loading-message">${CoreDOMUtils.escapeHtml(message)}</div>
             </div>
         `;
-        
+
         if (this.modal) {
             this.modal.innerHTML = loadingHTML;
         }
@@ -331,7 +331,7 @@ class ModalBase {
                 <button class="${this.namespace}-btn" data-action="close">Close</button>
             </div>
         `;
-        
+
         if (this.modal) {
             this.modal.innerHTML = errorHTML;
             this.attachButtonHandlers({
@@ -357,12 +357,12 @@ class ModalBase {
         // Cleanup event listeners
         this.cleanupFunctions.forEach(cleanup => cleanup());
         this.cleanupFunctions = [];
-        
+
         // Restore focus
         if (this.previouslyFocused && this.previouslyFocused.focus) {
             this.previouslyFocused.focus();
         }
-        
+
         // Reset references
         this.overlay = null;
         this.modal = null;
@@ -409,4 +409,4 @@ class ModalBase {
 // Export to global scope
 window.ModalBase = ModalBase;
 
-console.log('✅ Modal Base loaded successfully');
+fgtlog('✅ Modal Base loaded successfully');
