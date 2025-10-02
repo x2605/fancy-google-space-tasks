@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Fancy Google Space Tasks",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Enhanced Google Space Tasks with better UI and features",
   "permissions": [
     "storage"
@@ -60,6 +60,6 @@
   "icons": {
     "16": "16px.png",
     "48": "48px.png",
-    "128": "128px.svg"
+    "128": "128px.png"
   }
 }
