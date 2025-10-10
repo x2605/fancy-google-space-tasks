@@ -505,7 +505,10 @@ class ContainerManager {
         // Extract description
         const descWrapper = taskElement.findDescWrapper();
         const descViewer = descWrapper?.findDescViewer();
-        const description = descViewer?.text || '';
+        let description = descViewer?.text || '';
+        if (description == descWrapper?.placeholder) {
+            description = '';
+        }
 
         // Extract completion status
         const completeCheckbox = taskElement.findCompleteCheckbox();

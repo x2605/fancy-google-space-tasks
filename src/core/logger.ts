@@ -1,6 +1,6 @@
 // core/ts - Logging wrapper for controlling debugging environment.
 
-export const fgtdebug = true;
+export const fgtdebug = false;
 
 export function fgtlog(str: string): void {
     if (fgtdebug) {

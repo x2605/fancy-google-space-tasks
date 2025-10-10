@@ -35,6 +35,15 @@ class OgtDescWrapper {
     }
 
     /**
+     * Get the placeholder text
+     * This is shown when there's no description
+     * @returns The placeholder text
+     */
+    get placeholder(): string {
+        return this._element.getAttribute('data-placeholder') || '';
+    }
+
+    /**
      * Find the description viewer element (view mode)
      * This is the element with [jsname][title] attributes
      * @returns Description viewer wrapper or null if not found

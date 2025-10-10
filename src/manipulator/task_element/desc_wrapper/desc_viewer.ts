@@ -40,25 +40,6 @@ class OgtDescViewer {
     }
 
     /**
-     * Get the placeholder text
-     * This is shown when there's no description
-     * @returns The placeholder text
-     */
-    get placeholder(): string {
-        return this._element.getAttribute('data-placeholder') || '';
-    }
-
-    /**
-     * Check if the description is empty (showing only placeholder)
-     * @returns True if description is empty
-     */
-    isEmpty(): boolean {
-        const text = this.text;
-        const placeholder = this.placeholder;
-        return !text || text === placeholder;
-    }
-
-    /**
      * Check if the element is still in the DOM
      * @returns True if element is connected to document
      */
