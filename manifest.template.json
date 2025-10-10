@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Fancy Google Space Tasks",
+  "version": "APP_VERSION",
+  "description": "Enhanced Google Space Tasks with better UI and features",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://tasks.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "comment": "Tasks - modular DOM manipulation with manipulator layer (TypeScript compiled)",
+      "matches": [
+        "https://tasks.google.com/embed/*"
+      ],
+      "js": [
+        "bundles/linkify.js",
+        "bundles/linkify-string.js",
+        "bundles/color-thief.min.js",
+        "bundled_fgt.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "css/core.css",
+        "css/modal.css",
+        "css/table.css",
+        "css/container.css"
+      ],
+      "matches": [
+        "https://tasks.google.com/*"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "16px.png",
+    "48": "48px.png",
+    "128": "128px.png"
+  }
+}

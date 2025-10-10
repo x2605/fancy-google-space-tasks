@@ -16,6 +16,20 @@ The extension is currently under review by the Chrome Web Store and is only avai
 
 - **Current Functionality:** Currently, only "toggle completion state," "view at chat," and "delete task" functionalities are active.
 
+## How to Build
+
+To prepare the extension for use or distribution, ensure you have **Node.js** installed, then follow these steps:
+
+1.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+2.  **Build the extension:**
+    ```bash
+    npm run build
+    ```
+    This command will generate the `dist` folder, which contains the necessary files to be loaded as a Chrome Extension.
+
 ## Planned Features
 
 The extension is still in its early stages; some buttons are not yet functional, and the Custom UI is not fully polished.
