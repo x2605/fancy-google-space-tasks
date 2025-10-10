@@ -89,17 +89,19 @@ class ContainerManager {
      */
     getSpaceIdFromUrl() {
         const url = window.location.href;
-
+        
         // Remove query params
         const baseUrl = url.split('?')[0];
-
-        // Pattern: https://tasks.google.com/embed/?origin=...&fullWidth=1&space=space/SPACE_ID
-        const spaceMatch = baseUrl.match(/space\/([^\/]+)/);
-
-        if (spaceMatch) {
-            return spaceMatch[1];
+        
+        // Pattern: https://tasks.google.com/embed/room/{SPACE_ID}/list/~default
+        const roomMatch = baseUrl.match(/\/room\/([^/]+)\//);
+        
+        if (roomMatch) {
+            return roomMatch[1];
         }
-
+        
+        // Pattern: https://tasks.google.com/embed/
+        // This is personal tasks
         return 'personal';
     }
 
@@ -108,7 +110,7 @@ class ContainerManager {
      */
     initializeStorageKey() {
         this.spaceId = this.getSpaceIdFromUrl();
-        this.storageKey = `fancyGST_state_${this.spaceId}`;
+        this.storageKey = `space_${this.spaceId}`;
         Logger.fgtlog(`💾 Storage key initialized: ${this.storageKey} for space: ${this.spaceId}`);
     }
 

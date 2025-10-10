@@ -1,6 +1,6 @@
 {
   "name": "fancy-google-space-tasks",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Enhanced Google Space Tasks with TypeScript",
   "scripts": {
     "build": "node build.js",
