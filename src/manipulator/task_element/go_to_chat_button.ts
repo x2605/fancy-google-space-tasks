@@ -6,7 +6,7 @@ Logger.fgtlog('💬 OGT Go To Chat Button loading...');
 /**
  * Wrapper class for the "Go to chat" navigation button
  * This button opens the related chat conversation for the task
- * Selector: button[role="button"][aria-label*="chat"]
+ * Selector: button[title]:not([aria-pressed],[data-tooltip-enabled])
  * 
  * @class OgtGoToChatButton
  * @example

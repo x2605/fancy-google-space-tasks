@@ -459,7 +459,7 @@ class TaskModal extends ModalBase {
     }
 
     /**
-     * Handle confirm button
+     * Handle confirm button - UPDATED to use editTask interaction
      */
     handleConfirm(): void {
         if (this.isProcessing) {
@@ -483,33 +483,86 @@ class TaskModal extends ModalBase {
         // Construct full title with categories
         const fullTitle = CategoryParser.reconstructTitle(this.currentCategories, title);
         
-        // Prepare result data
-        const resultData = {
-            taskId: this.taskId,
-            actionType: this.actionType,
-            title: fullTitle,
-            cleanTitle: title,
-            description: description,
-            categories: this.currentCategories
-        };
+        // Get original values for comparison
+        const originalFullTitle = this.originalTask ? 
+            CategoryParser.reconstructTitle(
+                this.originalTask.categories || [], 
+                this.originalTask.displayTitle || ''
+            ) : '';
+        const originalDescription = this.originalTask?.description || '';
         
-        // Close modal
-        this.close();
-        
-        // Show coming soon notification
-        CoreNotificationUtils.info(
-            `Coming soon: ${this.actionType} operation with title "${fullTitle}"`,
-            this.namespace
-        );
-        
-        // Call callback
-        if (this.onConfirm) {
-            this.onConfirm(resultData);
+        // Check if in edit mode and has valid taskId
+        if (this.actionType === 'edit' && this.taskId && this.taskId !== '') {
+            // Lock UI to prevent interaction
+            this.isProcessing = true;
+            CoreDOMUtils.enableLockStyles();
+            this.showLoading('Updating task...');
+            
+            Logger.fgtlog('📝 Starting task edit operation...');
+            
+            // Call editTask interaction
+            this.interactionHandler.editTask(
+                this.taskId,
+                fullTitle,
+                description,
+                originalFullTitle,
+                originalDescription,
+                () => {
+                    // Success callback
+                    Logger.fgtlog('✅ Task edit completed');
+                    
+                    // Unlock UI
+                    CoreDOMUtils.disableLockStyles();
+                    this.isProcessing = false;
+                    
+                    // Close modal
+                    this.close();
+                    
+                    // Call original confirm callback
+                    if (this.onConfirm) {
+                        this.onConfirm({
+                            taskId: this.taskId,
+                            actionType: this.actionType,
+                            title: fullTitle,
+                            cleanTitle: title,
+                            description: description,
+                            categories: this.currentCategories
+                        });
+                    }
+                }
+            ).catch((error: any) => {
+                // Error callback
+                Logger.fgterror('❌ Task edit failed: ' + error.message);
+                
+                // Unlock UI
+                CoreDOMUtils.disableLockStyles();
+                this.isProcessing = false;
+                
+                // Show error in modal
+                this.showError('Failed to update task: ' + error.message);
+            });
+            
+        } else {
+            // New task creation (not implemented yet)
+            this.close();
+            
+            CoreNotificationUtils.info(
+                `Coming soon: ${this.actionType} operation with title "${fullTitle}"`,
+                this.namespace
+            );
+            
+            if (this.onConfirm) {
+                this.onConfirm({
+                    taskId: this.taskId,
+                    actionType: this.actionType,
+                    title: fullTitle,
+                    cleanTitle: title,
+                    description: description,
+                    categories: this.currentCategories
+                });
+            }
         }
-        
-        Logger.fgtlog('✅ Task modal confirmed: ' + JSON.stringify(resultData));
     }
-
     /**
      * Show task modal (static method)
      * @param options - Modal options

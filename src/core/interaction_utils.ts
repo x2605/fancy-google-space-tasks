@@ -1,18 +1,22 @@
-// core/interaction_utils.ts - Original DOM interaction utilities (FULLY REFACTORED)
+// core/interaction_utils.ts - Original DOM interaction utilities (REFACTORED)
 import * as Logger from '@/core/logger';
 import { CoreEventUtils } from './event_utils';
 import { OperationVerifier } from './operation_verifier';
 import { OgtFinder } from '@/manipulator/finder';
 import { CoreNotificationUtils } from './notification_utils';
-import { OgtDeleteConfirmDialog } from '@/manipulator/delete_confirm_dialog';
 import { CoreDOMUtils } from './dom_utils';
-import { OgtDateSelectDialog } from '@/manipulator/date_select_dialog';
 
-Logger.fgtlog('🔄 Core Interaction Utils loading (fully refactored)...');
+// Import complex interactions
+import { editTaskInteraction } from './complex_interaction/edit_task_interaction';
+import { deleteTaskInteraction } from './complex_interaction/delete_task_interaction';
+import { setDateInteraction } from './complex_interaction/set_date_interaction';
+import { setAssigneeInteraction } from './complex_interaction/set_assignee_interaction';
+
+Logger.fgtlog('🔄 Core Interaction Utils loading (refactored)...');
 
 /**
  * Core interaction utilities for manipulating original Google Tasks DOM
- * Now uses manipulator classes for all DOM access
+ * Simple interactions are handled directly, complex ones are delegated
  */
 class CoreInteractionUtils {
     namespace: string;
@@ -23,10 +27,12 @@ class CoreInteractionUtils {
         this.verifier = new OperationVerifier(namespace);
     }
 
+    // ========== Simple Interactions (kept here) ==========
+
     /**
      * Toggle task completion state
      */
-    async toggleTask(taskId: string, onComplete: Function) {
+    async toggleTask(taskId: string, onComplete: Function): Promise<void> {
         try {
             Logger.fgtlog(`🔄 Toggling task: ${taskId}`);
             const checkbox = OgtFinder.findCompleteCheckbox(taskId);
@@ -58,7 +64,7 @@ class CoreInteractionUtils {
     /**
      * Show task in chat
      */
-    async showInChat(taskId: string) {
+    async showInChat(taskId: string): Promise<void> {
         try {
             Logger.fgtlog(`💬 Showing task in chat: ${taskId}`);
             const taskElement = OgtFinder.findTaskElement(taskId);
@@ -77,419 +83,138 @@ class CoreInteractionUtils {
         }
     }
 
+    // ========== Complex Interactions (delegated) ==========
+
+    /**
+     * Edit task (title and/or description)
+     * @param taskId - Task ID
+     * @param newTitle - New title (with categories)
+     * @param newDescription - New description
+     * @param originalTitle - Original title for comparison
+     * @param originalDescription - Original description for comparison
+     * @param onComplete - Callback when complete
+     */
+    async editTask(
+        taskId: string,
+        newTitle: string,
+        newDescription: string,
+        originalTitle: string = '',
+        originalDescription: string = '',
+        onComplete: Function | null = null
+    ): Promise<void> {
+        return editTaskInteraction.editTask(
+            taskId,
+            newTitle,
+            newDescription,
+            originalTitle,
+            originalDescription,
+            onComplete
+        );
+    }
+
     /**
      * Delete task with confirmation
      */
-    async deleteTask(taskId: string, onComplete: Function) {
-        try {
-            Logger.fgtlog(`🗑️ Deleting task: ${taskId}`);
-            const taskElement = OgtFinder.findTaskElement(taskId);
-            if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
-
-            await this.ensureTaskUIVisible(taskElement);
-
-            const deleteButton = taskElement.findDeleteButton();
-            if (!deleteButton) throw new Error('Delete button not found');
-
-            this.triggerClick(deleteButton.element);
-
-            const dialog = await this.waitForElement('div[aria-modal="true"][role="dialog"]', 3000) as Element;
-            const deleteConfirmDialog = new OgtDeleteConfirmDialog(dialog);
-
-            const okButton = deleteConfirmDialog.findDeleteConfirmButton();
-            if (!okButton) throw new Error('Confirmation OK button not found');
-
-            this.triggerClick(okButton);
-
-            this.verifier.verifyOperation(
-                OperationVerifier.waitForTaskDelete(taskId),
-                5000,
-                () => {
-                    if (onComplete) onComplete();
-                    CoreNotificationUtils.success('Task deleted successfully', this.namespace);
-                },
-                (_error: any) => {
-                    CoreNotificationUtils.error('Failed to verify task deletion', this.namespace);
-                    if (onComplete) onComplete();
-                },
-                { pollInterval: 200 }
-            );
-        } catch (error: any) {
-            Logger.fgterror('❌ Delete task error:' + error);
-            CoreNotificationUtils.error('Failed to delete task', this.namespace);
-        }
-    }
-
-    /**
-     * Update task title
-     */
-    async updateTaskTitle(taskId: string, newTitle: string, onComplete: Function) {
-        try {
-            Logger.fgtlog(`📝 Updating title for task ${taskId}: "${newTitle}"`);
-            const taskElement = OgtFinder.findTaskElement(taskId);
-            if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
-
-            const firstDiv = taskElement.findFirstDiv();
-            if (!firstDiv) throw new Error('First div not found');
-
-            this.triggerClick(firstDiv);
-
-            const titleWrapper = taskElement.findTitleWrapper();
-            if (!titleWrapper) throw new Error('Title wrapper not found');
-
-            const titleEditor = await titleWrapper.waitForTitleEditor(2000);
-
-            titleEditor.element.value = newTitle;
-            titleEditor.focus();
-
-            const inputEvent = CoreDOMUtils.createInputEvent();
-            titleEditor.element.dispatchEvent(inputEvent);
-
-            titleEditor.blur();
-
-            CoreEventUtils.timeouts.create(() => {
-                if (onComplete) onComplete();
-                CoreNotificationUtils.success('Task title updated', this.namespace);
-            }, 1000);
-        } catch (error: any) {
-            Logger.fgterror('❌ Update task title error:' + error);
-            CoreNotificationUtils.error('Failed to update task title', this.namespace);
-        }
-    }
-
-    /**
-     * Update task description
-     */
-    async updateTaskDescription(taskId: string, newDescription: string, onComplete: Function) {
-        try {
-            Logger.fgtlog(`📝 Updating description for task ${taskId}: "${newDescription}"`);
-            const taskElement = OgtFinder.findTaskElement(taskId);
-            if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
-
-            const firstDiv = taskElement.findFirstDiv();
-            if (!firstDiv) throw new Error('First div not found');
-
-            this.triggerClick(firstDiv);
-
-            const titleWrapper = taskElement.findTitleWrapper();
-            if (!titleWrapper) throw new Error('Title wrapper not found');
-            await titleWrapper.waitForTitleEditor(2000);
-
-            const descWrapper = taskElement.findDescWrapper();
-            if (!descWrapper) throw new Error('Description wrapper not found');
-
-            this.triggerClick(descWrapper.element);
-
-            const descEditor = await descWrapper.waitForDescEditor(2000);
-
-            descEditor.element.value = newDescription;
-            descEditor.focus();
-
-            const inputEvent = CoreDOMUtils.createInputEvent();
-            descEditor.element.dispatchEvent(inputEvent);
-
-            descEditor.blur();
-
-            CoreEventUtils.timeouts.create(() => {
-                if (onComplete) onComplete();
-                CoreNotificationUtils.success('Task description updated', this.namespace);
-            }, 1000);
-        } catch (error: any) {
-            Logger.fgterror('❌ Update task description error:' + error);
-            CoreNotificationUtils.error('Failed to update task description', this.namespace);
-        }
+    async deleteTask(taskId: string, onComplete: Function): Promise<void> {
+        return deleteTaskInteraction.deleteTask(taskId, onComplete);
     }
 
     /**
      * Set task date
      */
-    async setTaskDate(taskId: string, dateString: string | null, onComplete: Function) {
-        try {
-            Logger.fgtlog(`📅 Setting date for task ${taskId}: "${dateString}"`);
-            const taskElement = OgtFinder.findTaskElement(taskId);
-            if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
-
-            const checkbox = taskElement.findCompleteCheckbox();
-            if (checkbox && checkbox.complete) {
-                throw new Error('Cannot change date for completed tasks');
-            }
-
-            await this.ensureTaskUIVisible(taskElement);
-
-            const dateButton = taskElement.findDateButton();
-            if (!dateButton) throw new Error('Date button not found');
-
-            this.triggerClick(dateButton.element);
-
-            const dateDialog = await dateButton.waitForDateSelectDialog(3000);
-
-            if (!dateString) {
-                const deleteButton = dateDialog.element.querySelector('button:not([data-mdc-dialog-action])');
-                if (deleteButton) {
-                    this.triggerClick(deleteButton);
-                } else {
-                    const cancelButton = dateDialog.findDateCancelButton();
-                    if (cancelButton) this.triggerClick(cancelButton);
-                }
-                if (onComplete) onComplete();
-                return;
-            }
-
-            const [datePart, timePart] = dateString.includes('T') ?
-                dateString.split('T') : [dateString, null];
-            const [year, month, day] = datePart.split('-').map(Number);
-
-            await this.navigateToMonth(dateDialog, year, month);
-
-            const dayButton = dateDialog.findDateCell(day);
-            if (!dayButton) throw new Error(`Day ${day} not found in calendar`);
-
-            this.triggerClick(dayButton);
-            await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 500));
-
-            if (timePart) {
-                await this.setTime(dateDialog, timePart);
-            }
-
-            await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 300));
-            const newDialog = new OgtDateSelectDialog(document.querySelector('div[aria-modal="true"][role="dialog"]') as HTMLDivElement);
-            const okButton = newDialog.findDateConfirmButton();
-            if (!okButton) throw new Error('OK button not found');
-
-            this.triggerClick(okButton);
-
-            CoreEventUtils.timeouts.create(() => {
-                if (onComplete) onComplete();
-                CoreNotificationUtils.success('Task date updated', this.namespace);
-            }, 1000);
-        } catch (error: any) {
-            Logger.fgterror('❌ Set task date error:' + error);
-            CoreNotificationUtils.error('Failed to set task date', this.namespace);
-        }
+    async setTaskDate(taskId: string, dateString: string | null, onComplete: Function): Promise<void> {
+        return setDateInteraction.setTaskDate(taskId, dateString, onComplete);
     }
 
     /**
      * Set task assignee
      */
-    async setTaskAssignee(taskId: string, assigneeName: string | null, onComplete: Function) {
-        try {
-            Logger.fgtlog(`👤 Setting assignee for task ${taskId}: "${assigneeName}"`);
-            const taskElement = OgtFinder.findTaskElement(taskId);
-            if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
-
-            const checkbox = taskElement.findCompleteCheckbox();
-            if (checkbox && checkbox.complete) {
-                throw new Error('Cannot change assignee for completed tasks');
-            }
-
-            await this.ensureTaskUIVisible(taskElement);
-
-            const assigneeButton = taskElement.findAssigneeButton();
-            if (!assigneeButton) throw new Error('Assignee button not found');
-
-            this.triggerClick(assigneeButton.element);
-
-            const listbox = await assigneeButton.waitForAssigneeListbox(2000);
-            assigneeButton.element.focus();
-
-            const assigneeItems = listbox.findAllAssigneeItems();
-            let targetOption = null;
-
-            if (!assigneeName) {
-                targetOption = assigneeItems.find((item: any) => item.isUnassignOption());
-            } else {
-                targetOption = assigneeItems.find((item: any) => {
-                    const text = item.text.toLowerCase();
-                    return text.includes(assigneeName.toLowerCase());
-                });
-            }
-
-            if (!targetOption) throw new Error(`Assignee option not found: ${assigneeName || 'unassign'}`);
-
-            this.triggerClick(targetOption.element);
-
-            CoreEventUtils.timeouts.create(() => {
-                if (onComplete) onComplete();
-                const message = assigneeName ?
-                    `Task assigned to ${assigneeName}` : 'Task unassigned';
-                CoreNotificationUtils.success(message, this.namespace);
-            }, 1000);
-        } catch (error: any) {
-            Logger.fgterror('❌ Set task assignee error:' + error);
-            CoreNotificationUtils.error('Failed to set task assignee', this.namespace);
-        }
+    async setTaskAssignee(taskId: string, assigneeName: string | null, onComplete: Function): Promise<void> {
+        return setAssigneeInteraction.setTaskAssignee(taskId, assigneeName, onComplete);
     }
 
     /**
      * Get available assignees from a task
      */
-    async getAvailableAssignees(taskId: string) {
-        try {
-            const taskElement = OgtFinder.findTaskElement(taskId);
-            if (!taskElement) return [];
-
-            await this.ensureTaskUIVisible(taskElement);
-
-            const assigneeButton = taskElement.findAssigneeButton();
-            if (!assigneeButton) return [];
-
-            this.triggerClick(assigneeButton.element);
-
-            const listbox = await assigneeButton.waitForAssigneeListbox(2000);
-            assigneeButton.element.focus();
-
-            const assigneeItems = listbox.findAllAssigneeItems();
-            const assignees = assigneeItems
-                .filter((item: any) => item.hasImage())
-                .map((item: any) => item.text.trim())
-                .filter((name: string) => name);
-
-            this.triggerClick(document.body);
-
-            return assignees;
-        } catch (error: any) {
-            Logger.fgterror('❌ Get available assignees error:' + error);
-            return [];
-        }
+    async getAvailableAssignees(taskId: string): Promise<string[]> {
+        return setAssigneeInteraction.getAvailableAssignees(taskId);
     }
 
-    /**
-     * Navigate to specific month in date picker
-     */
-    async navigateToMonth(dateDialog: any, targetYear: number, targetMonth: number) {
-        let attempts = 0;
-        const maxAttempts = 24;
-
-        while (attempts < maxAttempts) {
-            const monthYearLabel = dateDialog.findMonthYearLabel();
-            if (!monthYearLabel) throw new Error('Month/year label not found');
-
-            const [currentYear, currentMonth] = this.parseMonthYearText(monthYearLabel.textContent);
-
-            if (currentYear === targetYear && currentMonth === targetMonth) {
-                break;
-            }
-
-            if (currentYear < targetYear || (currentYear === targetYear && currentMonth < targetMonth)) {
-                const nextButton = dateDialog.findMonthNextButton();
-                if (nextButton) this.triggerClick(nextButton);
-            } else {
-                const prevButton = dateDialog.findMonthPrevButton();
-                if (prevButton) this.triggerClick(prevButton);
-            }
-
-            await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 300));
-            attempts++;
-        }
-
-        if (attempts >= maxAttempts) {
-            throw new Error('Failed to navigate to target month');
-        }
-    }
+    // ========== Helper Methods ==========
 
     /**
-     * Parse month/year text from dialog
+     * Ensure task UI is visible (for narrow screens)
      */
-    parseMonthYearText(text: string) {
-        const yearMatch = text.match(/(\d{4})/);
-        const monthMatch = text.match(/(\d{1,2})월/);
-
-        const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
-        const month = monthMatch ? parseInt(monthMatch[1]) : new Date().getMonth() + 1;
-
-        return [year, month];
-    }
-
-    /**
-     * Set time in date picker
-     */
-    async setTime(dateDialog: any, timeString: string) {
-        const timeInput = dateDialog.findTimeInput();
-        if (!timeInput) return;
-
-        timeInput.focus();
-
-        /*const timeDropdown = */await this.waitForElement('div[role="listbox"]', 2000, dateDialog.element);
-
-        const [hour, minute] = timeString.split(':');
-        const targetTime = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:00`;
-
-        const timeOption = dateDialog.findTimeOption(targetTime);
-        if (timeOption) {
-            this.triggerClick(timeOption);
-        }
-
-        this.triggerClick(dateDialog.element);
-        await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 300));
-    }
-
-    /**
-     * Ensure task UI is visible
-     */
-    async ensureTaskUIVisible(taskElement: any) {
+    async ensureTaskUIVisible(taskElement: any): Promise<void> {
         if (!taskElement) return;
 
         const firstDiv = taskElement.findFirstDiv();
         if (firstDiv) {
-            this.triggerClick(firstDiv);
+            this.simulateClick(firstDiv);
             await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 300));
         }
     }
 
     /**
-     * Trigger click event
+     * Trigger click event (for button elements)
      */
-    triggerClick(element: Element) {
+    triggerClick(element: Element): void {
         if (!element) return;
         const event = CoreDOMUtils.createMouseEvent('click');
         element.dispatchEvent(event);
     }
 
     /**
-     * Trigger blur event
+     * Simulate click on div elements with coordinate-based mouse events
+     * Required for div elements that don't respond to simple click events
      */
-    triggerBlur(element: Element) {
+    simulateClick(element: Element): void {
         if (!element) return;
-        const event = new Event('blur', { bubbles: true });
-        element.dispatchEvent(event);
-    }
 
-    /**
-     * Wait for element to appear
-     */
-    waitForElement(selector: string, timeout: number = 3000, parent: Element | Document = document) {
-        return new Promise((resolve, reject) => {
-            const startTime = Date.now();
+        const rect = element.getBoundingClientRect();
+        const clientX = rect.left + (rect.width / 2);
+        const clientY = rect.top + (rect.height / 2);
 
-            const checkElement = () => {
-                const element = parent.querySelector(selector);
-                if (element) {
-                    resolve(element);
-                    return;
-                }
-
-                if (Date.now() - startTime >= timeout) {
-                    reject(new Error(`Element ${selector} not found within ${timeout}ms`));
-                    return;
-                }
-
-                CoreEventUtils.timeouts.create(checkElement, 100);
-            };
-
-            checkElement();
+        const mousedownEvent = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            detail: 1,
+            screenX: clientX,
+            screenY: clientY,
+            clientX: clientX,
+            clientY: clientY,
+            button: 0
         });
+
+        const mouseupEvent = new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            detail: 1,
+            screenX: clientX,
+            screenY: clientY,
+            clientX: clientX,
+            clientY: clientY,
+            button: 0
+        });
+
+        element.dispatchEvent(mousedownEvent);
+        element.dispatchEvent(mouseupEvent);
     }
 
     /**
      * Cleanup verifier resources
      */
-    cleanup() {
+    cleanup(): void {
         if (this.verifier) {
             this.verifier.cleanup();
         }
+        // Cleanup complex interaction resources
+        deleteTaskInteraction.cleanup();
     }
 }
 
 export { CoreInteractionUtils };
 
-Logger.fgtlog('✅ Core Interaction Utils loaded successfully (fully refactored)');
+Logger.fgtlog('✅ Core Interaction Utils loaded successfully (refactored)');
