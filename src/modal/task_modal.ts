@@ -18,21 +18,23 @@ class TaskModal extends ModalBase {
     actionType: string;
     originalTask: any;
     currentCategories: string[];
-    allExistingCategories: string[];
+    allExistingCategories: string[][];
     onConfirm: Function | null;
     onCancel: Function | null;
     interactionHandler: any;
     isProcessing: boolean;
+    categoryDropdown: HTMLElement | null;
+    dropdownCleanup: Function | null;
 
     constructor(namespace: string = 'fancy-gst') {
         super(namespace);
         
         // Modal state
         this.taskId = null;
-        this.actionType = 'edit'; // 'edit', 'newAtTop', 'newAtAfter', 'newAtBefore'
+        this.actionType = 'edit';
         this.originalTask = null;
         this.currentCategories = [];
-        this.allExistingCategories = []; // For dropdown suggestions
+        this.allExistingCategories = [];
         
         // Callbacks
         this.onConfirm = null;
@@ -41,6 +43,8 @@ class TaskModal extends ModalBase {
         
         // State flags
         this.isProcessing = false;
+        this.categoryDropdown = null;
+        this.dropdownCleanup = null;
     }
 
     /**
@@ -72,10 +76,8 @@ class TaskModal extends ModalBase {
             // Set initial categories based on action type
             if (taskData && taskData.categories) {
                 if (actionType === 'edit' || actionType === 'newAtTop') {
-                    // Copy all data including categories
                     this.currentCategories = [...taskData.categories];
                 } else {
-                    // newAtAfter or newAtBefore: copy only categories
                     this.currentCategories = [...taskData.categories];
                 }
             } else {
@@ -88,11 +90,11 @@ class TaskModal extends ModalBase {
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
 
-        // Create modal with specific options - Use 'large' size instead of maxWidth
+        // Create modal
         this.createModal({
             size: 'large',
-            closeOnBackdrop: false, // Cannot close by clicking backdrop
-            closeOnEscape: true // Can close with ESC key
+            closeOnBackdrop: false,
+            closeOnEscape: true
         });
 
         // Set modal content
@@ -103,7 +105,6 @@ class TaskModal extends ModalBase {
 
         // Open modal
         this.open(() => {
-            // Modal closed without confirmation
             if (this.onCancel) {
                 this.onCancel();
             }
@@ -114,7 +115,6 @@ class TaskModal extends ModalBase {
 
     /**
      * Generate modal title based on action type
-     * @returns Modal title
      */
     getModalTitle(): string {
         switch (this.actionType) {
@@ -133,7 +133,6 @@ class TaskModal extends ModalBase {
 
     /**
      * Get full task title with categories
-     * @returns Full title with [categories]
      */
     getFullTaskTitle(): string {
         if (!this.originalTask) {
@@ -144,8 +143,6 @@ class TaskModal extends ModalBase {
             ? this.originalTask.categories.map((cat: string) => `[${cat}]`).join('')
             : '';
         
-        // Use nullish coalescing to preserve empty strings
-        // Only replace null/undefined with empty string
         const title = this.originalTask.displayTitle ?? '';
         
         return `${categoryPrefix}${title}`;
@@ -153,7 +150,6 @@ class TaskModal extends ModalBase {
 
     /**
      * Get initial title value (without categories)
-     * @returns Title text
      */
     getInitialTitle(): string {
         if (!this.originalTask) {
@@ -164,13 +160,11 @@ class TaskModal extends ModalBase {
             return this.originalTask.displayTitle || '';
         }
         
-        // For newAtAfter/Before, start with empty title
         return '';
     }
 
     /**
      * Get initial description value
-     * @returns Description text
      */
     getInitialDescription(): string {
         if (!this.originalTask) {
@@ -181,13 +175,11 @@ class TaskModal extends ModalBase {
             return this.originalTask.description || '';
         }
         
-        // For newAtAfter/Before, start with empty description
         return '';
     }
 
     /**
      * Generate task modal HTML content
-     * @returns Modal content HTML
      */
     generateTaskModalHTML(): string {
         return `
@@ -231,7 +223,7 @@ class TaskModal extends ModalBase {
                                   rows="3">${CoreDOMUtils.escapeHtml(this.getInitialDescription())}</textarea>
                     </div>
 
-                    <!-- Due Date display (read-only for now) -->
+                    <!-- Due Date display -->
                     ${this.originalTask && this.originalTask.date ? `
                     <div class="${this.namespace}-form-group">
                         <label class="${this.namespace}-form-label">Due Date</label>
@@ -241,7 +233,7 @@ class TaskModal extends ModalBase {
                     </div>
                     ` : ''}
 
-                    <!-- Assignee display (read-only for now) -->
+                    <!-- Assignee display -->
                     ${this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ? `
                     <div class="${this.namespace}-form-group">
                         <label class="${this.namespace}-form-label">Assignee</label>
@@ -261,7 +253,6 @@ class TaskModal extends ModalBase {
 
     /**
      * Render category badges HTML
-     * @returns Badges HTML
      */
     renderCategoryBadges(): string {
         if (this.currentCategories.length === 0) {
@@ -288,10 +279,7 @@ class TaskModal extends ModalBase {
     }
 
     /**
-     * Generate category color (simplified version from TableRenderer)
-     * @param seed - Category seed
-     * @param level - Category level
-     * @returns Color style object
+     * Generate category color
      */
     generateCategoryColor(seed: string, level: number): any {
         const hue = CategoryUtils.generateHueFromSeed(seed);
@@ -302,7 +290,7 @@ class TaskModal extends ModalBase {
         
         return {
             backgroundColor: backgroundColor,
-            color: '#000', // Always black text
+            color: '#000',
             borderColor: '#000'
         };
     }
@@ -317,7 +305,7 @@ class TaskModal extends ModalBase {
             confirm: () => this.handleConfirm()
         });
 
-        // Title input blur event - detect [Category] pattern
+        // Title input blur event
         const titleInput = this.modal!.querySelector(`#${this.namespace}-task-title-input`);
         if (titleInput) {
             const cleanup1 = CoreEventUtils.addListener(titleInput, 'blur', () => {
@@ -365,23 +353,15 @@ class TaskModal extends ModalBase {
         if (!titleInput) return;
 
         const text = titleInput.value;
-        
-        // Check if text starts with [Category] pattern
         const categoryMatch = text.match(/^\[([^\]]+)\]/);
         
         if (categoryMatch) {
             const newCategory = categoryMatch[1].trim();
             
             if (newCategory && CategoryParser.isValidCategory(newCategory)) {
-                // Add category to the end
                 this.currentCategories.push(newCategory);
-                
-                // Remove [Category] from title
                 titleInput.value = text.substring(categoryMatch[0].length).trim();
-                
-                // Re-render badges
                 this.updateCategoryBadges();
-                
                 Logger.fgtlog('✅ Added category from title: ' + newCategory);
             } else {
                 CoreNotificationUtils.warning('Invalid category name', this.namespace);
@@ -391,16 +371,14 @@ class TaskModal extends ModalBase {
 
     /**
      * Handle category badge remove
-     * @param event - Click event
      */
     handleRemoveBadge(event: any): void {
-        event.stopPropagation(); // Prevent badge click event
+        event.stopPropagation();
         
         const button = event.currentTarget;
         const categoryIndex = parseInt(button.dataset.categoryIndex);
         const category = this.currentCategories[categoryIndex];
         
-        // Show confirmation
         if (confirm(`Remove category "${category}"?`)) {
             this.currentCategories.splice(categoryIndex, 1);
             this.updateCategoryBadges();
@@ -409,14 +387,244 @@ class TaskModal extends ModalBase {
     }
 
     /**
-     * Handle category badge click
-     * @param event - Click event
+     * Handle category badge click - show dropdown
      */
     handleBadgeClick(event: any): void {
+        // Prevent badge remove button from triggering this
+        if (event.target.classList.contains(`${this.namespace}-badge-remove`)) {
+            return;
+        }
+
+        event.stopPropagation();
+        
         const badge = event.currentTarget;
         const categoryIndex = parseInt(badge.dataset.categoryIndex);
         
         Logger.fgtlog('🏷️ Badge clicked: index ' + categoryIndex);
+        
+        // Close any existing dropdown
+        this.closeCategoryDropdown();
+        
+        // Show dropdown for this badge
+        this.showCategoryDropdown(badge, categoryIndex);
+    }
+
+    /**
+     * Show category dropdown menu
+     */
+    showCategoryDropdown(badge: HTMLElement, categoryIndex: number): void {
+        // Get same level categories
+        const sameLevelCategories = this.getSameLevelCategories(categoryIndex);
+        
+        // Create dropdown element
+        const dropdown = document.createElement('div');
+        dropdown.className = `${this.namespace}-category-dropdown`;
+        dropdown.id = `${this.namespace}-category-dropdown`;
+        
+        // Build dropdown content
+        let dropdownHTML = '';
+        
+        // Modify option
+        dropdownHTML += `
+            <div class="${this.namespace}-dropdown-item modify-option" data-action="modify">
+                ✏️ Modify
+            </div>
+        `;
+        
+        // Same level categories
+        if (sameLevelCategories.length > 0) {
+            dropdownHTML += `<div class="${this.namespace}-dropdown-divider"></div>`;
+            
+            sameLevelCategories.forEach(categoryName => {
+                dropdownHTML += `
+                    <div class="${this.namespace}-dropdown-item category-option" 
+                         data-action="switch" 
+                         data-category-name="${CoreDOMUtils.escapeHtml(categoryName)}">
+                        ${CoreDOMUtils.escapeHtml(categoryName)}
+                    </div>
+                `;
+            });
+        }
+        
+        dropdown.innerHTML = dropdownHTML;
+        
+        // Calculate position
+        const rect = badge.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        dropdown.style.top = `${rect.bottom + 4}px`;
+        dropdown.style.left = `${rect.left}px`;
+        dropdown.style.minWidth = `${rect.width}px`;
+        
+        // Add to document
+        document.body.appendChild(dropdown);
+        this.categoryDropdown = dropdown;
+        
+        // Attach dropdown event handlers
+        const modifyOption = dropdown.querySelector('.modify-option');
+        if (modifyOption) {
+            const cleanup1 = CoreEventUtils.addListener(modifyOption, 'click', () => {
+                this.handleModifyCategory(categoryIndex);
+            });
+            
+            this.dropdownCleanup = () => {
+                cleanup1();
+                // Clean up other handlers below
+            };
+        }
+        
+        const categoryOptions = dropdown.querySelectorAll('.category-option');
+        categoryOptions.forEach(option => {
+            const cleanup2 = CoreEventUtils.addListener(option, 'click', () => {
+                const categoryName = option.getAttribute('data-category-name');
+                if (categoryName) {
+                    this.handleSwitchCategory(categoryIndex, categoryName);
+                }
+            });
+            
+            // Add to cleanup chain
+            if (this.dropdownCleanup) {
+                const prevCleanup = this.dropdownCleanup;
+                this.dropdownCleanup = () => {
+                    prevCleanup();
+                    cleanup2();
+                };
+            }
+        });
+        
+        // Close dropdown on outside click
+        const outsideClickCleanup = CoreEventUtils.addListener(document, 'click', (e: any) => {
+            if (!dropdown.contains(e.target) && e.target !== badge) {
+                this.closeCategoryDropdown();
+            }
+        });
+        
+        // Add to cleanup chain
+        if (this.dropdownCleanup) {
+            const prevCleanup = this.dropdownCleanup;
+            this.dropdownCleanup = () => {
+                prevCleanup();
+                outsideClickCleanup();
+            };
+        } else {
+            this.dropdownCleanup = outsideClickCleanup;
+        }
+        
+        // Close on ESC key
+        const escapeCleanup = CoreEventUtils.addListener(document, 'keydown', (e: any) => {
+            if (e.key === 'Escape') {
+                this.closeCategoryDropdown();
+            }
+        });
+        
+        // Add to cleanup chain
+        if (this.dropdownCleanup) {
+            const prevCleanup = this.dropdownCleanup;
+            this.dropdownCleanup = () => {
+                prevCleanup();
+                escapeCleanup();
+            };
+        }
+        
+        Logger.fgtlog('📋 Category dropdown shown with ' + sameLevelCategories.length + ' options');
+    }
+
+    /**
+     * Get categories at the same level (sharing same parent sequence)
+     */
+    getSameLevelCategories(categoryIndex: number): string[] {
+        const parentPath = this.currentCategories.slice(0, categoryIndex);
+        const currentCategory = this.currentCategories[categoryIndex];
+        
+        const sameLevelCategories: string[] = [];
+        const seen = new Set<string>();
+        
+        // Search through all existing category sequences
+        this.allExistingCategories.forEach((catArray: string[]) => {
+            // Check if this array has the same parent path
+            if (catArray.length > categoryIndex) {
+                // Compare parent paths
+                let parentMatches = true;
+                for (let i = 0; i < categoryIndex; i++) {
+                    if (catArray[i] !== parentPath[i]) {
+                        parentMatches = false;
+                        break;
+                    }
+                }
+                
+                if (parentMatches) {
+                    const categoryAtLevel = catArray[categoryIndex];
+                    
+                    // Don't include current category
+                    if (categoryAtLevel !== currentCategory && !seen.has(categoryAtLevel)) {
+                        seen.add(categoryAtLevel);
+                        sameLevelCategories.push(categoryAtLevel);
+                    }
+                }
+            }
+        });
+        
+        Logger.fgtlog(`🔍 Found ${sameLevelCategories.length} same-level categories for index ${categoryIndex}`);
+        return sameLevelCategories;
+    }
+
+    /**
+     * Handle modify category option
+     */
+    handleModifyCategory(categoryIndex: number): void {
+        this.closeCategoryDropdown();
+        
+        const currentCategory = this.currentCategories[categoryIndex];
+        const newName = prompt(`Modify category name:`, currentCategory);
+        
+        if (newName !== null && newName.trim() !== '') {
+            const cleanName = CategoryParser.cleanCategory(newName);
+            
+            if (CategoryParser.isValidCategory(cleanName)) {
+                // Only change this category, keep children
+                this.currentCategories[categoryIndex] = cleanName;
+                this.updateCategoryBadges();
+                
+                Logger.fgtlog(`✏️ Modified category at index ${categoryIndex}: ${currentCategory} → ${cleanName}`);
+                CoreNotificationUtils.success('Category modified', this.namespace);
+            } else {
+                CoreNotificationUtils.warning('Invalid category name', this.namespace);
+            }
+        }
+    }
+
+    /**
+     * Handle switch category option - replace category at index
+     */
+    handleSwitchCategory(categoryIndex: number, newCategoryName: string): void {
+        this.closeCategoryDropdown();
+        
+        Logger.fgtlog(`🔄 Switching category at index ${categoryIndex} to: ${newCategoryName}`);
+        
+        // Simply replace the category at this index
+        this.currentCategories[categoryIndex] = newCategoryName;
+        this.updateCategoryBadges();
+        
+        Logger.fgtlog(`✅ Updated to: ${JSON.stringify(this.currentCategories)}`);
+        CoreNotificationUtils.success('Category switched', this.namespace);
+    }
+
+    /**
+     * Close category dropdown
+     */
+    closeCategoryDropdown(): void {
+        if (this.categoryDropdown) {
+            // Clean up event handlers
+            if (this.dropdownCleanup) {
+                this.dropdownCleanup();
+                this.dropdownCleanup = null;
+            }
+            
+            // Remove from DOM
+            this.categoryDropdown.remove();
+            this.categoryDropdown = null;
+            
+            Logger.fgtlog('❌ Category dropdown closed');
+        }
     }
 
     /**
@@ -452,6 +660,7 @@ class TaskModal extends ModalBase {
      * Handle cancel button
      */
     handleCancel(): void {
+        this.closeCategoryDropdown();
         this.close();
         if (this.onCancel) {
             this.onCancel();
@@ -459,28 +668,27 @@ class TaskModal extends ModalBase {
     }
 
     /**
-     * Handle confirm button - UPDATED to use editTask interaction
+     * Handle confirm button
      */
     handleConfirm(): void {
         if (this.isProcessing) {
-            return; // Prevent double submission
+            return;
         }
         
-        // Get input values
+        this.closeCategoryDropdown();
+        
         const titleInput = this.modal!.querySelector(`#${this.namespace}-task-title-input`) as HTMLInputElement;
         const descInput = this.modal!.querySelector(`#${this.namespace}-task-desc-input`) as HTMLTextAreaElement;
         
         const title = titleInput?.value.trim() || '';
         const description = descInput?.value.trim() || '';
         
-        // Validate: either category or title must exist
         if (this.currentCategories.length === 0 && title === '') {
             CoreNotificationUtils.warning('Please add at least a category or title', this.namespace);
             titleInput?.focus();
             return;
         }
         
-        // Construct full title with categories
         const fullTitle = CategoryParser.reconstructTitle(this.currentCategories, title);
         
         // Get original values for comparison
@@ -563,10 +771,17 @@ class TaskModal extends ModalBase {
             }
         }
     }
+
+    /**
+     * Override close to ensure dropdown cleanup
+     */
+    close(): void {
+        this.closeCategoryDropdown();
+        super.close();
+    }
+
     /**
      * Show task modal (static method)
-     * @param options - Modal options
-     * @returns Modal instance
      */
     static show(options: any): TaskModal {
         const modal = new TaskModal(options.namespace || 'fancy-gst');
