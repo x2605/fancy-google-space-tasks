@@ -4,6 +4,7 @@ import { OgtTaskElement } from './task_element/task_element';
 import { OgtDeleteConfirmDialog } from './delete_confirm_dialog';
 import { OgtViewMore } from './view_more';
 import { OgtTaskContainer } from './task_container';
+import { OgtAddNewButton } from './add_new_button';
 
 Logger.fgtlog('🔍 OGT Finder loading...');
 
@@ -40,7 +41,51 @@ class OgtFinder {
      */
     static findAllTaskElements(): OgtTaskElement[] {
         const elements = document.querySelectorAll('[role="listitem"][data-id][data-type="0"]');
-        return Array.from(elements).map(el => new OgtTaskElement(el));
+        let array = Array.from(elements).map(el => new OgtTaskElement(el));
+        for (let i = array.length - 1; i >= 0; i--) {
+            const subElements = array[i].findTouchButtons();
+            // OgtTaskElement including 2 OgtTouchButton is not real task.
+            if (subElements.length == 2) {
+                array.splice(i, 1);
+            }
+        }
+
+        return array;
+    }
+
+    /**
+     * 
+     * @returns Task element wrapper which contains Add/Cancel button
+     */
+    static findTaskElementToBeAdded(): OgtTaskElement | null {
+        const elements = document.querySelectorAll('[role="listitem"][data-id][data-type="0"]');
+        let array = Array.from(elements).map(el => new OgtTaskElement(el));
+        let target = null;
+        for (let i = 0; i < array.length; i++) {
+            const subElements = array[i].findTouchButtons();
+            // OgtTaskElement including 2 OgtTouchButton is not real task.
+            if (subElements.length == 2) {
+                target = array[i];
+                break;
+            }
+        }
+
+        return target;
+    }
+
+    /**
+     * Find the first addnew button
+     * @returns Addnew button or null if not found
+     */
+    static findAddNewButton(): OgtAddNewButton | null {
+        const anchor = document.querySelector('[role="listitem"]');
+        const element = anchor?.parentElement?.parentElement?.parentElement?.parentElement?.querySelector('button[data-idom-class]') as HTMLButtonElement;
+
+        if (!element) {
+            return null;
+        }
+        
+        return new OgtAddNewButton(element);
     }
 
     /**

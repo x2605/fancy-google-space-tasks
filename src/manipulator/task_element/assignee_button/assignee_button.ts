@@ -14,13 +14,13 @@ Logger.fgtlog('👤 OGT Assignee Button loading...');
  * @class OgtAssigneeButton
  */
 class OgtAssigneeButton {
-    _element: Element;
+    _element: HTMLDivElement;
 
     /**
      * Create an assignee button wrapper
      * @param element - The button element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLDivElement) {
         if (!element) {
             throw new Error('OgtAssigneeButton requires a valid DOM element');
         }
@@ -31,7 +31,7 @@ class OgtAssigneeButton {
      * Get the underlying DOM element
      * @returns The wrapped button element
      */
-    get element(): Element {
+    get element(): HTMLDivElement {
         return this._element;
     }
 

@@ -7,6 +7,7 @@ import { OgtDateButton } from './date_button';
 import { OgtCompleteCheckbox } from './complete_checkbox';
 import { OgtDescWrapper } from './desc_wrapper/desc_wrapper';
 import { OgtTitleWrapper } from './title_wrapper/title_wrapper';
+import { OgtTouchButton } from './touch_button';
 
 Logger.fgtlog('📋 OGT Task Element loading...');
 
@@ -107,7 +108,7 @@ class OgtTaskElement {
      * @returns Assignee button or null if not found
      */
     findAssigneeButton(): OgtAssigneeButton | null {
-        const button = this._element.querySelector('[role="button"][aria-disabled]:not([data-first-date-el])');
+        const button = this._element.querySelector('[role="button"][aria-disabled]:not([data-first-date-el])') as HTMLDivElement;
         if (!button) return null;
         return new OgtAssigneeButton(button);
     }
@@ -134,6 +135,15 @@ class OgtTaskElement {
         const button = this._element.querySelector('button[data-tooltip-enabled]:not([aria-pressed],[title])');
         if (!button) return null;
         return new OgtDeleteButton(button);
+    }
+
+    /**
+     * Find the touch buttons. Generally 2 or 0 elements can be found.
+     * @returns List of touch buttons. [0]: Add button, [1]: Cancel button
+     */
+    findTouchButtons(): OgtTouchButton[] {
+        const elements = this._element.querySelectorAll('div[data-is-touch-wrapper="true"]') as NodeListOf<HTMLDivElement>;
+        return Array.from(elements).map(el => new OgtTouchButton(el));
     }
 
     /**
