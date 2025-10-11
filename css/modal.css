@@ -409,6 +409,7 @@
 .fancy-gst-category-dropdown {
     position: absolute;
     background: white;
+    color: #5f6368;
     border: 1px solid #dadce0;
     border-radius: 4px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -420,6 +421,7 @@
 @media (prefers-color-scheme: dark) {
     .fancy-gst-category-dropdown {
         background: #2d2d2d;
+        color: #e0e0e0;
         border-color: #444;
     }
 }

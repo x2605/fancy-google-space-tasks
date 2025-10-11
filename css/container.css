@@ -22,7 +22,7 @@ body {
     font-family: 'Google Sans', Roboto, Arial, sans-serif;
     background: #fff;
     color: #202124;
-    padding: 8px;
+    padding: 0;
     box-sizing: border-box;
 }
 
@@ -219,7 +219,8 @@ body {
 .fancy-gst-table-container {
     flex: 1;
     background: white;
-    border-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
     border: 1px solid #e8eaed;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     overflow: hidden;
