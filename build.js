@@ -123,7 +123,7 @@ function extractDateKeywords() {
         return;
       }
       
-      // Extract keywords
+      // Extract keywords - start with relative time keywords
       const keywords = {
         locale: locale,
         today: fields.day?.['relative-type-0'] || null,
@@ -133,20 +133,57 @@ function extractDateKeywords() {
         week: extractUnitKeyword(fields.week),
         meridiem: { am: null, pm: null },
         usesLatinNumbers: true,
-        numberingDigits: null
+        numberingDigits: null,
+        dateFormats: null,
+        timeFormats: null,
+        months: null
       };
       
-      // Extract AM/PM from ca-gregorian
+      // Extract date/time formats and months from ca-gregorian
       if (fs.existsSync(caGregorianPath)) {
         try {
           const caData = JSON.parse(fs.readFileSync(caGregorianPath, 'utf8'));
-          const dayPeriods = caData.main[locale]?.dates?.calendars?.gregorian?.dayPeriods?.format?.wide;
-          if (dayPeriods) {
-            keywords.meridiem.am = dayPeriods.am || null;
-            keywords.meridiem.pm = dayPeriods.pm || null;
+          const gregorian = caData.main[locale]?.dates?.calendars?.gregorian;
+          
+          if (gregorian) {
+            // Extract AM/PM
+            const dayPeriods = gregorian.dayPeriods?.format?.wide;
+            if (dayPeriods) {
+              keywords.meridiem.am = dayPeriods.am || null;
+              keywords.meridiem.pm = dayPeriods.pm || null;
+            }
+            
+            // Extract date formats (short and medium for flexibility)
+            if (gregorian.dateFormats) {
+              keywords.dateFormats = {
+                short: gregorian.dateFormats.short || null,
+                medium: gregorian.dateFormats.medium || null
+              };
+            }
+            
+            // Extract time formats (short is sufficient for most cases)
+            if (gregorian.timeFormats) {
+              keywords.timeFormats = {
+                short: gregorian.timeFormats.short || null
+              };
+            }
+            
+            // Extract month names (wide and abbreviated)
+            if (gregorian.months?.format) {
+              const monthsWide = gregorian.months.format.wide;
+              const monthsAbbr = gregorian.months.format.abbreviated;
+              
+              if (monthsWide) {
+                // Convert month object to array (1-12)
+                keywords.months = {
+                  wide: Array.from({ length: 12 }, (_, i) => monthsWide[(i + 1).toString()] || null),
+                  abbreviated: monthsAbbr ? Array.from({ length: 12 }, (_, i) => monthsAbbr[(i + 1).toString()] || null) : null
+                };
+              }
+            }
           }
         } catch (e) {
-          // Silently ignore
+          // Silently ignore ca-gregorian parse errors
         }
       }
       
@@ -228,6 +265,7 @@ function extractDateKeywords() {
 }
 
 // Helper: Extract unit keyword by comparing past and future templates
+// Uses ONLY CLDR data - no hardcoded language-specific words
 function extractUnitKeyword(fieldData) {
   if (!fieldData || !fieldData['relativeTime-type-past']) {
     return null;
@@ -236,7 +274,7 @@ function extractUnitKeyword(fieldData) {
   const pastObj = fieldData['relativeTime-type-past'];
   const futureObj = fieldData['relativeTime-type-future'];
   
-  // Try different plural forms
+  // Try different plural forms to get templates
   const pastTemplate = pastObj['relativeTimePattern-count-one'] || 
                        pastObj['relativeTimePattern-count-other'] ||
                        null;
@@ -245,78 +283,23 @@ function extractUnitKeyword(fieldData) {
                          futureObj?.['relativeTimePattern-count-other'] ||
                          null;
   
-  if (!pastTemplate) {
+  if (!pastTemplate || !futureTemplate) {
     return null;
   }
   
-  try {
-    // Strategy 1: If we have both past and future, find common part
-    if (futureTemplate) {
-      const common = findCommonSubstring(pastTemplate, futureTemplate);
-      if (common) {
-        return common;
-      }
-    }
-    
-    // Strategy 2: Extract from past template only
-    // Replace {0} with "1"
-    let text = pastTemplate.replace(/\{0\}/g, '1');
-    
-    // Remove all digits
-    text = text.replace(/\d+/g, '');
-    
-    // Remove all whitespace
-    text = text.replace(/\s+/g, '');
-    
-    // Remove common past markers (lowercase comparison)
-    const textLower = text.toLowerCase();
-    const markers = [
-      'ago', 'in', 'within',
-      '전', '후', 
-      '前', '後',
-      'hace', 'atrás', 'dentrodede',
-      'ilya', 'dans',
-      'vor',
-      'atrás', 'em',
-      'назад', 'через',
-      'yanglalu', 'dalam',
-      'fa', 'tra',
-      'temu', 'za',
-      'önce', 'sonra',
-      'trước', 'sau',
-      'ที่ผ่านมา', 'ใน',
-      'আগে', 'পরে'
-    ];
-    
-    // Find and remove markers
-    let result = text;
-    for (const marker of markers) {
-      const markerLower = marker.toLowerCase();
-      const idx = textLower.indexOf(markerLower);
-      if (idx !== -1) {
-        // Remove the marker from original text (preserving case)
-        result = text.substring(0, idx) + text.substring(idx + marker.length);
-        break;
-      }
-    }
-    
-    result = result.trim();
-    
-    // If too long, probably failed
-    if (result.length > 20 || result.length === 0) {
-      return null;
-    }
-    
-    return result;
-    
-  } catch (e) {
-    return null;
-  }
+  // Strategy: Find common substring between past and future templates
+  // This works because the unit word appears in both:
+  // "{0} days ago" vs "in {0} days" → common part is "days"
+  // "{0}일 전" vs "{0}일 후" → common part is "일"
+  const common = findCommonSubstring(pastTemplate, futureTemplate);
+  
+  return common;
 }
 
 // Helper: Find common substring between past and future templates
+// Extracts the unit keyword (day/week/etc) from CLDR relative time patterns
 function findCommonSubstring(past, future) {
-  // Remove {0} from both
+  // Remove {0} placeholder from both templates
   const p = past.replace(/\{0\}/g, '').trim();
   const f = future.replace(/\{0\}/g, '').trim();
   
@@ -335,9 +318,10 @@ function findCommonSubstring(past, future) {
     }
   }
   
-  // Clean up the result
+  // Clean up the result: remove digits and extra whitespace
   longest = longest.replace(/\d+/g, '').replace(/\s+/g, '').trim();
   
+  // Sanity check: reasonable length for a unit word
   return longest.length > 0 && longest.length <= 20 ? longest : null;
 }
 // --- End CLDR Date Keywords Extraction ---
