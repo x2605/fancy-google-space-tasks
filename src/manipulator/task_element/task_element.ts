@@ -3,7 +3,7 @@ import * as Logger from '@/core/logger';
 import { OgtDeleteButton } from './delete_button';
 import { OgtGoToChatButton } from './go_to_chat_button';
 import { OgtAssigneeButton } from './assignee_button/assignee_button';
-import { OgtDateButton } from './date_button';
+import { OgtDateButton } from './date_button/date_button';
 import { OgtCompleteCheckbox } from './complete_checkbox';
 import { OgtDescWrapper } from './desc_wrapper/desc_wrapper';
 import { OgtTitleWrapper } from './title_wrapper/title_wrapper';

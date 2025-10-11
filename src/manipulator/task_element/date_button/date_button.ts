@@ -1,6 +1,8 @@
-// manipulator/task_element/date_button.ts
+// manipulator/task_element/date_button/date_button.ts
 import * as Logger from '@/core/logger';
-import { OgtDateSelectDialog } from '../date_select_dialog';
+import { OgtDateSelectDialog } from '../../date_select_dialog';
+import * as Test from './date_parser_test';
+Test
 
 Logger.fgtlog('📅 OGT Date Button loading...');
 
