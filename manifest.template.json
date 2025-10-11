@@ -31,7 +31,8 @@
         "css/core.css",
         "css/modal.css",
         "css/table.css",
-        "css/container.css"
+        "css/container.css",
+        "dynamic_lang/*.js"
       ],
       "matches": [
         "https://tasks.google.com/*"

@@ -11,6 +11,9 @@
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
+    "cldr-core": "^47.0.0",
+    "cldr-dates-full": "^47.0.0",
+    "cldr-numbers-full": "^47.0.0",
     "esbuild": "^0.25.10",
     "typescript": "^5.5.0"
   },
