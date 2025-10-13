@@ -15,6 +15,7 @@ import { OgtFinder } from '@/manipulator/finder';
 import { singletonAssigneeColorUtils } from '@/assignee/assignee_color_utils';
 import { TaskModal } from '@/modal/task_modal';
 import { OgtTaskElement } from '@/manipulator/task_element/task_element';
+import { loadLocaleKeywords } from '@/manipulator/task_element/date_button/date_parser';
 
 Logger.fgtlog('📋 Container Manager loading...');
 
@@ -187,6 +188,10 @@ class ContainerManager {
         Logger.fgtlog('🚀 Container Manager initializing...');
 
         try {
+            // Load locale keywords in global scope
+            const locale = document.documentElement.lang || 'en';
+            await loadLocaleKeywords(locale);
+
             // Initialize storage key for current space
             this.initializeStorageKey();
 

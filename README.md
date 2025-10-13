@@ -64,6 +64,12 @@ The extension is still in its early stages; some buttons are not yet functional,
 
 - [color-thief v2.6.0](https://github.com/lokesh/color-thief/releases/tag/v2.6.0)
 
+- [cldr-json](https://github.com/unicode-org/cldr-json)
+
+- [esbuild](https://esbuild.github.io/)
+
+- [TypeScript](https://www.typescriptlang.org)
+
 ## Why Was This Created?
 
 I started this project because my boss repeatedly asks me to organize tasks manually in Excel, which I find anachronistic and inefficient. He also expressed significant dissatisfaction with the Original Tasks UI, finding it severely inconvenient.

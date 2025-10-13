@@ -6,6 +6,7 @@ import { CategoryParser } from '@/category/category_parser';
 import { CoreEventUtils } from '@/core/event_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
 import { CategoryUtils } from '@/category/category_utils';
+import { parseNaturalDate, formatDateForModal } from '@/manipulator/task_element/date_button/date_parser';
 
 Logger.fgtlog('📝 Task Modal loading...');
 
@@ -228,7 +229,7 @@ class TaskModal extends ModalBase {
                     <div class="${this.namespace}-form-group">
                         <label class="${this.namespace}-form-label">Due Date</label>
                         <div class="${this.namespace}-readonly-field">
-                            ${CoreDOMUtils.escapeHtml(this.originalTask.date)}
+                            ${this.getFormattedDueDate()}
                         </div>
                     </div>
                     ` : ''}
@@ -249,6 +250,20 @@ class TaskModal extends ModalBase {
                 { text: 'Confirm', action: 'confirm', primary: true }
             ])}
         `;
+    }
+
+    /**
+     * Get formatted due date for modal display
+     */
+    getFormattedDueDate(): string {
+        if (!this.originalTask || !this.originalTask.date || !this.originalTask.dateFull) {
+            return 'No date';
+        }
+        
+        // Parse date using the same logic as date button
+        const locale = document.documentElement.lang || 'en';
+        const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date, locale);
+        return formatDateForModal(dateInfo);
     }
 
     /**

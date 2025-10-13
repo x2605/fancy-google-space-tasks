@@ -1,4 +1,4 @@
-/* table/table.css - Table styles for fancy-gst-tasks-table block - UPDATED with grouping */
+/* css/table.css - Table styles for fancy-gst-tasks-table block - UPDATED with grouping */
 
 /* Table container and structure */
 .fancy-gst-tasks-table {
@@ -347,7 +347,7 @@ td.fancy-gst-category-cell {
 .fancy-gst-task-actions {
     display: flex;
     gap: 4px;
-    opacity: 0.7;
+    opacity: 0.9;
     transition: opacity 0.2s ease;
     user-select: none;
 }
@@ -361,16 +361,16 @@ td.fancy-gst-category-cell {
 }
 
 .fancy-gst-action-btn {
-    height: 20px;
+    height: 22px;
     border: 1px solid #dadce0;
     border-radius: 4px;
     background: #f8f9fa;
-    color: #5f6368;
+    color: #4f4f4f;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 13px;
     transition: all 0.2s ease;
     user-select: none;
 }
@@ -502,5 +502,111 @@ td.fancy-gst-category-cell {
         padding: 1px;
         font-size: 7px;
         overflow: hidden;
+    }
+}
+
+/* Date button color classes */
+
+/* Past dates (weeks ago and D+#) - Soft red */
+.fancy-gst-action-btn.fgt-date.fgt-date-past {
+    color: #bb1c00;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-past {
+        color: #e95b34;
+    }
+}
+
+/* Today (D-DAY) - Bold blue */
+.fancy-gst-action-btn.fgt-date.fgt-date-today {
+    color: #1c8d17;
+    font-weight: 700;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-today {
+        color: #b1ff4a;
+    }
+}
+
+/* D-1: Darkest blue */
+.fancy-gst-action-btn.fgt-date.fgt-date-d1 {
+    color: hsl(210, 90%, 30%);
+    font-weight: 700;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-d1 {
+        color: hsl(210, 90%, 65%);
+    }
+}
+
+/* D-2: Very dark blue */
+.fancy-gst-action-btn.fgt-date.fgt-date-d2 {
+    color: hsl(210, 80%, 30%);
+    font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-d2 {
+        color: hsl(210, 85%, 70%);
+    }
+}
+
+/* D-3: Dark blue */
+.fancy-gst-action-btn.fgt-date.fgt-date-d3 {
+    color: hsl(210, 70%, 30%);
+    font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-d3 {
+        color: hsl(210, 80%, 75%);
+    }
+}
+
+/* D-4: Medium blue */
+.fancy-gst-action-btn.fgt-date.fgt-date-d4 {
+    color: hsl(210, 60%, 30%);
+    font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-d4 {
+        color: hsl(210, 75%, 80%);
+    }
+}
+
+/* D-5: Light blue */
+.fancy-gst-action-btn.fgt-date.fgt-date-d5 {
+    color: hsl(210, 50%, 30%);
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-d5 {
+        color: hsl(210, 70%, 82%);
+    }
+}
+
+/* D-6: Very light blue */
+.fancy-gst-action-btn.fgt-date.fgt-date-d6 {
+    color: hsl(210, 40%, 30%);
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-d6 {
+        color: hsl(210, 65%, 85%);
+    }
+}
+
+/* D-7: Lightest blue */
+.fancy-gst-action-btn.fgt-date.fgt-date-d7 {
+    color: hsl(210, 30%, 30%);
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-action-btn.fgt-date.fgt-date-d7 {
+        color: hsl(210, 60%, 87%);
     }
 }

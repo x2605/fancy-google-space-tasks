@@ -4,6 +4,7 @@ import { CategoryUtils } from '@/category/category_utils';
 import { AssigneeUtils } from '@/assignee/assignee_utils';
 import { singletonAssigneeColorUtils } from '@/assignee/assignee_color_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
+import { parseNaturalDate, formatDateForButton } from '@/manipulator/task_element/date_button/date_parser';
 
 Logger.fgtlog('📊 Table Renderer loading...');
 
@@ -443,22 +444,72 @@ class TableRenderer {
     }
 
     /**
-     * Render task action buttons - ENHANCED WITH COLOR SUPPORT
+     * Get date CSS class based on ParsedDateInfo
+     * @param dateInfo - Parsed date information
+     * @returns CSS class name for date styling
+     */
+    getDateCssClass(dateInfo: any): string {
+        if (!dateInfo) return '';
+        
+        // Weeks ago (past dates)
+        if (dateInfo.weekago > 0) {
+            return 'fgt-date-past';
+        }
+        
+        // Calculate days difference
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const targetDate = new Date(dateInfo.year, dateInfo.month - 1, dateInfo.day);
+        targetDate.setHours(0, 0, 0, 0);
+        
+        const diffMs = targetDate.getTime() - today.getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        
+        // Past dates (before today, including D+1 ~ D+6)
+        if (diffDays < 0) {
+            return 'fgt-date-past';
+        }
+        
+        // Today
+        if (diffDays === 0) {
+            return 'fgt-date-today';
+        }
+        
+        // D-1 to D-7 (future dates)
+        if (diffDays >= 1 && diffDays <= 7) {
+            return `fgt-date-d${diffDays}`;
+        }
+        
+        // 8+ days ahead (no special class)
+        return '';
+    }
+
+    /**
+     * Render task action buttons - ENHANCED WITH COLOR SUPPORT AND DATE CLASS
      * @param task - Task data
      * @returns Actions HTML
      */
     renderTaskActions(task: any): string {
         // Generate assignee button with color styling
         const assigneeColorStyle = this.getAssigneeButtonStyle(task);
+        
+        // Format date for display
+        const locale = document.documentElement.lang || 'en';
+        const dateInfo = parseNaturalDate(task.dateFull || '', task.date || '', locale);
+        const formattedDate = formatDateForButton(dateInfo);
+        
+        // Get date CSS class for styling
+        const dateCssClass = this.getDateCssClass(dateInfo);
 
         return `
             <div class="${this.namespace}-task-actions">
-                <button class="${this.namespace}-action-btn fgt-date" data-action="date" data-task-id="${task.id || task.taskId}" data-meta="${CoreDOMUtils.escapeHtml(task.dateFull)}" title="Edit Task">${CoreDOMUtils.escapeHtml(task.date)}</button>
+                <button class="${this.namespace}-action-btn fgt-date ${dateCssClass}" data-action="date" data-task-id="${task.id || task.taskId}" data-meta="${CoreDOMUtils.escapeHtml(task.dateFull)}" title="Edit Task">${CoreDOMUtils.escapeHtml(formattedDate)}</button>
                 <button class="${this.namespace}-action-btn fgt-assignee"
                         style="${assigneeColorStyle}"
                         data-action="assignee" 
                         data-task-id="${task.id || task.taskId}" 
-                        title="${CoreDOMUtils.escapeHtml(task.assigneeTitle)}">${CoreDOMUtils.escapeHtml(task.assignee)}</button>
+                        title="${CoreDOMUtils.escapeHtml(task.assigneeTitle)}">${CoreDOMUtils.escapeHtml(task.assignee? task.assignee : '😶')}</button>
                 <button class="${this.namespace}-action-btn fgt-goto" data-action="chat" data-task-id="${task.id || task.taskId}" title="Show in Chat">💬</button>
                 <button class="${this.namespace}-action-btn fgt-delete danger fgt-lockable" data-action="delete" data-task-id="${task.id || task.taskId}" title="Delete">🗑️</button>
             </div>
