@@ -1,16 +1,20 @@
 {
   "name": "fancy-google-space-tasks",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Enhanced Google Space Tasks with TypeScript",
   "scripts": {
-    "build": "node build.js",
-    "build:mini": "node build.js --minify",
+    "version:bump": "npm version patch --no-git-tag-version",
+    "build": "npm run version:bump && node build.js",
+    "build:mini": "npm run version:bump && node build.js --minify",
     "dev": "node build.js --watch",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
+    "cldr-core": "^47.0.0",
+    "cldr-dates-full": "^47.0.0",
+    "cldr-numbers-full": "^47.0.0",
     "esbuild": "^0.25.10",
     "typescript": "^5.5.0"
   },
