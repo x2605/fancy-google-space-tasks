@@ -82,6 +82,32 @@ body {
     font-weight: 800;
 }
 
+/* NEW: Add new task button (bottom-right, leftmost of the three buttons) */
+#fancy-gst-add-new-task-button {
+    position: fixed;
+    bottom: 20px;
+    right: 100px;
+    /* 60px (completed toggle position) + 30px width + 10px gap */
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 999999;
+    font-size: 16px;
+    box-shadow: 0 0 16px rgba(52, 168, 83, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    border: none;
+    outline: none;
+    backdrop-filter: blur(8px);
+    color: white;
+    font-weight: 800;
+    background: linear-gradient(135deg, #34a853, #0f9d58);
+}
+
 /* Enhanced mode (showing original UI option) */
 #fancy-gst-toggle-button.fgt-enhanced {
     background: linear-gradient(135deg, #ea4335, #f44336);
@@ -126,9 +152,16 @@ body {
     box-shadow: 0 6px 20px rgba(255, 152, 0, 0.6);
 }
 
-/* Active/pressed state for both buttons */
+/* Add new task button hover effect */
+#fancy-gst-add-new-task-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(52, 168, 83, 0.6);
+}
+
+/* Active/pressed state for all buttons */
 #fancy-gst-toggle-button:active,
-#fancy-gst-completed-toggle-button:active {
+#fancy-gst-completed-toggle-button:active,
+#fancy-gst-add-new-task-button:active {
     transform: scale(0.95) !important;
     transition: transform 0.1s ease;
 }
@@ -137,7 +170,8 @@ body {
 @media (prefers-color-scheme: dark) {
 
     #fancy-gst-toggle-button,
-    #fancy-gst-completed-toggle-button {
+    #fancy-gst-completed-toggle-button,
+    #fancy-gst-add-new-task-button {
         color: black;
     }
 
@@ -176,6 +210,15 @@ body {
     #fancy-gst-completed-toggle-button.fgt-completed-visible:hover {
         box-shadow: 0 6px 20px rgba(255, 204, 2, 0.6);
     }
+
+    #fancy-gst-add-new-task-button {
+        background: linear-gradient(135deg, #81c995, #57bb8a);
+        box-shadow: 0 4px 16px rgba(129, 201, 149, 0.4);
+    }
+
+    #fancy-gst-add-new-task-button:hover {
+        box-shadow: 0 6px 20px rgba(129, 201, 149, 0.6);
+    }
 }
 
 /* Pulse animation for attention */
@@ -207,12 +250,30 @@ body {
     }
 }
 
+@keyframes add-new-task-pulse {
+    0% {
+        box-shadow: 0 4px 16px rgba(52, 168, 83, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 4px 20px rgba(52, 168, 83, 0.8);
+    }
+
+    100% {
+        box-shadow: 0 4px 16px rgba(52, 168, 83, 0.4);
+    }
+}
+
 #fancy-gst-toggle-button.pulse {
     animation: toggle-pulse 2s infinite;
 }
 
 #fancy-gst-completed-toggle-button.pulse {
     animation: completed-toggle-pulse 2s infinite;
+}
+
+#fancy-gst-add-new-task-button.pulse {
+    animation: add-new-task-pulse 2s infinite;
 }
 
 /* Table container */
@@ -471,6 +532,7 @@ body {
 /* Accessibility improvements */
 #fancy-gst-toggle-button:focus-visible,
 #fancy-gst-completed-toggle-button:focus-visible,
+#fancy-gst-add-new-task-button:focus-visible,
 .fancy-gst-error-retry:focus-visible {
     outline: 2px solid #1a73e8;
     outline-offset: 2px;
@@ -480,6 +542,7 @@ body {
 
     #fancy-gst-toggle-button:focus-visible,
     #fancy-gst-completed-toggle-button:focus-visible,
+    #fancy-gst-add-new-task-button:focus-visible,
     .fancy-gst-error-retry:focus-visible {
         outline-color: #8ab4f8;
     }
@@ -519,5 +582,14 @@ body {
         width: 28px;
         height: 28px;
         font-size: 9px;
+    }
+
+    #fancy-gst-add-new-task-button {
+        bottom: 15px;
+        right: 91px;
+        /* Adjusted for smaller button: 53px + 28px + 10px */
+        width: 28px;
+        height: 28px;
+        font-size: 15px;
     }
 }

@@ -415,11 +415,12 @@ class TableRenderer {
      * @returns Title HTML
      */
     renderTaskTitle(task: any): string {
-        const html = (window as any).linkifyStr(CoreDOMUtils.escapeHtml(task.displayTitle || ''));
+        // linkifyStr handles HTML escaping internally, so don't double-escape
+        const html = (window as any).linkifyStr(task.displayTitle || '');
         return `
             <div class="${this.namespace}-title-wrapper">
                 ${this.renderTaskCheckbox(task)}
-                <div class="${this.namespace}-task-title" 
+                <div class="${this.namespace}-task-title"
                          data-task-id="${task.id || task.taskId}"
                          data-field="title">${html}</div>
             </div>
@@ -432,12 +433,13 @@ class TableRenderer {
      * @returns Description HTML
      */
     renderTaskDescription(task: any): string {
-        const html = (window as any).linkifyStr(CoreDOMUtils.escapeHtml(task.description || '')).replace(/(\r\n|\r|\n)/g, '<br/>');
+        // linkifyStr handles HTML escaping internally, so don't double-escape
+        const html = (window as any).linkifyStr(task.description || '').replace(/(\r\n|\r|\n)/g, '<br/>');
         return `
             <div class="${this.namespace}-description-wrapper">
-                <div class="${this.namespace}-task-description" 
+                <div class="${this.namespace}-task-description"
                          data-task-id="${task.id || task.taskId}"
-                         data-field="description" 
+                         data-field="description"
                          placeholder="Add description...">${html}</div>
             </div>
         `;

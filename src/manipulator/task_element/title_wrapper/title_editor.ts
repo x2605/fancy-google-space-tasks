@@ -40,6 +40,14 @@ class OgtTitleEditor {
     }
 
     /**
+     * Get the placeholder text of the textarea
+     * @returns The placeholder text
+     */
+    get placeholder(): string {
+        return this._element.getAttribute('placeholder') || '';
+    }
+
+    /**
      * Get the maximum length allowed for the title
      * @returns Maximum character length
      */

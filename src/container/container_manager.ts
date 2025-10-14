@@ -40,11 +40,13 @@ class ContainerManager {
     tasks: Map<string, any>;
     maxCategoryDepth: number;
     observer: MutationObserver | null;
+    debouncedHandleDOMChanges: Function | null;
     spaceId: string | null;
     storageKey: string | null;
     customContainer: HTMLElement | null;
     toggleButton: HTMLElement | null;
     completedToggleButton: HTMLElement | null;
+    addNewTaskButton: HTMLElement | null;
     originalZIndexes: Map<Element, string | null>;
     cleanupFunctions: Function[];
 
@@ -69,6 +71,7 @@ class ContainerManager {
         this.tasks = new Map();
         this.maxCategoryDepth = 0;
         this.observer = null;
+        this.debouncedHandleDOMChanges = null;
 
         // Storage key for current space
         this.spaceId = null;
@@ -78,6 +81,7 @@ class ContainerManager {
         this.customContainer = null;
         this.toggleButton = null;
         this.completedToggleButton = null;
+        this.addNewTaskButton = null;
         this.originalZIndexes = new Map();
 
         // Cleanup functions
@@ -254,10 +258,11 @@ class ContainerManager {
         await this.containerUI.createContainer();
         this.customContainer = this.containerUI.getContainer();
 
-        // Create floating toggle buttons (both main and completed)
+        // Create floating toggle buttons (main, completed, and add new)
         this.containerUI.createToggleButtons();
         this.toggleButton = this.containerUI.getToggleIndicator();
         this.completedToggleButton = this.containerUI.getCompletedToggleIndicator();
+        this.addNewTaskButton = this.containerUI.getAddNewTaskButton();
 
         // Apply loaded state to UI
         if (this.isCustomUIVisible) {
@@ -265,15 +270,17 @@ class ContainerManager {
             if (this.customContainer) {
                 this.customContainer.style.display = 'block';
             }
-            // Show completed toggle button
+            // Show completed toggle button and add new task button in Fancy UI mode
             this.containerUI.showCompletedToggleButton();
+            this.containerUI.showAddNewTaskButton();
         } else {
             this.showOriginalDOM();
             if (this.customContainer) {
                 this.customContainer.style.display = 'none';
             }
-            // Hide completed toggle button (not needed in Original UI)
+            // Hide completed toggle button and add new task button in Original UI mode
             this.containerUI.hideCompletedToggleButton();
+            this.containerUI.hideAddNewTaskButton();
         }
 
         // Update toggle button states
@@ -294,7 +301,8 @@ class ContainerManager {
             if (child.nodeType === Node.ELEMENT_NODE &&
                 (child as Element).id !== this.CONTAINER_ID &&
                 (child as Element).id !== `${this.namespace}-toggle-button` &&
-                (child as Element).id !== `${this.namespace}-completed-toggle-button`) {
+                (child as Element).id !== `${this.namespace}-completed-toggle-button` &&
+                (child as Element).id !== `${this.namespace}-add-new-task-button`) {
 
                 const computedZIndex = CoreDOMUtils.getComputedStyle((child as Element), 'z-index');
                 this.originalZIndexes.set(child as Element, computedZIndex === 'auto' ? null : computedZIndex);
@@ -361,8 +369,58 @@ class ContainerManager {
             this.cleanupFunctions.push(cleanup4);
         }
 
+        // Add new task button events
+        if (this.addNewTaskButton) {
+            const cleanup5 = CoreEventUtils.addListener(
+                this.addNewTaskButton,
+                'click',
+                this.handleAddNewTask.bind(this)
+            );
+            this.cleanupFunctions.push(cleanup5);
+        }
+
         this.cleanupFunctions.push(cleanup1, cleanup2);
         Logger.fgtlog('⚡ Container events attached');
+    }
+
+    /**
+     * Handle add new task button click
+     */
+    handleAddNewTask() {
+        Logger.fgtlog('➕ Add new task button clicked');
+
+        // Only allow in Fancy UI mode
+        if (!this.isCustomUIVisible) {
+            Logger.fgtwarn('⚠️ Add new task button clicked in Original UI mode, ignoring');
+            return;
+        }
+
+        try {
+            // Find and click the original Add New button
+            const addNewButton = OgtFinder.findAddNewButton();
+            if (addNewButton && addNewButton.element) {
+                // Click the button
+                (addNewButton.element as HTMLButtonElement).click();
+                Logger.fgtlog('✅ Original add new button clicked');
+
+                // Check for ToBeAdded task after 100ms
+                CoreEventUtils.timeouts.create(() => {
+                    if (!this.isShowingTaskModal && !this.isShowingDeleteModal) {
+                        const toBeAddedTask = OgtFinder.findTaskElementToBeAdded();
+                        if (toBeAddedTask) {
+                            Logger.fgtlog('🆕 ToBeAdded task detected after add new button click');
+                            this.handleToBeAddedTask(toBeAddedTask);
+                        }
+                    }
+                }, 100);
+            } else {
+                Logger.fgterror('❌ Original add new button not found');
+                CoreNotificationUtils.error('Failed to find add new button', this.namespace);
+            }
+        } catch (error: any) {
+            Logger.fgterror('❌ Failed to handle add new task: ' + error.message);
+            CoreNotificationUtils.error('Failed to add new task', this.namespace);
+        }
     }
 
     /**
@@ -702,6 +760,23 @@ class ContainerManager {
 
             // Show completed toggle button
             this.containerUI.showCompletedToggleButton();
+
+            // Check for ToBeAdded task after switching to Fancy UI
+            if (!this.isShowingTaskModal && !this.isShowingDeleteModal) {
+                // Use a small timeout to allow DOM to settle
+                CoreEventUtils.timeouts.create(() => {
+                    const toBeAddedTask = OgtFinder.findTaskElementToBeAdded();
+                    if (toBeAddedTask) {
+                        Logger.fgtlog('🆕 ToBeAdded task detected after UI switch, showing task modal');
+                        this.handleToBeAddedTask(toBeAddedTask);
+                    } else {
+                        // No ToBeAdded task, show add new task button
+                        this.containerUI.showAddNewTaskButton();
+                    }
+                }, 100);
+            } else {
+                // Modal is showing, keep button hidden
+            }
         } else {
             // Switch to original UI
             this.showOriginalDOM();
@@ -709,8 +784,9 @@ class ContainerManager {
                 this.customContainer.style.display = 'none';
             }
 
-            // Hide completed toggle button (not needed in Original UI)
+            // Hide completed toggle button and add new task button (not needed in Original UI)
             this.containerUI.hideCompletedToggleButton();
+            this.containerUI.hideAddNewTaskButton();
 
             Logger.fgtlog('💡 Switched to original UI - change detection will run on next fancy UI switch');
         }
@@ -784,11 +860,25 @@ class ContainerManager {
             this.observer.disconnect();
         }
 
-        this.observer = new MutationObserver(
-            CoreEventUtils.debounce((mutations: any) => {
-                this.handleDOMChanges(mutations);
-            }, 2000)
-        );
+        this.observer = new MutationObserver((mutations: any) => {
+            // Check for ToBeAdded immediately (no debounce for fast response)
+            if (this.isCustomUIVisible && !this.isShowingTaskModal && !this.isShowingDeleteModal) {
+                const toBeAddedTask = OgtFinder.findTaskElementToBeAdded();
+                if (toBeAddedTask) {
+                    Logger.fgtlog('🆕 ToBeAdded task detected (immediate), showing task modal');
+                    this.handleToBeAddedTask(toBeAddedTask);
+                    return; // Skip debounced change detection
+                }
+            }
+
+            // Use debounced handler for other changes
+            this.debouncedHandleDOMChanges(mutations);
+        });
+
+        // Create debounced version of handleDOMChanges (500ms for normal changes)
+        this.debouncedHandleDOMChanges = CoreEventUtils.debounce((mutations: any) => {
+            this.handleDOMChanges(mutations);
+        }, 500);
 
         const taskContainers = document.querySelectorAll('[role="list"]');
 
@@ -821,7 +911,7 @@ class ContainerManager {
     }
 
     /**
-     * Handle DOM changes
+     * Handle DOM changes (debounced)
      * @param mutations - DOM mutations
      */
     handleDOMChanges(_mutations: MutationRecord[]) {
@@ -833,6 +923,7 @@ class ContainerManager {
 
         Logger.fgtlog(`🔄 DOM changes detected (${_mutations.length} mutations)`);
 
+        // Normal change detection (ToBeAdded is already handled in immediate observer)
         if (this.changeDetector) {
             const recommendation = this.changeDetector.checkAndRecommendAction();
 
@@ -846,6 +937,150 @@ class ContainerManager {
                 }
             }
         }
+    }
+
+    /**
+     * Handle ToBeAdded task element
+     * @param toBeAddedTask - Task element wrapper with Add/Cancel buttons
+     */
+    handleToBeAddedTask(toBeAddedTask: OgtTaskElement) {
+        try {
+            // Extract title from the task element
+            const titleWrapper = toBeAddedTask.findTitleWrapper();
+            const titleViewer = titleWrapper?.findTitleViewer();
+            const rawTitle = titleViewer?.text || '';
+
+            // Parse title to extract categories
+            const { categories, cleanTitle } = CategoryParser.parseTaskTitle(rawTitle);
+
+            // Extract description if exists
+            const descWrapper = toBeAddedTask.findDescWrapper();
+            const descViewer = descWrapper?.findDescViewer();
+            let description = descViewer?.text || '';
+            if (description === descWrapper?.placeholder) {
+                description = '';
+            }
+
+            // Create task data for modal
+            const taskData = {
+                id: '',
+                originalTitle: rawTitle,
+                displayTitle: cleanTitle,
+                description: description,
+                categories: categories,
+                isCompleted: false,
+                dateFull: null,
+                date: '',
+                assignee: null,
+                assigneeTitle: null,
+                assigneeIcon: null,
+                assigneeColors: null
+            };
+
+            Logger.fgtlog(`📝 ToBeAdded task data: title="${cleanTitle}", categories=${JSON.stringify(categories)}, desc="${description}"`);
+
+            // Show task modal in ToBeAdded mode
+            this.showTaskModalForToBeAdded(toBeAddedTask, taskData);
+
+        } catch (error: any) {
+            Logger.fgterror('❌ Failed to handle ToBeAdded task: ' + error.message);
+        }
+    }
+
+    /**
+     * Show task modal for ToBeAdded task
+     * @param toBeAddedTask - Task element wrapper
+     * @param taskData - Extracted task data
+     */
+    showTaskModalForToBeAdded(toBeAddedTask: OgtTaskElement, taskData: any) {
+        // Check if modal is already showing
+        if (this.isShowingTaskModal) {
+            Logger.fgtlog('⏸️ Ignoring duplicate task modal request - modal already showing');
+            return;
+        }
+
+        // Set flag to prevent duplicate modal calls
+        this.isShowingTaskModal = true;
+
+        // Hide add new task button while modal is open
+        this.containerUI.hideAddNewTaskButton();
+
+        // Extract all existing categories for suggestions
+        const allCategories: any[] = [];
+        this.tasks.forEach(task => {
+            if (task.categories && task.categories.length > 0) {
+                allCategories.push(task.categories);
+            }
+        });
+
+        // Show TaskModal with ToBeAdded mode
+        TaskModal.show({
+            taskId: '',
+            actionType: 'toBeAdded',
+            taskData: taskData,
+            interactionHandler: this.interactionHandler,
+            allCategories: allCategories,
+            namespace: this.namespace,
+            toBeAddedTaskElement: toBeAddedTask, // Pass task element for button clicks
+            onConfirm: (resultData: any) => {
+                // Clear modal flag
+                this.isShowingTaskModal = false;
+
+                // Show add new task button again
+                if (this.isCustomUIVisible) {
+                    this.containerUI.showAddNewTaskButton();
+                }
+
+                Logger.fgtlog('✅ ToBeAdded task modal confirmed: ' + JSON.stringify(resultData));
+
+                // Click the Add button (first touch button)
+                try {
+                    const touchButtons = toBeAddedTask.findTouchButtons();
+                    if (touchButtons.length >= 2) {
+                        const addButton = touchButtons[0].element.querySelector('button');
+                        if (addButton) {
+                            addButton.click();
+                            Logger.fgtlog('✅ Add button clicked');
+                        } else {
+                            Logger.fgterror('❌ Add button not found');
+                        }
+                    } else {
+                        Logger.fgterror('❌ Touch buttons not found');
+                    }
+                } catch (error: any) {
+                    Logger.fgterror('❌ Failed to click Add button: ' + error.message);
+                }
+            },
+            onCancel: () => {
+                // Clear modal flag
+                this.isShowingTaskModal = false;
+
+                // Show add new task button again
+                if (this.isCustomUIVisible) {
+                    this.containerUI.showAddNewTaskButton();
+                }
+
+                Logger.fgtlog('🚫 ToBeAdded task modal cancelled');
+
+                // Click the Cancel button (second touch button)
+                try {
+                    const touchButtons = toBeAddedTask.findTouchButtons();
+                    if (touchButtons.length >= 2) {
+                        const cancelButton = touchButtons[1].element.querySelector('button');
+                        if (cancelButton) {
+                            cancelButton.click();
+                            Logger.fgtlog('✅ Cancel button clicked');
+                        } else {
+                            Logger.fgterror('❌ Cancel button not found');
+                        }
+                    } else {
+                        Logger.fgterror('❌ Touch buttons not found');
+                    }
+                } catch (error: any) {
+                    Logger.fgterror('❌ Failed to click Cancel button: ' + error.message);
+                }
+            }
+        });
     }
 
     /**
@@ -913,6 +1148,9 @@ class ContainerManager {
         // Set flag to prevent duplicate modal calls
         this.isShowingTaskModal = true;
 
+        // Hide add new task button while modal is open
+        this.containerUI.hideAddNewTaskButton();
+
         // Get task data if taskId is provided
         let taskData = null;
         if (taskId && taskId !== '') {
@@ -943,13 +1181,24 @@ class ContainerManager {
             onConfirm: (resultData: any) => {
                 // Clear modal flag
                 this.isShowingTaskModal = false;
-                
+
+                // Show add new task button again
+                if (this.isCustomUIVisible) {
+                    this.containerUI.showAddNewTaskButton();
+                }
+
                 Logger.fgtlog('✅ Task modal confirmed:' + resultData);
                 // TODO: Implement actual task creation/update logic
             },
             onCancel: () => {
                 // Clear modal flag
                 this.isShowingTaskModal = false;
+
+                // Show add new task button again
+                if (this.isCustomUIVisible) {
+                    this.containerUI.showAddNewTaskButton();
+                }
+
                 Logger.fgtlog('🚫 Task modal cancelled');
             }
         });

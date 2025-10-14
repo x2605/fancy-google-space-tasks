@@ -13,6 +13,7 @@ class ContainerUI {
     customContainer: HTMLElement | null;
     toggleIndicator: HTMLElement | null;
     completedToggleIndicator: HTMLElement | null;
+    addNewTaskButton: HTMLElement | null;
 
     constructor(namespace: string = 'fancy-gst') {
         this.namespace = namespace;
@@ -20,6 +21,7 @@ class ContainerUI {
         this.customContainer = null;
         this.toggleIndicator = null;
         this.completedToggleIndicator = null;
+        this.addNewTaskButton = null;
     }
 
     /**
@@ -98,21 +100,29 @@ class ContainerUI {
      * Create floating toggle buttons (bottom-right)
      */
     createToggleButtons(): void {
-        // Create completed tasks toggle button (left one)
+        // Create add new task button (leftmost)
+        this.addNewTaskButton = CoreDOMUtils.createElement('div', {
+            id: `${this.namespace}-add-new-task-button`,
+            className: 'fgt-add-new-task fgt-lockable',
+            title: 'Add new task'
+        }, {}, '➕') as HTMLDivElement;
+
+        // Create completed tasks toggle button (middle)
         this.completedToggleIndicator = CoreDOMUtils.createElement('div', {
             id: `${this.namespace}-completed-toggle-button`,
             className: 'fgt-completed-hidden fgt-lockable', // Default: hidden
             title: 'Show completed tasks'
         }, {}, 'show') as HTMLDivElement;
 
-        // Create main toggle button (right one)
+        // Create main toggle button (rightmost)
         this.toggleIndicator = CoreDOMUtils.createElement('div', {
             id: `${this.namespace}-toggle-button`,
             className: 'fgt-lockable fgt-enhanced',
             title: 'Switch to Original UI'
         }, {}, '⇄') as HTMLDivElement;
 
-        // Add both buttons to document
+        // Add all buttons to document
+        document.body.appendChild(this.addNewTaskButton);
         document.body.appendChild(this.completedToggleIndicator);
         document.body.appendChild(this.toggleIndicator);
 
@@ -197,6 +207,24 @@ class ContainerUI {
     hideCompletedToggleButton(): void {
         if (this.completedToggleIndicator) {
             this.completedToggleIndicator.style.display = 'none';
+        }
+    }
+
+    /**
+     * Show add new task button
+     */
+    showAddNewTaskButton(): void {
+        if (this.addNewTaskButton) {
+            this.addNewTaskButton.style.display = 'flex';
+        }
+    }
+
+    /**
+     * Hide add new task button
+     */
+    hideAddNewTaskButton(): void {
+        if (this.addNewTaskButton) {
+            this.addNewTaskButton.style.display = 'none';
         }
     }
 
@@ -345,6 +373,14 @@ class ContainerUI {
     }
 
     /**
+     * Get add new task button element
+     * @returns Add new task button element
+     */
+    getAddNewTaskButton(): HTMLElement | null {
+        return this.addNewTaskButton;
+    }
+
+    /**
      * Update container theme
      * @param theme - Theme name ('light', 'dark', 'auto')
      */
@@ -394,6 +430,9 @@ class ContainerUI {
         if (this.completedToggleIndicator && this.completedToggleIndicator.parentNode) {
             this.completedToggleIndicator.parentNode.removeChild(this.completedToggleIndicator);
         }
+        if (this.addNewTaskButton && this.addNewTaskButton.parentNode) {
+            this.addNewTaskButton.parentNode.removeChild(this.addNewTaskButton);
+        }
 
         // Remove main container
         if (this.customContainer && this.customContainer.parentNode) {
@@ -404,6 +443,7 @@ class ContainerUI {
         this.customContainer = null;
         this.toggleIndicator = null;
         this.completedToggleIndicator = null;
+        this.addNewTaskButton = null;
 
         Logger.fgtlog('🧹 Container UI destroyed');
     }

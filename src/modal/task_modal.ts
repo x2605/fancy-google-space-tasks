@@ -7,6 +7,7 @@ import { CoreEventUtils } from '@/core/event_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
 import { CategoryUtils } from '@/category/category_utils';
 import { parseNaturalDate, formatDateForModal } from '@/manipulator/task_element/date_button/date_parser';
+import { OgtFinder } from '@/manipulator/finder';
 
 Logger.fgtlog('📝 Task Modal loading...');
 
@@ -26,26 +27,30 @@ class TaskModal extends ModalBase {
     isProcessing: boolean;
     categoryDropdown: HTMLElement | null;
     dropdownCleanup: Function | null;
+    toBeAddedTaskElement: any;
+    lastBadgeRemoveTime: number;
 
     constructor(namespace: string = 'fancy-gst') {
         super(namespace);
-        
+
         // Modal state
         this.taskId = null;
         this.actionType = 'edit';
         this.originalTask = null;
         this.currentCategories = [];
         this.allExistingCategories = [];
-        
+
         // Callbacks
         this.onConfirm = null;
         this.onCancel = null;
         this.interactionHandler = null;
-        
+
         // State flags
         this.isProcessing = false;
         this.categoryDropdown = null;
         this.dropdownCleanup = null;
+        this.toBeAddedTaskElement = null;
+        this.lastBadgeRemoveTime = 0;
     }
 
     /**
@@ -60,20 +65,36 @@ class TaskModal extends ModalBase {
             interactionHandler = null,
             allCategories = [],
             onConfirm = null,
-            onCancel = null
+            onCancel = null,
+            toBeAddedTaskElement = null
         } = options;
 
-        // If taskId is empty, force newAtTop regardless of actionType
-        if (!taskId || taskId === '') {
+        // Store toBeAddedTaskElement
+        this.toBeAddedTaskElement = toBeAddedTaskElement;
+
+        // If taskId is empty and not toBeAdded mode, force newAtTop
+        if ((!taskId || taskId === '') && actionType !== 'toBeAdded') {
             this.taskId = '';
             this.actionType = 'newAtTop';
             this.originalTask = null;
             this.currentCategories = [];
+        } else if (actionType === 'toBeAdded') {
+            // ToBeAdded mode
+            this.taskId = '';
+            this.actionType = 'toBeAdded';
+            this.originalTask = taskData;
+
+            // Set initial categories from taskData
+            if (taskData && taskData.categories) {
+                this.currentCategories = [...taskData.categories];
+            } else {
+                this.currentCategories = [];
+            }
         } else {
             this.taskId = taskId;
             this.actionType = actionType;
             this.originalTask = taskData;
-            
+
             // Set initial categories based on action type
             if (taskData && taskData.categories) {
                 if (actionType === 'edit' || actionType === 'newAtTop') {
@@ -127,6 +148,8 @@ class TaskModal extends ModalBase {
                 return `New task after a task : ${this.getFullTaskTitle()}`;
             case 'newAtBefore':
                 return `New task before a task : ${this.getFullTaskTitle()}`;
+            case 'toBeAdded':
+                return 'Add new task';
             default:
                 return 'Task Modal';
         }
@@ -156,11 +179,11 @@ class TaskModal extends ModalBase {
         if (!this.originalTask) {
             return '';
         }
-        
-        if (this.actionType === 'edit' || this.actionType === 'newAtTop') {
+
+        if (this.actionType === 'edit' || this.actionType === 'newAtTop' || this.actionType === 'toBeAdded') {
             return this.originalTask.displayTitle || '';
         }
-        
+
         return '';
     }
 
@@ -171,11 +194,11 @@ class TaskModal extends ModalBase {
         if (!this.originalTask) {
             return '';
         }
-        
-        if (this.actionType === 'edit' || this.actionType === 'newAtTop') {
+
+        if (this.actionType === 'edit' || this.actionType === 'newAtTop' || this.actionType === 'toBeAdded') {
             return this.originalTask.description || '';
         }
-        
+
         return '';
     }
 
@@ -353,8 +376,8 @@ class TaskModal extends ModalBase {
         // Add subcategory button
         const addSubcategoryBtn = this.modal!.querySelector(`#${this.namespace}-add-subcategory-btn`);
         if (addSubcategoryBtn) {
-            const cleanup4 = CoreEventUtils.addListener(addSubcategoryBtn, 'click', () => {
-                this.handleAddSubcategory();
+            const cleanup4 = CoreEventUtils.addListener(addSubcategoryBtn, 'click', (event: Event) => {
+                this.handleAddSubcategory(event);
             });
             this.cleanupFunctions.push(cleanup4);
         }
@@ -389,16 +412,23 @@ class TaskModal extends ModalBase {
      */
     handleRemoveBadge(event: any): void {
         event.stopPropagation();
-        
+
+        // Prevent rapid consecutive clicks (within 500ms)
+        const now = Date.now();
+        if (now - this.lastBadgeRemoveTime < 500) {
+            Logger.fgtlog('⚠️ Badge remove ignored (too fast)');
+            return;
+        }
+        this.lastBadgeRemoveTime = now;
+
         const button = event.currentTarget;
         const categoryIndex = parseInt(button.dataset.categoryIndex);
         const category = this.currentCategories[categoryIndex];
-        
-        if (confirm(`Remove category "${category}"?`)) {
-            this.currentCategories.splice(categoryIndex, 1);
-            this.updateCategoryBadges();
-            Logger.fgtlog('🗑️ Removed category: ' + category);
-        }
+
+        // Remove category without confirmation
+        this.currentCategories.splice(categoryIndex, 1);
+        this.updateCategoryBadges();
+        Logger.fgtlog('🗑️ Removed category: ' + category);
     }
 
     /**
@@ -645,12 +675,32 @@ class TaskModal extends ModalBase {
     /**
      * Handle add subcategory button
      */
-    handleAddSubcategory(): void {
+    handleAddSubcategory(event?: Event): void {
+        // Get next level categories
+        const nextLevelCategories = this.getNextLevelCategories();
+
+        // If no options available, show prompt directly
+        if (nextLevelCategories.length === 0) {
+            this.promptForNewSubcategory();
+            return;
+        }
+
+        // Show dropdown with options
+        const button = event?.currentTarget as HTMLElement || this.modal!.querySelector(`#${this.namespace}-add-subcategory-btn`) as HTMLElement;
+        if (button) {
+            this.showAddSubcategoryDropdown(button, nextLevelCategories);
+        }
+    }
+
+    /**
+     * Prompt user for new subcategory name
+     */
+    promptForNewSubcategory(): void {
         const newCategory = prompt('Enter new subcategory name:');
-        
+
         if (newCategory) {
             const cleanCategory = CategoryParser.cleanCategory(newCategory);
-            
+
             if (CategoryParser.isValidCategory(cleanCategory)) {
                 this.currentCategories.push(cleanCategory);
                 this.updateCategoryBadges();
@@ -659,6 +709,168 @@ class TaskModal extends ModalBase {
                 CoreNotificationUtils.warning('Invalid category name', this.namespace);
             }
         }
+    }
+
+    /**
+     * Get next level categories based on current categories
+     * @returns Array of category names at the next level
+     */
+    getNextLevelCategories(): string[] {
+        const nextLevelIndex = this.currentCategories.length;
+        const currentPath = this.currentCategories;
+
+        const nextLevelCategories: string[] = [];
+        const seen = new Set<string>();
+
+        // Search through all existing category sequences
+        this.allExistingCategories.forEach((catArray: string[]) => {
+            // Check if this array extends our current path
+            if (catArray.length > nextLevelIndex) {
+                // Compare current path
+                let pathMatches = true;
+                for (let i = 0; i < currentPath.length; i++) {
+                    if (catArray[i] !== currentPath[i]) {
+                        pathMatches = false;
+                        break;
+                    }
+                }
+
+                if (pathMatches) {
+                    const categoryAtNextLevel = catArray[nextLevelIndex];
+
+                    if (!seen.has(categoryAtNextLevel)) {
+                        seen.add(categoryAtNextLevel);
+                        nextLevelCategories.push(categoryAtNextLevel);
+                    }
+                }
+            }
+        });
+
+        Logger.fgtlog(`🔍 Found ${nextLevelCategories.length} next-level categories`);
+        return nextLevelCategories;
+    }
+
+    /**
+     * Show add subcategory dropdown menu
+     */
+    showAddSubcategoryDropdown(button: HTMLElement, categories: string[]): void {
+        // Close any existing dropdown
+        this.closeCategoryDropdown();
+
+        // Create dropdown element
+        const dropdown = document.createElement('div');
+        dropdown.className = `${this.namespace}-category-dropdown`;
+        dropdown.id = `${this.namespace}-category-dropdown`;
+
+        // Build dropdown content
+        let dropdownHTML = '';
+
+        // Modify option (prompts for new category)
+        dropdownHTML += `
+            <div class="${this.namespace}-dropdown-item modify-option" data-action="add-new">
+                ✏️ Modify
+            </div>
+        `;
+
+        // Existing categories
+        if (categories.length > 0) {
+            dropdownHTML += `<div class="${this.namespace}-dropdown-divider"></div>`;
+
+            categories.forEach(categoryName => {
+                dropdownHTML += `
+                    <div class="${this.namespace}-dropdown-item category-option"
+                         data-action="select"
+                         data-category-name="${CoreDOMUtils.escapeHtml(categoryName)}">
+                        ${CoreDOMUtils.escapeHtml(categoryName)}
+                    </div>
+                `;
+            });
+        }
+
+        dropdown.innerHTML = dropdownHTML;
+
+        // Calculate position
+        const rect = button.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        dropdown.style.top = `${rect.bottom + 4}px`;
+        dropdown.style.left = `${rect.left}px`;
+        dropdown.style.minWidth = `${rect.width}px`;
+
+        // Add to document
+        document.body.appendChild(dropdown);
+        this.categoryDropdown = dropdown;
+
+        // Attach dropdown event handlers
+        const modifyOption = dropdown.querySelector('.modify-option');
+        if (modifyOption) {
+            const cleanup1 = CoreEventUtils.addListener(modifyOption, 'click', () => {
+                this.closeCategoryDropdown();
+                this.promptForNewSubcategory();
+            });
+
+            this.dropdownCleanup = () => {
+                cleanup1();
+            };
+        }
+
+        const categoryOptions = dropdown.querySelectorAll('.category-option');
+        categoryOptions.forEach(option => {
+            const cleanup2 = CoreEventUtils.addListener(option, 'click', () => {
+                const categoryName = option.getAttribute('data-category-name');
+                if (categoryName) {
+                    this.closeCategoryDropdown();
+                    this.currentCategories.push(categoryName);
+                    this.updateCategoryBadges();
+                    Logger.fgtlog('➕ Added subcategory from dropdown: ' + categoryName);
+                    CoreNotificationUtils.success('Category added', this.namespace);
+                }
+            });
+
+            // Add to cleanup chain
+            if (this.dropdownCleanup) {
+                const prevCleanup = this.dropdownCleanup;
+                this.dropdownCleanup = () => {
+                    prevCleanup();
+                    cleanup2();
+                };
+            }
+        });
+
+        // Close dropdown on outside click
+        const outsideClickCleanup = CoreEventUtils.addListener(document, 'click', (e: any) => {
+            if (!dropdown.contains(e.target) && e.target !== button) {
+                this.closeCategoryDropdown();
+            }
+        });
+
+        // Add to cleanup chain
+        if (this.dropdownCleanup) {
+            const prevCleanup = this.dropdownCleanup;
+            this.dropdownCleanup = () => {
+                prevCleanup();
+                outsideClickCleanup();
+            };
+        } else {
+            this.dropdownCleanup = outsideClickCleanup;
+        }
+
+        // Close on ESC key
+        const escapeCleanup = CoreEventUtils.addListener(document, 'keydown', (e: any) => {
+            if (e.key === 'Escape') {
+                this.closeCategoryDropdown();
+            }
+        });
+
+        // Add to cleanup chain
+        if (this.dropdownCleanup) {
+            const prevCleanup = this.dropdownCleanup;
+            this.dropdownCleanup = () => {
+                prevCleanup();
+                escapeCleanup();
+            };
+        }
+
+        Logger.fgtlog('📋 Add subcategory dropdown shown with ' + categories.length + ' options');
     }
 
     /**
@@ -676,51 +888,152 @@ class TaskModal extends ModalBase {
      */
     handleCancel(): void {
         this.closeCategoryDropdown();
-        this.close();
+
+        // Call onCancel before closing
         if (this.onCancel) {
             this.onCancel();
         }
+
+        // Prevent onClose callback from firing
+        this.onClose = null;
+        this.close();
     }
 
     /**
      * Handle confirm button
      */
-    handleConfirm(): void {
+    async handleConfirm(): Promise<void> {
         if (this.isProcessing) {
             return;
         }
-        
+
         this.closeCategoryDropdown();
-        
+
         const titleInput = this.modal!.querySelector(`#${this.namespace}-task-title-input`) as HTMLInputElement;
         const descInput = this.modal!.querySelector(`#${this.namespace}-task-desc-input`) as HTMLTextAreaElement;
-        
+
         const title = titleInput?.value.trim() || '';
         const description = descInput?.value.trim() || '';
-        
+
         if (this.currentCategories.length === 0 && title === '') {
             CoreNotificationUtils.warning('Please add at least a category or title', this.namespace);
             titleInput?.focus();
             return;
         }
-        
+
+        // Check if title is placeholder text (for toBeAdded mode)
+        if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
+            const titleWrapper = this.toBeAddedTaskElement.findTitleWrapper();
+            const titleEditor = titleWrapper?.findTitleEditor();
+            const placeholder = titleEditor?.placeholder || '';
+
+            if (placeholder && title === placeholder) {
+                CoreNotificationUtils.error('Please enter a valid title (not placeholder text)', this.namespace);
+                titleInput?.focus();
+                return;
+            }
+        }
+
         const fullTitle = CategoryParser.reconstructTitle(this.currentCategories, title);
-        
+
         // Get original values for comparison
-        const originalFullTitle = this.originalTask ? 
+        const originalFullTitle = this.originalTask ?
             CategoryParser.reconstructTitle(
-                this.originalTask.categories || [], 
+                this.originalTask.categories || [],
                 this.originalTask.displayTitle || ''
             ) : '';
         const originalDescription = this.originalTask?.description || '';
-        
+
+        // Validate duplicate title for both edit and toBeAdded modes
+        if (this.actionType === 'edit' || this.actionType === 'toBeAdded') {
+            if (!this.validateUniqueTitle(fullTitle, this.taskId)) {
+                CoreNotificationUtils.error('A task with this title already exists', this.namespace);
+                titleInput?.focus();
+                return;
+            }
+        }
+
+        // Handle toBeAdded mode
+        if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
+            // Lock UI to prevent interaction
+            this.isProcessing = true;
+            CoreDOMUtils.enableLockStyles();
+            this.showLoading('Adding task...');
+
+            Logger.fgtlog('🆕 Starting toBeAdded task operation...');
+
+            try {
+                // Update title in the original UI
+                const titleWrapper = this.toBeAddedTaskElement.findTitleWrapper();
+                const titleEditor = titleWrapper?.findTitleEditor();
+                if (titleEditor) {
+                    titleEditor.focus();
+                    titleEditor.element.value = fullTitle;
+                    const inputEvent = CoreDOMUtils.createInputEvent();
+                    titleEditor.element.dispatchEvent(inputEvent);
+                    titleEditor.blur();
+                    Logger.fgtlog('✅ Title updated in original UI');
+                }
+
+                // Update description in the original UI
+                const descWrapper = this.toBeAddedTaskElement.findDescWrapper();
+                const descEditor = descWrapper?.findDescEditor();
+                if (descEditor && description) {
+                    descEditor.focus();
+                    descEditor.element.value = description;
+                    const inputEvent = CoreDOMUtils.createInputEvent();
+                    descEditor.element.dispatchEvent(inputEvent);
+                    descEditor.blur();
+                    Logger.fgtlog('✅ Description updated in original UI');
+                }
+
+                // Wait for changes to apply (similar to edit mode)
+                await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 800));
+
+                // Unlock UI
+                CoreDOMUtils.disableLockStyles();
+                this.isProcessing = false;
+
+                // Call confirm callback first (which will click the Add button)
+                if (this.onConfirm) {
+                    this.onConfirm({
+                        taskId: '',
+                        actionType: this.actionType,
+                        title: fullTitle,
+                        cleanTitle: title,
+                        description: description,
+                        categories: this.currentCategories
+                    });
+                }
+
+                Logger.fgtlog('✅ ToBeAdded task operation completed');
+
+                // Prevent onClose callback from firing
+                this.onClose = null;
+                this.close();
+
+            } catch (error: any) {
+                Logger.fgterror('❌ ToBeAdded task operation failed: ' + error.message);
+
+                // Unlock UI
+                CoreDOMUtils.disableLockStyles();
+                this.isProcessing = false;
+
+                // Show error in modal
+                this.showError('Failed to add task: ' + error.message);
+                CoreNotificationUtils.error('Failed to add task: ' + error.message, this.namespace);
+            }
+
+            return;
+        }
+
         // Check if in edit mode and has valid taskId
         if (this.actionType === 'edit' && this.taskId && this.taskId !== '') {
             // Lock UI to prevent interaction
             this.isProcessing = true;
             CoreDOMUtils.enableLockStyles();
             this.showLoading('Updating task...');
-            
+
             Logger.fgtlog('📝 Starting task edit operation...');
             
             // Call editTask interaction
@@ -733,14 +1046,11 @@ class TaskModal extends ModalBase {
                 () => {
                     // Success callback
                     Logger.fgtlog('✅ Task edit completed');
-                    
+
                     // Unlock UI
                     CoreDOMUtils.disableLockStyles();
                     this.isProcessing = false;
-                    
-                    // Close modal
-                    this.close();
-                    
+
                     // Call original confirm callback
                     if (this.onConfirm) {
                         this.onConfirm({
@@ -752,6 +1062,10 @@ class TaskModal extends ModalBase {
                             categories: this.currentCategories
                         });
                     }
+
+                    // Prevent onClose callback from firing
+                    this.onClose = null;
+                    this.close();
                 }
             ).catch((error: any) => {
                 // Error callback
@@ -767,13 +1081,11 @@ class TaskModal extends ModalBase {
             
         } else {
             // New task creation (not implemented yet)
-            this.close();
-            
             CoreNotificationUtils.info(
                 `Coming soon: ${this.actionType} operation with title "${fullTitle}"`,
                 this.namespace
             );
-            
+
             if (this.onConfirm) {
                 this.onConfirm({
                     taskId: this.taskId,
@@ -784,7 +1096,44 @@ class TaskModal extends ModalBase {
                     categories: this.currentCategories
                 });
             }
+
+            // Prevent onClose callback from firing
+            this.onClose = null;
+            this.close();
         }
+    }
+
+    /**
+     * Validate that the title is unique (no duplicate task titles)
+     * @param fullTitle - Full title to check (with categories)
+     * @param excludeTaskId - Task ID to exclude from check (for edit mode)
+     * @returns True if title is unique, false if duplicate exists
+     */
+    validateUniqueTitle(fullTitle: string, excludeTaskId: string | null): boolean {
+        // Get all task elements using OgtFinder (imported at top)
+        const allTasks = OgtFinder.findAllTaskElements();
+
+        // Check each task for duplicate title
+        for (const taskElement of allTasks) {
+            // Skip the task being edited
+            if (excludeTaskId && taskElement.taskId === excludeTaskId) {
+                continue;
+            }
+
+            // Get title of this task
+            const titleWrapper = taskElement.findTitleWrapper();
+            const titleViewer = titleWrapper?.findTitleViewer();
+            const existingTitle = titleViewer?.text || '';
+
+            // Compare titles (case-sensitive)
+            if (existingTitle === fullTitle) {
+                Logger.fgtwarn(`⚠️ Duplicate title found: "${fullTitle}" (task: ${taskElement.taskId})`);
+                return false;
+            }
+        }
+
+        Logger.fgtlog(`✅ Title is unique: "${fullTitle}"`);
+        return true;
     }
 
     /**
