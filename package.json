@@ -1,6 +1,6 @@
 {
   "name": "fancy-google-space-tasks",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Enhanced Google Space Tasks with TypeScript",
   "scripts": {
     "version:bump": "npm version patch --no-git-tag-version",

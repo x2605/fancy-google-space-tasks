@@ -1335,23 +1335,7 @@ declare global {
     }
 }
 
-// Auto-initialize when this script loads
-if (typeof window !== 'undefined' && window.location && window.location.href.includes('tasks.google.com')) {
-    if (!window.fancyGSTManager) {
-        Logger.fgtlog('🚀 Auto-initializing Container Manager...');
-
-        const autoInit = () => {
-            const manager = new ContainerManager();
-            manager.initialize();
-            window.fancyGSTManager = manager;
-        };
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', autoInit);
-        } else {
-            CoreEventUtils.timeouts.create(autoInit, 100);
-        }
-    }
-}
+// Auto-initialization is now handled by src/main.ts
+// This ensures the extension only loads on supported URL patterns
 
 Logger.fgtlog('✅ Container Manager loaded successfully');

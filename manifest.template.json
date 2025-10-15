@@ -7,13 +7,13 @@
     "storage"
   ],
   "host_permissions": [
-    "https://tasks.google.com/embed/room/*"
+    "https://tasks.google.com/*"
   ],
   "content_scripts": [
     {
       "comment": "Tasks - modular DOM manipulation with manipulator layer (TypeScript compiled)",
       "matches": [
-        "https://tasks.google.com/embed/room/*"
+        "https://tasks.google.com/*"
       ],
       "js": [
         "bundles/linkify.js",

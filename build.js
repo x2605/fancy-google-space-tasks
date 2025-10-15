@@ -759,7 +759,7 @@ function getLocaleAliases(cldrLocale) {
 cleanDist();
 
 const buildOptions = {
-  entryPoints: ['src/container/container_manager.ts'],
+  entryPoints: ['src/main.ts'],
   bundle: true,
   outfile: 'dist/bundled_fgt.js',
   format: 'iife',
