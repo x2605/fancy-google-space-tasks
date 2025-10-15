@@ -246,10 +246,10 @@ class TaskModal extends ModalBase {
                                   rows="3">${CoreDOMUtils.escapeHtml(this.getInitialDescription())}</textarea>
                     </div>
 
-                    <!-- Due Date display -->
+                    <!-- Set Date/Time display -->
                     ${this.originalTask && this.originalTask.date ? `
                     <div class="${this.namespace}-form-group">
-                        <label class="${this.namespace}-form-label">Due Date</label>
+                        <label class="${this.namespace}-form-label">Set Date/Time</label>
                         <div class="${this.namespace}-readonly-field">
                             ${this.getFormattedDueDate()}
                         </div>

@@ -105,7 +105,7 @@ class ContainerUI {
             id: `${this.namespace}-add-new-task-button`,
             className: 'fgt-add-new-task fgt-lockable',
             title: 'Add new task'
-        }, {}, '➕') as HTMLDivElement;
+        }, {}, '✚') as HTMLDivElement;
 
         // Create completed tasks toggle button (middle)
         this.completedToggleIndicator = CoreDOMUtils.createElement('div', {

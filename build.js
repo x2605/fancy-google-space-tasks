@@ -46,9 +46,13 @@ const path = require('path');
 // Check command line arguments for build mode
 const isMinified = process.argv.includes('--minify');
 const isWatch = process.argv.includes('--watch');
+const isRelease = process.argv.includes('--release');
 
 // Display build mode for user feedback
-console.log(`Building in ${isMinified ? 'minify' : 'development'} mode...`);
+const buildMode = isRelease
+  ? (isMinified ? 'release (minified)' : 'release')
+  : (isMinified ? 'minify' : 'development');
+console.log(`Building in ${buildMode} mode...`);
 
 const distPath = path.join(__dirname, 'dist');
 
@@ -772,6 +776,7 @@ const buildOptions = {
 
   define: {
     'process.env.APP_VERSION': JSON.stringify(version),
+    'FGTDEBUG': isRelease ? 'false' : 'true',
   },
 };
 
