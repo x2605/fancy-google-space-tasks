@@ -224,16 +224,15 @@ class TaskModal extends ModalBase {
                         </button>
                     </div>
 
-                    <!-- Title input -->
+                    <!-- Title textarea (multiline support for mobile compatibility) -->
                     <div class="${this.namespace}-form-group">
                         <label for="${this.namespace}-task-title-input" class="${this.namespace}-form-label">
                             Title
                         </label>
-                        <input type="text" 
-                               id="${this.namespace}-task-title-input"
-                               class="${this.namespace}-task-title-input ${this.namespace}-form-input" 
-                               placeholder="Enter task title or [Category] to add category..."
-                               value="${CoreDOMUtils.escapeHtml(this.getInitialTitle())}">
+                        <textarea id="${this.namespace}-task-title-input"
+                                  class="${this.namespace}-task-title-input ${this.namespace}-form-input"
+                                  placeholder="Enter task title or [Category] to add category..."
+                                  rows="2">${CoreDOMUtils.escapeHtml(this.getInitialTitle())}</textarea>
                     </div>
 
                     <!-- Description textarea -->
@@ -387,7 +386,7 @@ class TaskModal extends ModalBase {
      * Handle title input blur - detect and extract [Category]
      */
     handleTitleBlur(): void {
-        const titleInput = this.modal!.querySelector(`#${this.namespace}-task-title-input`) as HTMLInputElement;
+        const titleInput = this.modal!.querySelector(`#${this.namespace}-task-title-input`) as HTMLTextAreaElement;
         if (!titleInput) return;
 
         const text = titleInput.value;
@@ -909,13 +908,15 @@ class TaskModal extends ModalBase {
 
         this.closeCategoryDropdown();
 
-        const titleInput = this.modal!.querySelector(`#${this.namespace}-task-title-input`) as HTMLInputElement;
+        const titleInput = this.modal!.querySelector(`#${this.namespace}-task-title-input`) as HTMLTextAreaElement;
         const descInput = this.modal!.querySelector(`#${this.namespace}-task-desc-input`) as HTMLTextAreaElement;
 
-        const title = titleInput?.value.trim() || '';
-        const description = descInput?.value.trim() || '';
+        // DO NOT trim - let original UI decide whether to trim or not
+        // We only check for empty using trim, but pass untrimmed value
+        const title = titleInput?.value || '';
+        const description = descInput?.value || '';
 
-        if (this.currentCategories.length === 0 && title === '') {
+        if (this.currentCategories.length === 0 && title.trim() === '') {
             CoreNotificationUtils.warning('Please add at least a category or title', this.namespace);
             titleInput?.focus();
             return;
@@ -934,15 +935,43 @@ class TaskModal extends ModalBase {
             }
         }
 
-        const fullTitle = CategoryParser.reconstructTitle(this.currentCategories, title);
-
-        // Get original values for comparison
+        // Get original full title (with categories, without newline)
         const originalFullTitle = this.originalTask ?
             CategoryParser.reconstructTitle(
                 this.originalTask.categories || [],
-                this.originalTask.displayTitle || ''
+                this.originalTask.displayTitle || '',
+                false  // No newline for comparison
             ) : '';
         const originalDescription = this.originalTask?.description || '';
+
+        // Reconstruct full title with current values (without newline for comparison)
+        const fullTitleWithoutNewline = CategoryParser.reconstructTitle(
+            this.currentCategories,
+            title,
+            false  // No newline for comparison
+        );
+
+        // Check if FULL title was modified (including categories or clean title)
+        // This means: if user changed either category badges OR clean title, we add newline
+        // Example: [A][B]Title → [A][B][C]Title (category changed) → should add newline
+        // Example: [A][B]Title → [A][B]NewTitle (title changed) → should add newline
+        // Example: [A][B]Title → [A][B]Title (nothing changed) → no newline
+        const fullTitleWasModified = (fullTitleWithoutNewline !== originalFullTitle);
+
+        // Add newline between categories and title for better readability
+        // - toBeAdded mode: always add newline (new task)
+        // - edit mode: only if full title was modified (categories or clean title changed)
+        const shouldAddNewline = this.currentCategories.length > 0 &&
+                                 (this.actionType === 'toBeAdded' || fullTitleWasModified);
+
+        // Now create final fullTitle with newline if needed
+        const fullTitle = CategoryParser.reconstructTitle(
+            this.currentCategories,
+            title,
+            shouldAddNewline
+        );
+
+        Logger.fgtlog(`📝 Full title modified: ${fullTitleWasModified}, shouldAddNewline: ${shouldAddNewline}`);
 
         // Validate duplicate title for both edit and toBeAdded modes
         if (this.actionType === 'edit' || this.actionType === 'toBeAdded') {
@@ -1105,6 +1134,10 @@ class TaskModal extends ModalBase {
 
     /**
      * Validate that the title is unique (no duplicate task titles)
+     *
+     * Uses flexible whitespace comparison because original UI sometimes
+     * trims titles and sometimes doesn't - we need to handle both cases
+     *
      * @param fullTitle - Full title to check (with categories)
      * @param excludeTaskId - Task ID to exclude from check (for edit mode)
      * @returns True if title is unique, false if duplicate exists
@@ -1125,9 +1158,10 @@ class TaskModal extends ModalBase {
             const titleViewer = titleWrapper?.findTitleViewer();
             const existingTitle = titleViewer?.text || '';
 
-            // Compare titles (case-sensitive)
-            if (existingTitle === fullTitle) {
-                Logger.fgtwarn(`⚠️ Duplicate title found: "${fullTitle}" (task: ${taskElement.taskId})`);
+            // Compare titles with flexible whitespace handling
+            // This handles cases where original UI trims or doesn't trim
+            if (CoreDOMUtils.compareWithFlexibleWhitespace(existingTitle, fullTitle)) {
+                Logger.fgtwarn(`⚠️ Duplicate title found: "${fullTitle}" matches "${existingTitle}" (task: ${taskElement.taskId})`);
                 return false;
             }
         }

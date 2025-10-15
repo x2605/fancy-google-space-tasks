@@ -410,13 +410,17 @@ class TableRenderer {
     }
 
     /**
-     * Render task title
+     * Render task title with newline support
      * @param task - Task data
      * @returns Title HTML
+     *
+     * IMPORTANT: Converts \n to <br/> for multiline title support
+     * Mobile app can create tasks with \n in titles
      */
     renderTaskTitle(task: any): string {
         // linkifyStr handles HTML escaping internally, so don't double-escape
-        const html = (window as any).linkifyStr(task.displayTitle || '');
+        // Convert newlines to <br/> for proper HTML display (same as description)
+        const html = (window as any).linkifyStr(task.displayTitle || '').replace(/(\r\n|\r|\n)/g, '<br/>');
         return `
             <div class="${this.namespace}-title-wrapper">
                 ${this.renderTaskCheckbox(task)}

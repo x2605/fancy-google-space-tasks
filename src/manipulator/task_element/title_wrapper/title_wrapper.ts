@@ -54,7 +54,7 @@ class OgtTitleWrapper {
      * @returns Title editor wrapper or null if not found
      */
     findTitleEditor(): any {
-        const editorElement = this._element.querySelector('textarea[rows="1"][maxlength]') as HTMLTextAreaElement;
+        const editorElement = this._element.querySelector('textarea[rows][maxlength]') as HTMLTextAreaElement;
         if (!editorElement) {
             return null;
         }

@@ -31,6 +31,57 @@ class CoreDOMUtils {
     }
 
     /**
+     * Normalize newline characters to \n
+     * Converts \r\n (Windows) and \r (old Mac) to \n (Unix/modern)
+     * This ensures consistent comparison of multiline text
+     *
+     * IMPORTANT: Mobile app can create tasks with \n in titles
+     * Windows copy-paste may introduce \r\n, but DOM normalizes to \n
+     *
+     * @param text - Text to normalize
+     * @returns Text with normalized newlines
+     */
+    static normalizeNewlines(text: string): string {
+        if (typeof text !== 'string') return '';
+        return text.replace(/\r\n|\r/g, '\n');
+    }
+
+    /**
+     * Compare two strings with flexible whitespace handling
+     *
+     * Original Google Tasks UI has inconsistent whitespace handling:
+     * - Sometimes it trims leading/trailing whitespace (spaces, tabs, newlines)
+     * - Sometimes it preserves them
+     * - The behavior is unpredictable and varies by context
+     *
+     * This function tries BOTH trimmed and non-trimmed comparison to handle this.
+     * JavaScript's trim() removes: spaces, tabs, \n, \r\n, and other whitespace chars
+     *
+     * @param actual - Actual text from DOM
+     * @param expected - Expected text
+     * @returns True if texts match (with or without trimming)
+     */
+    static compareWithFlexibleWhitespace(actual: string, expected: string): boolean {
+        // First normalize newlines for consistent comparison
+        const normalizedActual = CoreDOMUtils.normalizeNewlines(actual);
+        const normalizedExpected = CoreDOMUtils.normalizeNewlines(expected);
+
+        // Exact match (including all whitespace)
+        if (normalizedActual === normalizedExpected) {
+            return true;
+        }
+
+        // Trimmed match (whitespace removed from both ends)
+        // This handles cases where original UI trims the text
+        if (normalizedActual.trim() === normalizedExpected.trim()) {
+            return true;
+        }
+
+        // No match
+        return false;
+    }
+
+    /**
      * Create mouse event for CSP compliance
      * @param type - Event type
      * @param options - Event options

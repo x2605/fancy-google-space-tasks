@@ -5,9 +5,9 @@
 /* Base notification */
 .fancy-gst-notification {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 12px 16px;
+    top: 15px;
+    right: 15px;
+    padding: 8px 12px;
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 999999;

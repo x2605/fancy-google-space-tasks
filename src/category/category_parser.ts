@@ -39,17 +39,24 @@ class CategoryParser {
 
     /**
      * Reconstruct title with categories
+     *
+     * IMPORTANT: When addNewline is true, adds \n between categories and title
+     * This improves readability for multiline titles (mobile app compatible)
+     * Example: [A][B][C]\ncleanTitle instead of [A][B][C]cleanTitle
+     *
      * @param categories - Category array
      * @param title - Clean title
+     * @param addNewline - Add newline between categories and title (default: false)
      * @returns Reconstructed title with categories
      */
-    static reconstructTitle(categories: string[], title: string): string {
+    static reconstructTitle(categories: string[], title: string, addNewline: boolean = false): string {
         if (!categories || categories.length === 0) {
             return title || '';
         }
 
         const categoryPrefix = categories.map(cat => `[${cat}]`).join('');
-        return `${categoryPrefix}${title || ''}`;
+        const separator = addNewline ? '\n' : '';
+        return `${categoryPrefix}${separator}${title || ''}`;
     }
 
     /**

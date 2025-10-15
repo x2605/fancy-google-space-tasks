@@ -217,37 +217,43 @@ class EditTaskInteraction extends BaseInteraction {
      * @param expectedDescription - Expected description
      */
     private async verifyChanges(
-        taskElement: OgtTaskElement, 
-        expectedTitle: string, 
+        taskElement: OgtTaskElement,
+        expectedTitle: string,
         expectedDescription: string
     ): Promise<void> {
         try {
-            // Verify title
+            // Verify title with flexible whitespace handling
+            // Original UI sometimes trims, sometimes doesn't - we handle both cases
             const titleWrapper = taskElement.findTitleWrapper();
             const titleViewer = titleWrapper?.findTitleViewer();
             const currentTitle = titleViewer?.text || '';
 
-            if (currentTitle !== expectedTitle) {
+            const titleMatches = CoreDOMUtils.compareWithFlexibleWhitespace(
+                currentTitle,
+                expectedTitle
+            );
+
+            if (!titleMatches) {
                 Logger.fgtwarn(`⚠️ Title mismatch: expected "${expectedTitle}", got "${currentTitle}"`);
-                // Allow small differences
-                if (currentTitle.trim() !== expectedTitle.trim()) {
-                    throw new Error('Title verification failed');
-                }
+                throw new Error('Title verification failed');
             }
 
-            // Verify description
+            // Verify description with flexible whitespace handling
+            // Original UI sometimes trims, sometimes doesn't - we handle both cases
             const descWrapper = taskElement.findDescWrapper();
             const descViewer = descWrapper?.findDescViewer();
             const currentDesc = descViewer?.text || '';
             const placeholder = descWrapper?.placeholder || '';
             const actualDesc = currentDesc === placeholder ? '' : currentDesc;
 
-            if (actualDesc !== expectedDescription) {
+            const descMatches = CoreDOMUtils.compareWithFlexibleWhitespace(
+                actualDesc,
+                expectedDescription
+            );
+
+            if (!descMatches) {
                 Logger.fgtwarn(`⚠️ Description mismatch: expected "${expectedDescription}", got "${actualDesc}"`);
-                // Allow small differences
-                if (actualDesc.trim() !== expectedDescription.trim()) {
-                    throw new Error('Description verification failed');
-                }
+                throw new Error('Description verification failed');
             }
 
             Logger.fgtlog('✅ All changes verified successfully');

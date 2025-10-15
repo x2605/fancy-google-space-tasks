@@ -34,9 +34,13 @@ class OgtTitleViewer {
     /**
      * Get the title text content
      * This extracts the actual text displayed in the viewer
-     * @returns The title text
+     * IMPORTANT: Preserves newline characters (\n) from multiline titles
+     * Mobile app can create tasks with \n in titles, and we need to preserve them
+     * @returns The title text with newlines preserved
      */
     get text(): string {
+        // textContent preserves \n characters from the DOM
+        // Only trim leading/trailing whitespace, not internal newlines
         return this._element.textContent?.trim() || '';
     }
 

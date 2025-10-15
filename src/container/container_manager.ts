@@ -860,6 +860,13 @@ class ContainerManager {
             this.observer.disconnect();
         }
 
+        // Create debounced version of handleDOMChanges FIRST (before observer that uses it)
+        // This prevents TypeScript error: "Cannot invoke an object which is possibly 'null'"
+        this.debouncedHandleDOMChanges = CoreEventUtils.debounce((mutations: any) => {
+            this.handleDOMChanges(mutations);
+        }, 500);
+
+        // THEN create observer that calls the debounced function
         this.observer = new MutationObserver((mutations: any) => {
             // Check for ToBeAdded immediately (no debounce for fast response)
             if (this.isCustomUIVisible && !this.isShowingTaskModal && !this.isShowingDeleteModal) {
@@ -872,13 +879,9 @@ class ContainerManager {
             }
 
             // Use debounced handler for other changes
-            this.debouncedHandleDOMChanges(mutations);
+            // Safe to call now because it's created before observer
+            this.debouncedHandleDOMChanges!(mutations);
         });
-
-        // Create debounced version of handleDOMChanges (500ms for normal changes)
-        this.debouncedHandleDOMChanges = CoreEventUtils.debounce((mutations: any) => {
-            this.handleDOMChanges(mutations);
-        }, 500);
 
         const taskContainers = document.querySelectorAll('[role="list"]');
 
