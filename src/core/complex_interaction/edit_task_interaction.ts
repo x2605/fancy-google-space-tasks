@@ -6,6 +6,7 @@ import { CoreDOMUtils } from '@/core/dom_utils';
 import { OgtFinder } from '@/manipulator/finder';
 import { OgtTaskElement } from '@/manipulator/task_element/task_element';
 import { BaseInteraction } from './base_interaction';
+import { CategoryParser } from '@/category/category_parser';
 
 Logger.fgtlog('📝 Edit Task Interaction loading...');
 
@@ -222,19 +223,41 @@ class EditTaskInteraction extends BaseInteraction {
         expectedDescription: string
     ): Promise<void> {
         try {
-            // Verify title with flexible whitespace handling
-            // Original UI sometimes trims, sometimes doesn't - we handle both cases
+            // Verify title with normalization
+            // Google Tasks may add newlines after category brackets (from mobile app)
+            // Example: "[A][B]\nTitle" vs "[A][B]Title" should be considered equal
+            //
+            // Solution: Normalize both titles using CategoryParser
+            // This removes inconsistencies in whitespace after brackets
             const titleWrapper = taskElement.findTitleWrapper();
             const titleViewer = titleWrapper?.findTitleViewer();
-            const currentTitle = titleViewer?.text || '';
+            const currentTitleRaw = titleViewer?.text || '';
 
+            // Normalize both titles: parse and reconstruct without newline
+            const { categories: currentCategories, cleanTitle: currentCleanTitle } =
+                CategoryParser.parseTaskTitle(currentTitleRaw);
+            const currentTitleNormalized = CategoryParser.reconstructTitle(
+                currentCategories,
+                currentCleanTitle,
+                false // No newline
+            );
+
+            const { categories: expectedCategories, cleanTitle: expectedCleanTitle } =
+                CategoryParser.parseTaskTitle(expectedTitle);
+            const expectedTitleNormalized = CategoryParser.reconstructTitle(
+                expectedCategories,
+                expectedCleanTitle,
+                false // No newline
+            );
+
+            // Compare normalized titles with flexible whitespace handling
             const titleMatches = CoreDOMUtils.compareWithFlexibleWhitespace(
-                currentTitle,
-                expectedTitle
+                currentTitleNormalized,
+                expectedTitleNormalized
             );
 
             if (!titleMatches) {
-                Logger.fgtwarn(`⚠️ Title mismatch: expected "${expectedTitle}", got "${currentTitle}"`);
+                Logger.fgtwarn(`⚠️ Title mismatch: expected "${expectedTitle}", got "${currentTitleRaw}"`);
                 throw new Error('Title verification failed');
             }
 
