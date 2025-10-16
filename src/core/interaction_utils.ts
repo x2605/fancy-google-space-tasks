@@ -193,38 +193,7 @@ class CoreInteractionUtils {
      * Required for div elements that don't respond to simple click events
      */
     simulateClick(element: Element): void {
-        if (!element) return;
-
-        const rect = element.getBoundingClientRect();
-        const clientX = rect.left + (rect.width / 2);
-        const clientY = rect.top + (rect.height / 2);
-
-        const mousedownEvent = new MouseEvent('mousedown', {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            detail: 1,
-            screenX: clientX,
-            screenY: clientY,
-            clientX: clientX,
-            clientY: clientY,
-            button: 0
-        });
-
-        const mouseupEvent = new MouseEvent('mouseup', {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            detail: 1,
-            screenX: clientX,
-            screenY: clientY,
-            clientX: clientX,
-            clientY: clientY,
-            button: 0
-        });
-
-        element.dispatchEvent(mousedownEvent);
-        element.dispatchEvent(mouseupEvent);
+        CoreDOMUtils.simulateClick(element);
     }
 
     /**
