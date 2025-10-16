@@ -1069,19 +1069,19 @@ class ContainerManager {
 
                 Logger.fgtlog('✅ ToBeAdded task modal confirmed: ' + JSON.stringify(resultData));
 
-                // Click the Add button (first touch button)
+                // Click the Add button
                 try {
-                    const touchButtons = toBeAddedTask.findTouchButtons();
-                    if (touchButtons.length >= 2) {
-                        const addButton = touchButtons[0].element.querySelector('button');
+                    const addTouchButton = toBeAddedTask.findAddButton();
+                    if (addTouchButton) {
+                        const addButton = addTouchButton.element.querySelector('button');
                         if (addButton) {
                             addButton.click();
                             Logger.fgtlog('✅ Add button clicked');
                         } else {
-                            Logger.fgterror('❌ Add button not found');
+                            Logger.fgterror('❌ Add button element not found');
                         }
                     } else {
-                        Logger.fgterror('❌ Touch buttons not found');
+                        Logger.fgterror('❌ Add touch button not found');
                     }
                 } catch (error: any) {
                     Logger.fgterror('❌ Failed to click Add button: ' + error.message);
@@ -1098,19 +1098,19 @@ class ContainerManager {
 
                 Logger.fgtlog('🚫 ToBeAdded task modal cancelled');
 
-                // Click the Cancel button (second touch button)
+                // Click the Cancel button
                 try {
-                    const touchButtons = toBeAddedTask.findTouchButtons();
-                    if (touchButtons.length >= 2) {
-                        const cancelButton = touchButtons[1].element.querySelector('button');
+                    const cancelTouchButton = toBeAddedTask.findCancelButton();
+                    if (cancelTouchButton) {
+                        const cancelButton = cancelTouchButton.element.querySelector('button');
                         if (cancelButton) {
                             cancelButton.click();
                             Logger.fgtlog('✅ Cancel button clicked');
                         } else {
-                            Logger.fgterror('❌ Cancel button not found');
+                            Logger.fgterror('❌ Cancel button element not found');
                         }
                     } else {
-                        Logger.fgterror('❌ Touch buttons not found');
+                        Logger.fgterror('❌ Cancel touch button not found');
                     }
                 } catch (error: any) {
                     Logger.fgterror('❌ Failed to click Cancel button: ' + error.message);

@@ -49,7 +49,7 @@ class OgtDescWrapper {
      * @returns Description viewer wrapper or null if not found
      */
     findDescViewer(): OgtDescViewer | null {
-        const viewerElement = this._element.querySelector('[jsname][title]');
+        const viewerElement = this._element.querySelector('[jsname][title]') as HTMLTextAreaElement;
         if (!viewerElement) {
             return null;
         }
@@ -62,7 +62,7 @@ class OgtDescWrapper {
      * Selector: textarea[rows][maxlength][data-is-auto-expanding]
      * @returns Description editor wrapper or null if not found
      */
-    findDescEditor(): any {
+    findDescEditor(): OgtDescEditor | null {
         const editorElement = this._element.querySelector('textarea[rows][maxlength][data-is-auto-expanding]') as HTMLTextAreaElement;
         if (!editorElement) {
             return null;

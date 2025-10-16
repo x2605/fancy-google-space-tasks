@@ -10,13 +10,13 @@ Logger.fgtlog('📝 OGT Desc Viewer loading...');
  * @class OgtDescViewer
  */
 class OgtDescViewer {
-    _element: Element;
+    _element: HTMLTextAreaElement;
 
     /**
      * Create a description viewer wrapper
      * @param element - The description viewer DOM element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLTextAreaElement) {
         if (!element) {
             throw new Error('OgtDescViewer requires a valid DOM element');
         }
@@ -27,7 +27,7 @@ class OgtDescViewer {
      * Get the underlying DOM element
      * @returns The wrapped DOM element
      */
-    get element(): Element {
+    get element(): HTMLTextAreaElement {
         return this._element;
     }
 

@@ -922,19 +922,6 @@ class TaskModal extends ModalBase {
             return;
         }
 
-        // Check if title is placeholder text (for toBeAdded mode)
-        if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
-            const titleWrapper = this.toBeAddedTaskElement.findTitleWrapper();
-            const titleEditor = titleWrapper?.findTitleEditor();
-            const placeholder = titleEditor?.placeholder || '';
-
-            if (placeholder && title === placeholder) {
-                CoreNotificationUtils.error('Please enter a valid title (not placeholder text)', this.namespace);
-                titleInput?.focus();
-                return;
-            }
-        }
-
         // Get original full title (with categories, without newline)
         const originalFullTitle = this.originalTask ?
             CategoryParser.reconstructTitle(
@@ -973,6 +960,20 @@ class TaskModal extends ModalBase {
 
         Logger.fgtlog(`📝 Full title modified: ${fullTitleWasModified}, shouldAddNewline: ${shouldAddNewline}`);
 
+        // Check if FULL title is placeholder text (for toBeAdded mode)
+        // This check must be done AFTER fullTitle is constructed
+        if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
+            const titleWrapper = this.toBeAddedTaskElement.findTitleWrapper();
+            const titleEditor = titleWrapper?.findTitleEditor();
+            const placeholder = titleEditor?.placeholder || '';
+
+            if (placeholder && fullTitle === placeholder) {
+                CoreNotificationUtils.error('Please enter a valid title (not placeholder text)', this.namespace);
+                titleInput?.focus();
+                return;
+            }
+        }
+
         // Validate duplicate title for both edit and toBeAdded modes
         if (this.actionType === 'edit' || this.actionType === 'toBeAdded') {
             if (!this.validateUniqueTitle(fullTitle, this.taskId)) {
@@ -1010,14 +1011,32 @@ class TaskModal extends ModalBase {
 
                 // Update description in the original UI
                 const descWrapper = this.toBeAddedTaskElement.findDescWrapper();
-                const descEditor = descWrapper?.findDescEditor();
-                if (descEditor && description) {
-                    descEditor.focus();
-                    descEditor.element.value = description;
-                    const inputEvent = CoreDOMUtils.createInputEvent();
-                    descEditor.element.dispatchEvent(inputEvent);
-                    descEditor.blur();
-                    Logger.fgtlog('✅ Description updated in original UI');
+                if (descWrapper && description) {
+                    try {
+                        // Click to activate description editor (it may not be rendered yet)
+                        const descViewer = descWrapper.findDescViewer();
+                        if (descViewer && descViewer.element) {
+                            (descViewer.element as HTMLElement).click();
+                        } else {
+                            // If no viewer, click the wrapper itself
+                            (descWrapper.element as HTMLElement).click();
+                        }
+
+                        // Wait for editor to appear (using existing waitForDescEditor method)
+                        const descEditor = await descWrapper.waitForDescEditor(3000);
+
+                        if (descEditor) {
+                            descEditor.focus();
+                            descEditor.element.value = description;
+                            const inputEvent = CoreDOMUtils.createInputEvent();
+                            descEditor.element.dispatchEvent(inputEvent);
+                            descEditor.blur();
+                            Logger.fgtlog('✅ Description updated in original UI');
+                        }
+                    } catch (error: any) {
+                        Logger.fgtwarn(`⚠️ Failed to activate description editor: ${error.message}`);
+                        // Description update failed, but continue with title update
+                    }
                 }
 
                 // Wait for changes to apply - monitor DOM changes

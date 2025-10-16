@@ -60,7 +60,7 @@ class OgtTaskElement {
      * @returns Title wrapper or null if not found
      */
     findTitleWrapper(): OgtTitleWrapper | null {
-        const wrapper = this._element.querySelector('[data-max-length]:not([data-multiline])');
+        const wrapper = this._element.querySelector('[role="group"][data-max-length]:not([data-multiline])');
         if (!wrapper) return null;
         return new OgtTitleWrapper(wrapper);
     }
@@ -72,7 +72,7 @@ class OgtTaskElement {
      * @returns Description wrapper or null if not found
      */
     findDescWrapper(): OgtDescWrapper | null {
-        const wrapper = this._element.querySelector('[data-multiline][data-max-length]');
+        const wrapper = this._element.querySelector('[role="group"][data-multiline][data-max-length]');
         if (!wrapper) return null;
         return new OgtDescWrapper(wrapper);
     }
@@ -144,6 +144,38 @@ class OgtTaskElement {
     findTouchButtons(): OgtTouchButton[] {
         const elements = this._element.querySelectorAll('div[data-is-touch-wrapper="true"]') as NodeListOf<HTMLDivElement>;
         return Array.from(elements).map(el => new OgtTouchButton(el));
+    }
+
+    /**
+     * Find the Add button for toBeAdded task
+     * 2 buttons: [0]=add, [1]=cancel
+     * 3 buttons: [0]=expand description, [1]=add, [2]=cancel
+     * @returns Add button or null if not found
+     */
+    findAddButton(): OgtTouchButton | null {
+        const touchButtons = this.findTouchButtons();
+        if (touchButtons.length === 2) {
+            return touchButtons[0];
+        } else if (touchButtons.length === 3) {
+            return touchButtons[1];
+        }
+        return null;
+    }
+
+    /**
+     * Find the Cancel button for toBeAdded task
+     * 2 buttons: [0]=add, [1]=cancel
+     * 3 buttons: [0]=expand description, [1]=add, [2]=cancel
+     * @returns Cancel button or null if not found
+     */
+    findCancelButton(): OgtTouchButton | null {
+        const touchButtons = this.findTouchButtons();
+        if (touchButtons.length === 2) {
+            return touchButtons[1];
+        } else if (touchButtons.length === 3) {
+            return touchButtons[2];
+        }
+        return null;
     }
 
     /**

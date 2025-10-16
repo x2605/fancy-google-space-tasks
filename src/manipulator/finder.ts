@@ -44,8 +44,10 @@ class OgtFinder {
         let array = Array.from(elements).map(el => new OgtTaskElement(el));
         for (let i = array.length - 1; i >= 0; i--) {
             const subElements = array[i].findTouchButtons();
-            // OgtTaskElement including 2 OgtTouchButton is not real task.
-            if (subElements.length == 2) {
+            // OgtTaskElement including 2 or more OgtTouchButton is not real task.
+            // 2 buttons: [0]=add, [1]=cancel
+            // 3 buttons: [0]=expand description, [1]=add, [2]=cancel
+            if (subElements.length >= 2) {
                 array.splice(i, 1);
             }
         }
@@ -54,7 +56,7 @@ class OgtFinder {
     }
 
     /**
-     * 
+     *
      * @returns Task element wrapper which contains Add/Cancel button
      */
     static findTaskElementToBeAdded(): OgtTaskElement | null {
@@ -63,8 +65,10 @@ class OgtFinder {
         let target = null;
         for (let i = 0; i < array.length; i++) {
             const subElements = array[i].findTouchButtons();
-            // OgtTaskElement including 2 OgtTouchButton is not real task.
-            if (subElements.length == 2) {
+            // OgtTaskElement including 2 or more OgtTouchButton is not real task.
+            // 2 buttons: [0]=add, [1]=cancel
+            // 3 buttons: [0]=expand description, [1]=add, [2]=cancel
+            if (subElements.length >= 2) {
                 target = array[i];
                 break;
             }
