@@ -510,8 +510,8 @@ class TableRenderer {
 
         return `
             <div class="${this.namespace}-task-actions">
-                <button class="${this.namespace}-action-btn fgt-date ${dateCssClass}" data-action="date" data-task-id="${task.id || task.taskId}" data-meta="${CoreDOMUtils.escapeHtml(task.dateFull)}" title="Edit Task">${CoreDOMUtils.escapeHtml(formattedDate)}</button>
-                <button class="${this.namespace}-action-btn fgt-assignee"
+                <button class="${this.namespace}-action-btn fgt-date fgt-lockable ${dateCssClass}" data-action="date" data-task-id="${task.id || task.taskId}" data-meta="${CoreDOMUtils.escapeHtml(task.dateFull)}" title="Edit Task">${CoreDOMUtils.escapeHtml(formattedDate)}</button>
+                <button class="${this.namespace}-action-btn fgt-assignee fgt-lockable"
                         style="${assigneeColorStyle}"
                         data-action="assignee" 
                         data-task-id="${task.id || task.taskId}" 

@@ -12,12 +12,16 @@ class TableEvents {
     namespace: string;
     cleanupFunctions: Function[];
     interactionHandler: any;
+    operationVerifier: any;
+    customContainer: Element | null;
     pendingOperations: Map<string, number>;
 
     constructor(namespace: string = 'fancy-gst') {
         this.namespace = namespace;
         this.cleanupFunctions = [];
         this.interactionHandler = null;
+        this.operationVerifier = null;
+        this.customContainer = null;
         this.pendingOperations = new Map(); // Track operation start times
     }
 
@@ -25,12 +29,16 @@ class TableEvents {
      * Initialize table events
      * @param tableContainer - Table container element
      * @param interactionHandler - Interaction handler instance
+     * @param operationVerifier - Operation verifier instance
+     * @param customContainer - Custom container element
      */
-    initialize(tableContainer: Element, interactionHandler: any): void {
+    initialize(tableContainer: Element, interactionHandler: any, operationVerifier: any = null, customContainer: Element | null = null): void {
         // Cleanup existing event listeners first to prevent duplicates
         this.cleanup();
 
         this.interactionHandler = interactionHandler;
+        this.operationVerifier = operationVerifier;
+        this.customContainer = customContainer;
         this.attachAllTableEvents(tableContainer);
         Logger.fgtlog('✅ Table events initialized');
     }
@@ -71,37 +79,65 @@ class TableEvents {
         const checkbox = event.currentTarget;
         const taskId = checkbox.dataset.taskId;
 
+        // Check if UI is locked (operation in progress)
+        if (this.operationVerifier && this.operationVerifier.isOperationInProgress()) {
+            Logger.fgtlog('⏸️ Checkbox click ignored - operation in progress');
+            return;
+        }
+
         // Record operation start time for total duration tracking
         const operationStartTime = Date.now();
         this.pendingOperations.set(taskId, operationStartTime);
 
         if (taskId && this.interactionHandler) {
-            // Show loading state immediately
-            /*const originalContent = */checkbox.innerHTML;
-            checkbox.innerHTML = '⟳';
-            checkbox.style.opacity = '0.6';
+            const wasCompleted = checkbox.classList.contains('fgt-completed');
+
+            // Lock UI to prevent multiple concurrent operations
+            if (this.operationVerifier) {
+                this.operationVerifier.lockUI(this.customContainer, wasCompleted ? 'Unmarking task...' : 'Marking complete...');
+            }
+
+            // Show operation state immediately
+            if (wasCompleted) {
+                // Uncompleting: add temp class to hide ✓, show ⟳ only
+                checkbox.classList.add('fgt-uncompleting');
+                checkbox.innerHTML = '⟳';
+                checkbox.style.opacity = '0.6';
+            } else {
+                // Completing: add temp class for green background only, NO text
+                checkbox.classList.add('fgt-completing');
+                checkbox.innerHTML = ''; // Empty - green background only
+                checkbox.style.opacity = '0.6';
+            }
 
             this.interactionHandler.toggleTask(taskId, () => {
                 const domUpdateTime = Date.now() - operationStartTime;
 
                 // Reset loading state
                 checkbox.style.opacity = '1';
+                checkbox.innerHTML = '';
 
-                // Toggle visual state
-                const wasCompleted = checkbox.classList.contains('fgt-completed');
-
+                // Remove temp classes and toggle final state
                 if (wasCompleted) {
+                    checkbox.classList.remove('fgt-uncompleting');
                     checkbox.classList.remove('fgt-completed');
-                    checkbox.innerHTML = '';
                     Logger.fgtlog(`✅ Task ${taskId} marked as incomplete (DOM update: ${domUpdateTime}ms)`);
                 } else {
+                    checkbox.classList.remove('fgt-completing');
                     checkbox.classList.add('fgt-completed');
-                    checkbox.innerHTML = '';
                     Logger.fgtlog(`✅ Task ${taskId} marked as complete (DOM update: ${domUpdateTime}ms)`);
                 }
 
                 // Notify container to refresh data immediately
                 this.notifyDataChange();
+
+                // Unlock UI after table refresh completes (with small delay)
+                CoreEventUtils.timeouts.create(() => {
+                    if (this.operationVerifier) {
+                        this.operationVerifier.unlockUI(this.customContainer);
+                        Logger.fgtlog(`✅ Toggle operation fully completed (${taskId})`);
+                    }
+                }, 100);
             });
         } else {
             this.pendingOperations.delete(taskId);

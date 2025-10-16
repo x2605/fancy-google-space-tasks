@@ -189,6 +189,18 @@ td.fancy-gst-category-cell {
     line-height: 1;
 }
 
+/* Operation in progress - completing (green background only, no checkmark) */
+.fancy-gst-task-checkbox.fgt-completing {
+    background: #32c459;
+    border-color: #32c459;
+    color: white;
+}
+
+/* Operation in progress - uncompleting (hide checkmark, show spinner only) */
+.fancy-gst-task-checkbox.fgt-uncompleting::before {
+    display: none;
+}
+
 @media (prefers-color-scheme: dark) {
     .fancy-gst-task-checkbox {
         border-color: #f8a98a;
@@ -200,6 +212,12 @@ td.fancy-gst-category-cell {
     }
 
     .fancy-gst-task-checkbox.fgt-completed {
+        background: #13a745;
+        border-color: #13a745;
+    }
+
+    /* Dark mode: completing operation */
+    .fancy-gst-task-checkbox.fgt-completing {
         background: #13a745;
         border-color: #13a745;
     }

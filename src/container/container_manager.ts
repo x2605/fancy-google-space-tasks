@@ -715,8 +715,8 @@ class ContainerManager {
             tableContainer.innerHTML = tableHTML;
         }
 
-        // Initialize table events
-        this.tableEvents.initialize(tableContainer, this.interactionHandler);
+        // Initialize table events with operation verifier for locking
+        this.tableEvents.initialize(tableContainer, this.interactionHandler, this.operationVerifier, this.customContainer);
 
         Logger.fgtlog(`🆕 Table rendered with ${filteredTasks.size} tasks (showCompleted: ${this.showCompleted})`);
 
@@ -1293,52 +1293,72 @@ class ContainerManager {
                 // Find the task row in fancy UI for transition effect
                 const taskRow = this.customContainer?.querySelector(`[data-task-id="${confirmedTaskId}"]`) as HTMLElement;
 
-                // Lock UI and start delete operation with verification
-                this.operationVerifier.lockAndVerify(
-                    // Operation function
-                    () => {
+                // Lock UI manually for full control
+                this.operationVerifier.lockUI(this.customContainer, 'Deleting task...');
+
+                // Start delete operation with verification (without auto-unlock)
+                Promise.resolve()
+                    .then(() => {
                         return new Promise((resolve, _reject) => {
                             this.interactionHandler.deleteTask(confirmedTaskId, resolve);
                         });
-                    },
-                    // Verification function
-                    OperationVerifier.waitForTaskDelete(confirmedTaskId),
-                    // Options
-                    {
-                        timeout: 5000, // Maximum timeout for safety
-                        lockMessage: 'Deleting task...',
-                        successMessage: null, // No notification on success
-                        errorMessage: null, // Handle error manually
-                        targetContainer: this.customContainer
-                    }
-                ).then(() => {
-                    // Success: perform transition animation before removing
-                    Logger.fgtlog('✅ Task deletion completed and verified');
+                    })
+                    .then(() => {
+                        // Start verification after delete operation
+                        return new Promise((resolve, reject) => {
+                            this.operationVerifier.verifyOperation(
+                                OperationVerifier.waitForTaskDelete(confirmedTaskId),
+                                5000,
+                                resolve,
+                                reject
+                            );
+                        });
+                    })
+                    .then(() => {
+                        // Success: DOM deletion verified
+                        Logger.fgtlog('✅ Task deletion completed and verified');
 
-                    if (taskRow) {
-                        // Apply transition effect: shrink height to 0
-                        const originalHeight = taskRow.offsetHeight;
-                        taskRow.style.height = `${originalHeight}px`;
-                        taskRow.style.overflow = 'hidden';
-                        taskRow.style.transition = 'height 0.3s ease-out, opacity 0.3s ease-out';
-                        taskRow.style.opacity = '1';
+                        if (taskRow) {
+                            // Apply transition effect: shrink height to 0
+                            const originalHeight = taskRow.offsetHeight;
+                            taskRow.style.height = `${originalHeight}px`;
+                            taskRow.style.overflow = 'hidden';
+                            taskRow.style.transition = 'height 0.3s ease-out, opacity 0.3s ease-out';
+                            taskRow.style.opacity = '1';
 
-                        // Force reflow to ensure transition works
-                        taskRow.offsetHeight;
+                            // Force reflow to ensure transition works
+                            taskRow.offsetHeight;
 
-                        // Start transition
-                        taskRow.style.height = '0';
-                        taskRow.style.opacity = '0';
+                            // Start transition
+                            taskRow.style.height = '0';
+                            taskRow.style.opacity = '0';
 
-                        // Wait for transition, then let background change detection handle refresh
-                        CoreEventUtils.timeouts.create(() => {
-                            Logger.fgtlog('🗑️ Delete transition completed, waiting for background refresh');
-                        }, 300);
-                    }
-                }).catch((error: any) => {
-                    Logger.fgterror('❌ Task deletion failed:' + error);
-                    CoreNotificationUtils.error('Failed to delete task', this.namespace);
-                });
+                            // Wait for transition, then refresh table and unlock
+                            CoreEventUtils.timeouts.create(() => {
+                                Logger.fgtlog('🗑️ Delete transition completed, refreshing table');
+
+                                // Refresh table to remove the deleted task
+                                this.handleTableDataChange();
+
+                                // Unlock UI after table refresh completes
+                                CoreEventUtils.timeouts.create(() => {
+                                    this.operationVerifier.unlockUI(this.customContainer);
+                                    Logger.fgtlog('✅ Delete operation fully completed');
+                                }, 100);
+                            }, 300);
+                        } else {
+                            // No transition needed, just refresh and unlock
+                            this.handleTableDataChange();
+                            CoreEventUtils.timeouts.create(() => {
+                                this.operationVerifier.unlockUI(this.customContainer);
+                            }, 100);
+                        }
+                    })
+                    .catch((error: any) => {
+                        Logger.fgterror('❌ Task deletion failed:' + error);
+                        CoreNotificationUtils.error('Failed to delete task', this.namespace);
+                        this.operationVerifier.unlockUI(this.customContainer);
+                    });
             },
             () => {
                 // User cancelled or closed modal
