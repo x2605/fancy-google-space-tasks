@@ -1,7 +1,7 @@
 // core/change_detector.ts - Task change detection system with migrated timer management
 import * as Logger from '@/core/logger';
 import { CoreEventUtils } from './event_utils';
-import { TaskIdUtils } from './task_id_utils';
+import { TaskIdUtils, type DetailedChangeResult } from './task_id_utils';
 
 Logger.fgtlog('🔍 Change Detector loading...');
 
@@ -156,6 +156,36 @@ class TaskChangeDetector {
             result.changeType = 'error';
             result.message = `Detection error: ${error.message}`;
             return result;
+        }
+    }
+
+    /**
+     * Detect detailed field-level changes for flash highlighting
+     * @returns Detailed change detection result with field-level information
+     */
+    detectDetailedChanges(): DetailedChangeResult {
+        try {
+            // Extract current task data
+            const currentTaskData = TaskIdUtils.extractAllLightweightTaskData();
+
+            // Compare with stored data using detailed detection
+            const detailedChanges = TaskIdUtils.detectDetailedChanges(
+                this.lastTaskData,
+                currentTaskData
+            );
+
+            return detailedChanges;
+        } catch (error: any) {
+            Logger.fgterror('❌ Error during detailed change detection:' + error);
+
+            // Return empty result on error
+            return {
+                added: [],
+                removed: [],
+                modified: new Map(),
+                hasChanges: false,
+                isContentUnchanged: true
+            };
         }
     }
 

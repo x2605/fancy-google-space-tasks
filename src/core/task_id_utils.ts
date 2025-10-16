@@ -7,6 +7,28 @@ import { OgtTaskContainer } from '@/manipulator/task_container';
 Logger.fgtlog('🆔 Task ID Utils loading...');
 
 /**
+ * Information about which fields changed in a task
+ */
+export interface ChangedFields {
+    title?: boolean;
+    description?: boolean;
+    date?: boolean;
+    assignee?: boolean;
+    isCompleted?: boolean;
+}
+
+/**
+ * Detailed change detection result
+ */
+export interface DetailedChangeResult {
+    added: string[];
+    removed: string[];
+    modified: Map<string, ChangedFields>;
+    hasChanges: boolean;
+    isContentUnchanged: boolean; // True if title, description, and completion state are all unchanged (date/assignee may change)
+}
+
+/**
  * TaskId extraction utilities for efficient change detection
  * Now uses manipulator layer for DOM access
  */
@@ -68,6 +90,14 @@ class TaskIdUtils {
             const titleViewer = titleWrapper?.findTitleViewer();
             const rawTitle = titleViewer?.text || 'Untitled Task';
 
+            // Extract description (if exists)
+            const descWrapper = taskElement.findDescWrapper();
+            const descViewer = descWrapper?.findDescViewer();
+            let description = descViewer?.text || '';
+            if (description === descWrapper?.placeholder) {
+                description = '';
+            }
+
             const checkbox = taskElement.findCompleteCheckbox();
             const isCompleted = checkbox?.complete || false;
 
@@ -81,6 +111,7 @@ class TaskIdUtils {
             return {
                 id: taskId,
                 title: rawTitle,
+                description,
                 isCompleted,
                 date,
                 assignee,
@@ -161,6 +192,81 @@ class TaskIdUtils {
             changes.modified.length > 0;
 
         return changes;
+    }
+
+    /**
+     * Compare two task data maps and detect detailed field-level changes
+     * This provides information about which specific fields changed for each task
+     */
+    static detectDetailedChanges(oldData: Map<string, any>, newData: Map<string, any>): DetailedChangeResult {
+        const result: DetailedChangeResult = {
+            added: [],
+            removed: [],
+            modified: new Map<string, ChangedFields>(),
+            hasChanges: false,
+            isContentUnchanged: true
+        };
+
+        // Detect removed tasks
+        oldData.forEach((_oldTask, taskId) => {
+            if (!newData.has(taskId)) {
+                result.removed.push(taskId);
+            }
+        });
+
+        // Detect added and modified tasks
+        newData.forEach((newTask, taskId) => {
+            if (!oldData.has(taskId)) {
+                // New task added
+                result.added.push(taskId);
+            } else {
+                // Task exists - check for modifications
+                const oldTask = oldData.get(taskId);
+                const changedFields: ChangedFields = {};
+                let hasFieldChanges = false;
+
+                // Compare each field
+                if (oldTask.title !== newTask.title) {
+                    changedFields.title = true;
+                    hasFieldChanges = true;
+                    result.isContentUnchanged = false;
+                }
+
+                if (oldTask.description !== newTask.description) {
+                    changedFields.description = true;
+                    hasFieldChanges = true;
+                    result.isContentUnchanged = false;
+                }
+
+                if (oldTask.date !== newTask.date) {
+                    changedFields.date = true;
+                    hasFieldChanges = true;
+                }
+
+                if (oldTask.assignee !== newTask.assignee) {
+                    changedFields.assignee = true;
+                    hasFieldChanges = true;
+                }
+
+                if (oldTask.isCompleted !== newTask.isCompleted) {
+                    changedFields.isCompleted = true;
+                    hasFieldChanges = true;
+                    result.isContentUnchanged = false;
+                }
+
+                // If any field changed, add to modified map
+                if (hasFieldChanges) {
+                    result.modified.set(taskId, changedFields);
+                }
+            }
+        });
+
+        // Set hasChanges flag
+        result.hasChanges = result.added.length > 0 ||
+            result.removed.length > 0 ||
+            result.modified.size > 0;
+
+        return result;
     }
 
     /**

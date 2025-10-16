@@ -16,6 +16,8 @@ import { singletonAssigneeColorUtils } from '@/assignee/assignee_color_utils';
 import { TaskModal } from '@/modal/task_modal';
 import { OgtTaskElement } from '@/manipulator/task_element/task_element';
 import { loadLocaleKeywords } from '@/manipulator/task_element/date_button/date_parser';
+import { flashTaskHighlight, type FlashHighlightType } from '@/utils/flash_highlight';
+import type { ChangedFields } from '@/core/task_id_utils';
 
 Logger.fgtlog('📋 Container Manager loading...');
 
@@ -218,7 +220,7 @@ class ContainerManager {
 
             // Extract and display initial data - CONDITIONAL RENDERING
             if (this.isCustomUIVisible) {
-                this.extractAndDisplayTasks();
+                this.extractAndDisplayTasks(true); // isInitialLoad = true (no highlights)
             } else {
                 Logger.fgtlog('⭐️ Skipping initial render (Original UI mode)');
             }
@@ -501,9 +503,16 @@ class ContainerManager {
 
     /**
      * Extract and display tasks
+     * @param isInitialLoad - True if this is the first render (skip highlights)
      */
-    extractAndDisplayTasks() {
+    extractAndDisplayTasks(isInitialLoad: boolean = false) {
         try {
+            // Detect detailed changes BEFORE extracting new data
+            let detailedChanges = null;
+            if (!isInitialLoad && this.changeDetector) {
+                detailedChanges = this.changeDetector.detectDetailedChanges();
+            }
+
             // Extract task data from original DOM
             const extractedData = this.extractTaskData();
             this.tasks = extractedData.tasks;
@@ -521,12 +530,54 @@ class ContainerManager {
             // Update container content
             this.updateDisplay();
 
+            // Apply flash highlights after rendering (if not initial load)
+            if (!isInitialLoad && detailedChanges && detailedChanges.hasChanges) {
+                // Skip highlights if content (title+description+complete) is unchanged
+                if (!detailedChanges.isContentUnchanged) {
+                    this.applyChangeHighlights(detailedChanges.modified);
+                } else {
+                    Logger.fgtlog('⏭️ Skipping highlights - title/description/complete unchanged (only date/assignee changed)');
+                }
+            }
+
             Logger.fgtlog(`📊 Extracted ${this.tasks.size} tasks with max category depth: ${this.maxCategoryDepth}`);
 
         } catch (error: any) {
             Logger.fgterror('❌ Failed to extract tasks:' + error);
             CoreNotificationUtils.error('Failed to load tasks', this.namespace);
         }
+    }
+
+    /**
+     * Apply flash highlights based on changed fields
+     * @param modifiedTasks - Map of taskId -> ChangedFields
+     */
+    private applyChangeHighlights(modifiedTasks: Map<string, ChangedFields>): void {
+        if (modifiedTasks.size === 0) {
+            return;
+        }
+
+        Logger.fgtlog(`✨ Applying flash highlights to ${modifiedTasks.size} modified tasks`);
+
+        // Small delay to ensure DOM has rendered
+        setTimeout(() => {
+            modifiedTasks.forEach((changedFields, taskId) => {
+                // Full cell highlight: title, description, or completion status changed
+                if (changedFields.title || changedFields.description || changedFields.isCompleted) {
+                    flashTaskHighlight(taskId, 'full', !this.showCompleted);
+                }
+
+                // Date button border highlight: date changed
+                if (changedFields.date) {
+                    flashTaskHighlight(taskId, 'date', false);
+                }
+
+                // Assignee button border highlight: assignee changed
+                if (changedFields.assignee) {
+                    flashTaskHighlight(taskId, 'assignee', false);
+                }
+            });
+        }, 50);
     }
 
     /**
