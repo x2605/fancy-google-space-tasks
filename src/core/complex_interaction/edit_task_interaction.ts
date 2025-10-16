@@ -141,26 +141,8 @@ class EditTaskInteraction extends BaseInteraction {
             // Blur to save
             descEditor.blur();
 
-            // Wait for changes to apply
-            await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 800));
-
-            // Verify description changed
-            const updatedViewer = descWrapper.findDescViewer();
-            if (!updatedViewer) throw new Error('Cannot verify description change');
-
-            const currentDesc = updatedViewer.text;
-            const placeholder = descWrapper.placeholder;
-
-            // Handle empty description case
-            const actualDesc = currentDesc === placeholder ? '' : currentDesc;
-
-            if (actualDesc !== newDescription) {
-                Logger.fgtwarn(`⚠️ Description mismatch: expected "${newDescription}", got "${actualDesc}"`);
-                // Allow small differences (whitespace, etc.)
-                if (actualDesc.trim() !== newDescription.trim()) {
-                    throw new Error('Description update verification failed');
-                }
-            }
+            // Wait for changes to apply - monitor DOM changes
+            await this.waitForDescriptionChange(descWrapper, newDescription, 5000);
 
             Logger.fgtlog('✅ Description updated and verified');
 
@@ -168,6 +150,84 @@ class EditTaskInteraction extends BaseInteraction {
             Logger.fgterror('❌ Update description error: ' + error.message);
             throw new Error('Failed to update description: ' + error.message);
         }
+    }
+
+    /**
+     * Wait for description change to be applied to the DOM
+     * @param descWrapper - Description wrapper
+     * @param expectedDesc - Expected description text
+     * @param timeout - Maximum wait time (default 5000ms)
+     */
+    private async waitForDescriptionChange(descWrapper: any, expectedDesc: string, timeout: number = 5000): Promise<void> {
+        const startTime = Date.now();
+        const placeholder = descWrapper.placeholder;
+
+        return new Promise((resolve, reject) => {
+            let intervalId: number | null = null;
+            let timeoutId: number | null = null;
+
+            const checkChange = () => {
+                const elapsed = Date.now() - startTime;
+
+                try {
+                    const updatedViewer = descWrapper.findDescViewer();
+                    if (!updatedViewer) {
+                        // Viewer not found yet, continue polling
+                        return;
+                    }
+
+                    const currentDesc = updatedViewer.text;
+                    const actualDesc = currentDesc === placeholder ? '' : currentDesc;
+
+                    // Check if description matches
+                    if (actualDesc === expectedDesc || actualDesc.trim() === expectedDesc.trim()) {
+                        // Success!
+                        if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
+                        if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
+                        Logger.fgtlog(`✅ Description change detected in ${elapsed}ms`);
+                        resolve();
+                        return true;
+                    }
+                } catch (error: any) {
+                    Logger.fgtwarn(`⚠️ Error checking description: ${error.message}`);
+                }
+
+                return false;
+            };
+
+            // Start polling
+            intervalId = CoreEventUtils.intervals.create(() => {
+                checkChange();
+            }, 50);
+
+            // Set timeout
+            timeoutId = CoreEventUtils.timeouts.create(() => {
+                if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
+
+                // Final check on timeout
+                try {
+                    const updatedViewer = descWrapper.findDescViewer();
+                    if (!updatedViewer) throw new Error('Cannot verify description change');
+
+                    const currentDesc = updatedViewer.text;
+                    const actualDesc = currentDesc === placeholder ? '' : currentDesc;
+
+                    if (actualDesc !== expectedDesc) {
+                        Logger.fgtwarn(`⚠️ Description mismatch after timeout: expected "${expectedDesc}", got "${actualDesc}"`);
+                        // Allow small differences (whitespace, etc.)
+                        if (actualDesc.trim() !== expectedDesc.trim()) {
+                            reject(new Error('Description update verification failed'));
+                            return;
+                        }
+                    }
+
+                    Logger.fgtlog(`✅ Description verified on timeout`);
+                    resolve();
+                } catch (error: any) {
+                    reject(error);
+                }
+            }, timeout);
+        });
     }
 
     /**
@@ -200,8 +260,8 @@ class EditTaskInteraction extends BaseInteraction {
             // Blur to save
             titleEditor.blur();
 
-            // Wait for changes to apply
-            await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 800));
+            // Wait for changes to apply - monitor DOM changes
+            await this.waitForTitleChange(titleWrapper, newTitle, 5000);
 
             Logger.fgtlog('✅ Title updated');
 
@@ -209,6 +269,78 @@ class EditTaskInteraction extends BaseInteraction {
             Logger.fgterror('❌ Update title error: ' + error.message);
             throw new Error('Failed to update title: ' + error.message);
         }
+    }
+
+    /**
+     * Wait for title change to be applied to the DOM
+     * @param titleWrapper - Title wrapper
+     * @param expectedTitle - Expected title text
+     * @param timeout - Maximum wait time (default 5000ms)
+     */
+    private async waitForTitleChange(titleWrapper: any, expectedTitle: string, timeout: number = 5000): Promise<void> {
+        const startTime = Date.now();
+
+        return new Promise((resolve, reject) => {
+            let intervalId: number | null = null;
+            let timeoutId: number | null = null;
+
+            const checkChange = () => {
+                const elapsed = Date.now() - startTime;
+
+                try {
+                    const updatedViewer = titleWrapper.findTitleViewer();
+                    if (!updatedViewer) {
+                        // Viewer not found yet, continue polling
+                        return;
+                    }
+
+                    const currentTitle = updatedViewer.text;
+
+                    // Use flexible whitespace comparison
+                    if (CoreDOMUtils.compareWithFlexibleWhitespace(currentTitle, expectedTitle)) {
+                        // Success!
+                        if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
+                        if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
+                        Logger.fgtlog(`✅ Title change detected in ${elapsed}ms`);
+                        resolve();
+                        return true;
+                    }
+                } catch (error: any) {
+                    Logger.fgtwarn(`⚠️ Error checking title: ${error.message}`);
+                }
+
+                return false;
+            };
+
+            // Start polling
+            intervalId = CoreEventUtils.intervals.create(() => {
+                checkChange();
+            }, 50);
+
+            // Set timeout
+            timeoutId = CoreEventUtils.timeouts.create(() => {
+                if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
+
+                // Final check on timeout
+                try {
+                    const updatedViewer = titleWrapper.findTitleViewer();
+                    if (!updatedViewer) throw new Error('Cannot verify title change');
+
+                    const currentTitle = updatedViewer.text;
+
+                    if (!CoreDOMUtils.compareWithFlexibleWhitespace(currentTitle, expectedTitle)) {
+                        Logger.fgtwarn(`⚠️ Title mismatch after timeout: expected "${expectedTitle}", got "${currentTitle}"`);
+                        reject(new Error('Title update verification failed'));
+                        return;
+                    }
+
+                    Logger.fgtlog(`✅ Title verified on timeout`);
+                    resolve();
+                } catch (error: any) {
+                    reject(error);
+                }
+            }, timeout);
+        });
     }
 
     /**

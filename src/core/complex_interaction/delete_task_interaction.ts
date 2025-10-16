@@ -27,7 +27,7 @@ class DeleteTaskInteraction extends BaseInteraction {
     async deleteTask(taskId: string, onComplete: Function | null = null): Promise<void> {
         try {
             Logger.fgtlog(`🗑️ Deleting task: ${taskId}`);
-            
+
             const taskElement = OgtFinder.findTaskElement(taskId);
             if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
 
@@ -48,16 +48,16 @@ class DeleteTaskInteraction extends BaseInteraction {
 
             this.verifier.verifyOperation(
                 OperationVerifier.waitForTaskDelete(taskId),
-                5000,
+                5000, // Maximum timeout for safety
                 () => {
                     if (onComplete) onComplete();
-                    CoreNotificationUtils.success('Task deleted successfully', this.namespace);
+                    // No notification on success - handled by container manager
                 },
                 (_error: any) => {
-                    CoreNotificationUtils.error('Failed to verify task deletion', this.namespace);
+                    // No notification on error - handled by container manager
                     if (onComplete) onComplete();
                 },
-                { pollInterval: 200 }
+                { pollInterval: 50 } // Faster polling for quicker response
             );
         } catch (error: any) {
             Logger.fgterror('❌ Delete task error: ' + error.message);

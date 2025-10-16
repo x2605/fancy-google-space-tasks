@@ -21,7 +21,7 @@ class SetDateInteraction extends BaseInteraction {
     async setTaskDate(taskId: string, dateString: string | null, onComplete: Function | null = null): Promise<void> {
         try {
             Logger.fgtlog(`📅 Setting date for task ${taskId}: "${dateString}"`);
-            
+
             const taskElement = OgtFinder.findTaskElement(taskId);
             if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
 

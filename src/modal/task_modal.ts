@@ -991,6 +991,10 @@ class TaskModal extends ModalBase {
 
             Logger.fgtlog('🆕 Starting toBeAdded task operation...');
 
+            // Dispatch event to container to mark as manual operation
+            const manualOpEvent = new CustomEvent('manualOperation', { bubbles: true });
+            this.modal?.dispatchEvent(manualOpEvent);
+
             try {
                 // Update title in the original UI
                 const titleWrapper = this.toBeAddedTaskElement.findTitleWrapper();
@@ -1016,8 +1020,8 @@ class TaskModal extends ModalBase {
                     Logger.fgtlog('✅ Description updated in original UI');
                 }
 
-                // Wait for changes to apply (similar to edit mode)
-                await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 800));
+                // Wait for changes to apply - monitor DOM changes
+                await this.waitForToBeAddedChanges(titleEditor, descEditor, fullTitle, description, 5000);
 
                 // Unlock UI
                 CoreDOMUtils.disableLockStyles();
@@ -1064,6 +1068,10 @@ class TaskModal extends ModalBase {
             this.showLoading('Updating task...');
 
             Logger.fgtlog('📝 Starting task edit operation...');
+
+            // Dispatch event to container to mark as manual operation
+            const manualOpEvent = new CustomEvent('manualOperation', { bubbles: true });
+            this.modal?.dispatchEvent(manualOpEvent);
             
             // Call editTask interaction
             this.interactionHandler.editTask(
@@ -1130,6 +1138,69 @@ class TaskModal extends ModalBase {
             this.onClose = null;
             this.close();
         }
+    }
+
+    /**
+     * Wait for toBeAdded task changes to be applied to the DOM
+     * @param titleEditor - Title editor element
+     * @param descEditor - Description editor element
+     * @param expectedTitle - Expected title text
+     * @param expectedDesc - Expected description text
+     * @param timeout - Maximum wait time (default 5000ms)
+     */
+    async waitForToBeAddedChanges(titleEditor: any, descEditor: any, expectedTitle: string, expectedDesc: string, timeout: number = 5000): Promise<void> {
+        const startTime = Date.now();
+
+        return new Promise((resolve) => {
+            let intervalId: number | null = null;
+            let timeoutId: number | null = null;
+
+            const checkChange = () => {
+                const elapsed = Date.now() - startTime;
+
+                try {
+                    let titleMatches = true;
+                    let descMatches = true;
+
+                    // Check title if titleEditor exists
+                    if (titleEditor && titleEditor.element) {
+                        const currentTitle = titleEditor.element.value || '';
+                        titleMatches = currentTitle === expectedTitle;
+                    }
+
+                    // Check description if descEditor exists
+                    if (descEditor && descEditor.element) {
+                        const currentDesc = descEditor.element.value || '';
+                        descMatches = currentDesc === expectedDesc;
+                    }
+
+                    // If both match, we're done
+                    if (titleMatches && descMatches) {
+                        if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
+                        if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
+                        Logger.fgtlog(`✅ ToBeAdded changes detected in ${elapsed}ms`);
+                        resolve();
+                        return true;
+                    }
+                } catch (error: any) {
+                    Logger.fgtwarn(`⚠️ Error checking toBeAdded changes: ${error.message}`);
+                }
+
+                return false;
+            };
+
+            // Start polling
+            intervalId = CoreEventUtils.intervals.create(() => {
+                checkChange();
+            }, 50);
+
+            // Set timeout
+            timeoutId = CoreEventUtils.timeouts.create(() => {
+                if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
+                Logger.fgtlog(`✅ ToBeAdded changes verified on timeout`);
+                resolve();
+            }, timeout);
+        });
     }
 
     /**

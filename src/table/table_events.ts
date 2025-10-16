@@ -12,11 +12,13 @@ class TableEvents {
     namespace: string;
     cleanupFunctions: Function[];
     interactionHandler: any;
+    pendingOperations: Map<string, number>;
 
     constructor(namespace: string = 'fancy-gst') {
         this.namespace = namespace;
         this.cleanupFunctions = [];
         this.interactionHandler = null;
+        this.pendingOperations = new Map(); // Track operation start times
     }
 
     /**
@@ -25,6 +27,9 @@ class TableEvents {
      * @param interactionHandler - Interaction handler instance
      */
     initialize(tableContainer: Element, interactionHandler: any): void {
+        // Cleanup existing event listeners first to prevent duplicates
+        this.cleanup();
+
         this.interactionHandler = interactionHandler;
         this.attachAllTableEvents(tableContainer);
         Logger.fgtlog('✅ Table events initialized');
@@ -66,7 +71,9 @@ class TableEvents {
         const checkbox = event.currentTarget;
         const taskId = checkbox.dataset.taskId;
 
-        Logger.fgtlog('🔄 Toggling task: ' + taskId);
+        // Record operation start time for total duration tracking
+        const operationStartTime = Date.now();
+        this.pendingOperations.set(taskId, operationStartTime);
 
         if (taskId && this.interactionHandler) {
             // Show loading state immediately
@@ -75,6 +82,8 @@ class TableEvents {
             checkbox.style.opacity = '0.6';
 
             this.interactionHandler.toggleTask(taskId, () => {
+                const domUpdateTime = Date.now() - operationStartTime;
+
                 // Reset loading state
                 checkbox.style.opacity = '1';
 
@@ -84,17 +93,18 @@ class TableEvents {
                 if (wasCompleted) {
                     checkbox.classList.remove('fgt-completed');
                     checkbox.innerHTML = '';
-                    Logger.fgtlog('✅ Task ' + taskId + ' marked as incomplete');
+                    Logger.fgtlog(`✅ Task ${taskId} marked as incomplete (DOM update: ${domUpdateTime}ms)`);
                 } else {
                     checkbox.classList.add('fgt-completed');
                     checkbox.innerHTML = '';
-                    Logger.fgtlog('✅ Task ' + taskId + ' marked as complete');
+                    Logger.fgtlog(`✅ Task ${taskId} marked as complete (DOM update: ${domUpdateTime}ms)`);
                 }
 
-                // Notify container to refresh data
+                // Notify container to refresh data immediately
                 this.notifyDataChange();
             });
         } else {
+            this.pendingOperations.delete(taskId);
             Logger.fgterror('❌ Missing taskId or interactionHandler');
             CoreNotificationUtils.error('Failed to toggle task', this.namespace);
         }
@@ -200,6 +210,20 @@ class TableEvents {
     updateEventHandlers(_tableContainer: Element): void {
         // Events are delegated, so no need to re-attach
         Logger.fgtlog('📊 Table events updated (delegated events)');
+    }
+
+    /**
+     * Report completion of pending operations after table render
+     * Called by container manager after table is fully rendered
+     */
+    reportPendingOperationsComplete(): void {
+        if (this.pendingOperations.size > 0) {
+            this.pendingOperations.forEach((startTime, taskId) => {
+                const totalTime = Date.now() - startTime;
+                Logger.fgtlog(`⏱️ Task ${taskId} operation completed: ${totalTime}ms total (click → DOM → table refresh)`);
+            });
+            this.pendingOperations.clear();
+        }
     }
 
     /**

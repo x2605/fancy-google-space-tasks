@@ -31,6 +31,7 @@ class CoreInteractionUtils {
 
     /**
      * Toggle task completion state
+     * Monitors DOM changes for faster response
      */
     async toggleTask(taskId: string, onComplete: Function): Promise<void> {
         try {
@@ -38,22 +39,45 @@ class CoreInteractionUtils {
             const checkbox = OgtFinder.findCompleteCheckbox(taskId);
             if (!checkbox) throw new Error(`Checkbox not found for task: ${taskId}`);
 
-            const wasPressed = checkbox.complete;
-            const expectedState = !wasPressed;
+            const initialComplete = checkbox.complete;
+            const expectedState = !initialComplete;
+            const originalElement = checkbox.element;
 
             this.triggerClick(checkbox.element);
 
+            // Monitor for checkbox element disappearance and state change
             this.verifier.verifyOperation(
-                () => OgtFinder.findCompleteCheckbox(taskId)?.complete === expectedState,
-                2000,
+                () => {
+                    // Check if original element is disconnected from DOM
+                    if (!originalElement.isConnected) {
+                        Logger.fgtlog('✅ Original checkbox element disconnected, checking for new checkbox');
+
+                        // Find new checkbox with same taskId
+                        const newCheckbox = OgtFinder.findCompleteCheckbox(taskId);
+                        if (newCheckbox && newCheckbox.complete === expectedState) {
+                            Logger.fgtlog('✅ New checkbox found with expected state');
+                            return true;
+                        }
+                    }
+
+                    // Also check if state changed on same element (fast path)
+                    const currentCheckbox = OgtFinder.findCompleteCheckbox(taskId);
+                    if (currentCheckbox && currentCheckbox.complete === expectedState) {
+                        return true;
+                    }
+
+                    return false;
+                },
+                5000, // Maximum timeout for safety
                 () => {
                     if (onComplete) onComplete();
-                    CoreNotificationUtils.success('Task status updated', this.namespace);
+                    // No notification on success
                 },
                 () => {
                     CoreNotificationUtils.error('Failed to verify task status update', this.namespace);
                     if (onComplete) onComplete();
-                }
+                },
+                { pollInterval: 50 } // Check every 50ms for faster response
             );
         } catch (error: any) {
             Logger.fgterror('❌ Toggle task error:' + error);

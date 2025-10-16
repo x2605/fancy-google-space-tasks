@@ -49,6 +49,7 @@ class ContainerManager {
     addNewTaskButton: HTMLElement | null;
     originalZIndexes: Map<Element, string | null>;
     cleanupFunctions: Function[];
+    lastManualRefreshTime: number;
 
     constructor(namespace: string = 'fancy-gst') {
         this.namespace = namespace;
@@ -72,6 +73,7 @@ class ContainerManager {
         this.maxCategoryDepth = 0;
         this.observer = null;
         this.debouncedHandleDOMChanges = null;
+        this.lastManualRefreshTime = 0;
 
         // Storage key for current space
         this.spaceId = null;
@@ -346,8 +348,19 @@ class ContainerManager {
         const cleanup2 = CoreEventUtils.addListener(
             this.customContainer,
             'tableDataChange',
-            CoreEventUtils.debounce(this.handleTableDataChange.bind(this), 500)
+            this.handleTableDataChange.bind(this)
         );
+
+        // Manual operation events (from modals)
+        const cleanup6 = CoreEventUtils.addListener(
+            this.customContainer,
+            'manualOperation',
+            () => {
+                this.lastManualRefreshTime = Date.now();
+                Logger.fgtlog('🔄 Manual operation started, marking timestamp');
+            }
+        );
+        this.cleanupFunctions.push(cleanup6);
 
         // Main toggle button events
         if (this.toggleButton) {
@@ -472,12 +485,18 @@ class ContainerManager {
 
     /**
      * Handle table data change
+     * Executes immediately after operation verification completes
      */
     handleTableDataChange() {
+        // Skip if already rendering to prevent double render
+        if (this.operationVerifier && this.operationVerifier.isOperationInProgress()) {
+            Logger.fgtlog('⏸️ Skipping table refresh - operation in progress');
+            return;
+        }
+
         Logger.fgtlog('📊 Table data changed, refreshing...');
-        CoreEventUtils.timeouts.create(() => {
-            this.extractAndDisplayTasks();
-        }, 1000);
+        this.lastManualRefreshTime = Date.now();
+        this.extractAndDisplayTasks();
     }
 
     /**
@@ -700,6 +719,11 @@ class ContainerManager {
         this.tableEvents.initialize(tableContainer, this.interactionHandler);
 
         Logger.fgtlog(`🆕 Table rendered with ${filteredTasks.size} tasks (showCompleted: ${this.showCompleted})`);
+
+        // Report completion of any pending operations (for timing)
+        if (this.tableEvents) {
+            this.tableEvents.reportPendingOperationsComplete();
+        }
     }
 
     /**
@@ -924,6 +948,15 @@ class ContainerManager {
             return;
         }
 
+        // Skip if manual refresh happened very recently (within 300ms)
+        // This prevents immediate duplicate refresh while allowing background refresh
+        // to catch Google Tasks DOM reordering (which happens ~200ms after element move)
+        const timeSinceManualRefresh = Date.now() - this.lastManualRefreshTime;
+        if (timeSinceManualRefresh < 300) {
+            Logger.fgtlog(`⏸️ Skipping background refresh - manual refresh ${timeSinceManualRefresh}ms ago`);
+            return;
+        }
+
         Logger.fgtlog(`🔄 DOM changes detected (${_mutations.length} mutations)`);
 
         // Normal change detection (ToBeAdded is already handled in immediate observer)
@@ -1090,6 +1123,13 @@ class ContainerManager {
      * Handle window focus event
      */
     handleWindowFocus() {
+        // Skip if manual refresh happened recently (within 1 second)
+        const timeSinceManualRefresh = Date.now() - this.lastManualRefreshTime;
+        if (timeSinceManualRefresh < 1000) {
+            Logger.fgtlog(`⏸️ Skipping window focus refresh - manual refresh ${timeSinceManualRefresh}ms ago`);
+            return;
+        }
+
         Logger.fgtlog('🔍 Window focused, checking for changes...');
 
         if (this.isCustomUIVisible && this.changeDetector) {
@@ -1242,6 +1282,9 @@ class ContainerManager {
                 // Clear modal flag
                 this.isShowingDeleteModal = false;
 
+                // Find the task row in fancy UI for transition effect
+                const taskRow = this.customContainer?.querySelector(`[data-task-id="${confirmedTaskId}"]`) as HTMLElement;
+
                 // Lock UI and start delete operation with verification
                 this.operationVerifier.lockAndVerify(
                     // Operation function
@@ -1254,20 +1297,39 @@ class ContainerManager {
                     OperationVerifier.waitForTaskDelete(confirmedTaskId),
                     // Options
                     {
-                        timeout: 5000,
+                        timeout: 5000, // Maximum timeout for safety
                         lockMessage: 'Deleting task...',
-                        successMessage: 'Task deleted successfully',
-                        errorMessage: 'Failed to delete task',
+                        successMessage: null, // No notification on success
+                        errorMessage: null, // Handle error manually
                         targetContainer: this.customContainer
                     }
                 ).then(() => {
-                    // Refresh data after successful deletion
+                    // Success: perform transition animation before removing
                     Logger.fgtlog('✅ Task deletion completed and verified');
-                    this.extractAndDisplayTasks();
+
+                    if (taskRow) {
+                        // Apply transition effect: shrink height to 0
+                        const originalHeight = taskRow.offsetHeight;
+                        taskRow.style.height = `${originalHeight}px`;
+                        taskRow.style.overflow = 'hidden';
+                        taskRow.style.transition = 'height 0.3s ease-out, opacity 0.3s ease-out';
+                        taskRow.style.opacity = '1';
+
+                        // Force reflow to ensure transition works
+                        taskRow.offsetHeight;
+
+                        // Start transition
+                        taskRow.style.height = '0';
+                        taskRow.style.opacity = '0';
+
+                        // Wait for transition, then let background change detection handle refresh
+                        CoreEventUtils.timeouts.create(() => {
+                            Logger.fgtlog('🗑️ Delete transition completed, waiting for background refresh');
+                        }, 300);
+                    }
                 }).catch((error: any) => {
                     Logger.fgterror('❌ Task deletion failed:' + error);
-                    // Still refresh in case of partial changes
-                    this.extractAndDisplayTasks();
+                    CoreNotificationUtils.error('Failed to delete task', this.namespace);
                 });
             },
             () => {
