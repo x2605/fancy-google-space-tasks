@@ -1077,6 +1077,12 @@ class ContainerManager {
                         if (addButton) {
                             addButton.click();
                             Logger.fgtlog('✅ Add button clicked');
+
+                            // Trigger manual refresh after clicking Add button
+                            // Use a small delay to ensure DOM changes are processed
+                            CoreEventUtils.timeouts.create(() => {
+                                this.handleTableDataChange();
+                            }, 100);
                         } else {
                             Logger.fgterror('❌ Add button element not found');
                         }
@@ -1231,7 +1237,9 @@ class ContainerManager {
                 }
 
                 Logger.fgtlog('✅ Task modal confirmed:' + resultData);
-                // TODO: Implement actual task creation/update logic
+
+                // Trigger manual refresh to ensure table re-renders immediately
+                this.handleTableDataChange();
             },
             onCancel: () => {
                 // Clear modal flag
