@@ -883,6 +883,46 @@ class TaskModal extends ModalBase {
     }
 
     /**
+     * Simulate click on div elements with coordinate-based mouse events
+     * Required for div elements that don't respond to simple click events
+     * @param element - Target element (typically a div)
+     */
+    private simulateClick(element: Element): void {
+        if (!element) return;
+
+        const rect = element.getBoundingClientRect();
+        const clientX = rect.left + (rect.width / 2);
+        const clientY = rect.top + (rect.height / 2);
+
+        const mousedownEvent = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            detail: 1,
+            screenX: clientX,
+            screenY: clientY,
+            clientX: clientX,
+            clientY: clientY,
+            button: 0
+        });
+
+        const mouseupEvent = new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            detail: 1,
+            screenX: clientX,
+            screenY: clientY,
+            clientX: clientX,
+            clientY: clientY,
+            button: 0
+        });
+
+        element.dispatchEvent(mousedownEvent);
+        element.dispatchEvent(mouseupEvent);
+    }
+
+    /**
      * Handle cancel button
      */
     handleCancel(): void {
@@ -1009,21 +1049,27 @@ class TaskModal extends ModalBase {
                     Logger.fgtlog('✅ Title updated in original UI');
                 }
 
+                // Click title wrapper to make descViewer visible (like Edit mode)
+                // This is required before updating description
+                if (titleWrapper && description) {
+                    Logger.fgtlog('🎯 Clicking title wrapper to reveal description UI');
+                    this.simulateClick(titleWrapper.element);
+                    await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 300));
+                }
+
                 // Update description in the original UI
+                let descEditor = null; // Declare outside try block to avoid scope issue
                 const descWrapper = this.toBeAddedTaskElement.findDescWrapper();
                 if (descWrapper && description) {
                     try {
-                        // Click to activate description editor (it may not be rendered yet)
-                        const descViewer = descWrapper.findDescViewer();
-                        if (descViewer && descViewer.element) {
-                            (descViewer.element as HTMLElement).click();
-                        } else {
-                            // If no viewer, click the wrapper itself
-                            (descWrapper.element as HTMLElement).click();
-                        }
+                        // Click wrapper to activate description editor (like Edit mode)
+                        // Note: Must click wrapper, not viewer, to render textarea
+                        Logger.fgtlog('🎯 Clicking description wrapper to activate editor');
+                        this.simulateClick(descWrapper.element);
+                        await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 200));
 
                         // Wait for editor to appear (using existing waitForDescEditor method)
-                        const descEditor = await descWrapper.waitForDescEditor(3000);
+                        descEditor = await descWrapper.waitForDescEditor(3000);
 
                         if (descEditor) {
                             descEditor.focus();
@@ -1035,7 +1081,11 @@ class TaskModal extends ModalBase {
                         }
                     } catch (error: any) {
                         Logger.fgtwarn(`⚠️ Failed to activate description editor: ${error.message}`);
-                        // Description update failed, but continue with title update
+                        // If description is not empty, this is a failure - throw error to outer catch
+                        // If description is empty, continue (descEditor remains null)
+                        if (description) {
+                            throw new Error(`Failed to activate description editor: ${error.message}`);
+                        }
                     }
                 }
 
