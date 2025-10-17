@@ -670,6 +670,44 @@
     }
 }
 
+/* ========== Visual Operating Mode ========== */
+
+/* When in visual operating mode, make modal semi-transparent to show background operations */
+.fancy-gst-modal-overlay.fgt-operating-visual .fancy-gst-modal {
+    opacity: 0.2;
+    transition: opacity 0.05s;
+    pointer-events: none;
+}
+
+/* Make fancy container semi-transparent to reveal original UI */
+#fancy-gst-container.fgt-operating-visual {
+    opacity: 0.3;
+    transition: opacity 0.05s;
+    pointer-events: none;
+}
+
+/* Operating spinner - displayed in center of screen during visual mode */
+.fancy-gst-operating-spinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 32px;
+    height: 32px;
+    border: 4px solid white;
+    border-top: 4px solid #0078ff;
+    border-radius: 50%;
+    animation: fancy-gst-modal-spin 1s linear infinite;
+    z-index: 1000000;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-operating-spinner {
+        border-color: black;
+        border-top-color: #ff8c00;
+    }
+}
+
 /* ========== Accessibility ========== */
 
 .fancy-gst-modal input:focus-visible,

@@ -33,11 +33,26 @@ body {
     }
 }
 
-/* Enhanced floating toggle button (bottom-right) */
-#fancy-gst-toggle-button {
+/* Button container (bottom-right) */
+#fancy-gst-button-container {
     position: fixed;
     bottom: 20px;
     right: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 999999 !important;
+    transition: opacity 0.05s;
+}
+
+/* Visual operating mode - make button container semi-transparent */
+#fancy-gst-button-container.fgt-operating-visual {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Enhanced floating toggle button (rightmost) */
+#fancy-gst-toggle-button {
+    position: relative;
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -45,7 +60,6 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 999999;
     font-size: 15px;
     box-shadow: 0 0 16px rgba(26, 115, 232, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -57,12 +71,9 @@ body {
     font-weight: 800;
 }
 
-/* NEW: Completed tasks toggle button (bottom-right, left of main toggle) */
+/* Completed tasks toggle button (middle) */
 #fancy-gst-completed-toggle-button {
-    position: fixed;
-    bottom: 20px;
-    right: 60px;
-    /* 30px width + 10px gap from main toggle */
+    position: relative;
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -70,7 +81,6 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 999999;
     font-size: 10px;
     box-shadow: 0 0 16px rgba(156, 39, 176, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -82,12 +92,9 @@ body {
     font-weight: 800;
 }
 
-/* NEW: Add new task button (bottom-right, leftmost of the three buttons) */
+/* Add new task button (leftmost) */
 #fancy-gst-add-new-task-button {
-    position: fixed;
-    bottom: 20px;
-    right: 100px;
-    /* 60px (completed toggle position) + 30px width + 10px gap */
+    position: relative;
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -95,7 +102,6 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 999999;
     font-size: 16px;
     box-shadow: 0 0 16px rgba(52, 168, 83, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -567,27 +573,25 @@ body {
 
 /* Responsive design for smaller screens */
 @media (max-width: 768px) {
-    #fancy-gst-toggle-button {
+    #fancy-gst-button-container {
         bottom: 15px;
         right: 15px;
+        gap: 8px;
+    }
+
+    #fancy-gst-toggle-button {
         width: 28px;
         height: 28px;
         font-size: 14px;
     }
 
     #fancy-gst-completed-toggle-button {
-        bottom: 15px;
-        right: 53px;
-        /* Adjusted for smaller button */
         width: 28px;
         height: 28px;
         font-size: 9px;
     }
 
     #fancy-gst-add-new-task-button {
-        bottom: 15px;
-        right: 91px;
-        /* Adjusted for smaller button: 53px + 28px + 10px */
         width: 28px;
         height: 28px;
         font-size: 15px;

@@ -100,6 +100,11 @@ class ContainerUI {
      * Create floating toggle buttons (bottom-right)
      */
     createToggleButtons(): void {
+        // Create button container
+        const buttonContainer = CoreDOMUtils.createElement('div', {
+            id: `${this.namespace}-button-container`
+        }) as HTMLDivElement;
+
         // Create add new task button (leftmost)
         this.addNewTaskButton = CoreDOMUtils.createElement('div', {
             id: `${this.namespace}-add-new-task-button`,
@@ -121,12 +126,15 @@ class ContainerUI {
             title: 'Switch to Original UI'
         }, {}, '⇄') as HTMLDivElement;
 
-        // Add all buttons to document
-        document.body.appendChild(this.addNewTaskButton);
-        document.body.appendChild(this.completedToggleIndicator);
-        document.body.appendChild(this.toggleIndicator);
+        // Add all buttons to container
+        buttonContainer.appendChild(this.addNewTaskButton);
+        buttonContainer.appendChild(this.completedToggleIndicator);
+        buttonContainer.appendChild(this.toggleIndicator);
 
-        Logger.fgtlog('🎯 Floating toggle buttons created');
+        // Add container to document
+        document.body.appendChild(buttonContainer);
+
+        Logger.fgtlog('🎯 Floating toggle buttons created in container');
     }
 
     /**
@@ -423,15 +431,10 @@ class ContainerUI {
      * Destroy container UI
      */
     destroy(): void {
-        // Remove toggle buttons
-        if (this.toggleIndicator && this.toggleIndicator.parentNode) {
-            this.toggleIndicator.parentNode.removeChild(this.toggleIndicator);
-        }
-        if (this.completedToggleIndicator && this.completedToggleIndicator.parentNode) {
-            this.completedToggleIndicator.parentNode.removeChild(this.completedToggleIndicator);
-        }
-        if (this.addNewTaskButton && this.addNewTaskButton.parentNode) {
-            this.addNewTaskButton.parentNode.removeChild(this.addNewTaskButton);
+        // Remove button container (which contains all buttons)
+        const buttonContainer = document.getElementById(`${this.namespace}-button-container`);
+        if (buttonContainer && buttonContainer.parentNode) {
+            buttonContainer.parentNode.removeChild(buttonContainer);
         }
 
         // Remove main container

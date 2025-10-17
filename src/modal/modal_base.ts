@@ -252,16 +252,46 @@ class ModalBase {
     /**
      * Show loading state in modal
      * @param message - Loading message
+     * @param visualMode - If true, show semi-transparent overlay with spinner (for visual operation mode)
      */
-    showLoading(message: string = 'Loading...'): void {
-        const loadingHTML = `
-            <div class="${this.namespace}-modal-loading">
-                <div class="${this.namespace}-loading-spinner"></div>
-                <div class="${this.namespace}-loading-text">${CoreDOMUtils.escapeHtml(message)}</div>
-            </div>
-        `;
+    showLoading(message: string = 'Loading...', visualMode: boolean = false): void {
+        if (visualMode) {
+            // Visual mode: add class to overlay, container, and button-container
+            if (!this.overlay) return;
 
-        this.updateContent(loadingHTML);
+            // Add class to overlay (modal will be semi-transparent via CSS)
+            this.overlay.classList.add('fgt-operating-visual');
+
+            // Add class to container
+            const container = document.getElementById('fancy-gst-container');
+            if (container) {
+                container.classList.add('fgt-operating-visual');
+            }
+
+            // Add class to button container
+            const buttonContainer = document.getElementById('fancy-gst-button-container');
+            if (buttonContainer) {
+                buttonContainer.classList.add('fgt-operating-visual');
+            }
+
+            // Add spinner to overlay (if not already exists)
+            if (!this.overlay.querySelector(`.${this.namespace}-operating-spinner`)) {
+                const spinner = CoreDOMUtils.createElement('div', {
+                    class: `${this.namespace}-operating-spinner`
+                });
+                this.overlay.appendChild(spinner);
+            }
+        } else {
+            // Normal mode: replace modal content with loading screen
+            const loadingHTML = `
+                <div class="${this.namespace}-modal-loading">
+                    <div class="${this.namespace}-loading-spinner"></div>
+                    <div class="${this.namespace}-loading-text">${CoreDOMUtils.escapeHtml(message)}</div>
+                </div>
+            `;
+
+            this.updateContent(loadingHTML);
+        }
     }
 
     /**
@@ -299,6 +329,27 @@ class ModalBase {
      * Cleanup resources
      */
     cleanup(): void {
+        // Remove visual mode classes and spinner if in visual mode
+        if (this.overlay?.classList.contains('fgt-operating-visual')) {
+            // Remove spinner from overlay
+            const spinner = this.overlay.querySelector(`.${this.namespace}-operating-spinner`);
+            if (spinner) {
+                spinner.remove();
+            }
+
+            // Remove class from container
+            const container = document.getElementById('fancy-gst-container');
+            if (container) {
+                container.classList.remove('fgt-operating-visual');
+            }
+
+            // Remove class from button container
+            const buttonContainer = document.getElementById('fancy-gst-button-container');
+            if (buttonContainer) {
+                buttonContainer.classList.remove('fgt-operating-visual');
+            }
+        }
+
         // Cleanup event listeners
         this.cleanupFunctions.forEach(cleanup => cleanup());
         this.cleanupFunctions = [];

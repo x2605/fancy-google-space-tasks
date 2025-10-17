@@ -13,7 +13,7 @@ import { DateManipulator } from '@/manipulator/date_manipulator';
 Logger.fgtlog('📝 Task Modal loading...');
 
 // Does not show loading spinner and expose original ui during operation
-const TEST_MODE = true;
+const TEST_MODE = false;
 
 /**
  * Unified task modal for editing and creating tasks
@@ -972,6 +972,41 @@ class TaskModal extends ModalBase {
     }
 
     /**
+     * Hide UI for operation visualization based on TEST_MODE
+     * @param message - Loading message to display in production mode
+     */
+    private hideUIForOperation(message: string): void {
+        if (TEST_MODE) {
+            // TEST MODE: Hide UI completely to see DOM manipulation
+            if (this.overlay) {
+                (this.overlay as HTMLElement).style.display = 'none';
+            }
+            const container = document.getElementById('fancy-gst-container');
+            if (container) {
+                (container as HTMLElement).style.display = 'none';
+            }
+        } else {
+            // PRODUCTION MODE: Show semi-transparent overlay to visualize operation
+            this.showLoading(message, true);
+        }
+    }
+
+    /**
+     * Restore UI after operation
+     */
+    private restoreUIAfterOperation(): void {
+        if (TEST_MODE) {
+            if (this.overlay) {
+                (this.overlay as HTMLElement).style.display = '';
+            }
+            const container = document.getElementById('fancy-gst-container');
+            if (container) {
+                (container as HTMLElement).style.display = '';
+            }
+        }
+    }
+
+    /**
      * Handle cancel button
      */
     handleCancel(): void {
@@ -1091,12 +1126,8 @@ class TaskModal extends ModalBase {
             if (dateChanged || timeChanged) {
                 Logger.fgtlog(`📅 Date/time change detected: date=${dateChanged}, time=${timeChanged}`);
 
-                // TEMPORARY DEBUG: Hide fancy UI to show original DOM
-                if (TEST_MODE && this.overlay) {
-                    (this.overlay as HTMLElement).style.display = 'none';
-                    // @ts-ignore
-                    document.getElementById('fancy-gst-container').style.display = 'none';
-                }
+                // Hide UI for operation visualization
+                this.hideUIForOperation('Updating date/time...');
 
                 // Find task element
                 let taskElement = null;
@@ -1107,17 +1138,13 @@ class TaskModal extends ModalBase {
                 }
 
                 if (!taskElement) {
-                    // TEMPORARY DEBUG: Restore fancy UI before returning
-                    if (TEST_MODE && this.overlay) {
-                        (this.overlay as HTMLElement).style.display = '';
-                        // @ts-ignore
-                        document.getElementById('fancy-gst-container').style.display = '';
-                    }
+                    this.restoreUIAfterOperation();
                     CoreNotificationUtils.error('Cannot change date: task element not found', this.namespace);
                     return;
                 }
 
-                // Close any open dialog first
+                // Close any open dialog first (restore UI if in TEST_MODE)
+                this.restoreUIAfterOperation();
                 await DateManipulator.cancelOpenDialog();
 
                 // Activate task element first by clicking titleWrapper
@@ -1132,12 +1159,7 @@ class TaskModal extends ModalBase {
                 // Find date button
                 const dateButton = taskElement.findDateButton();
                 if (!dateButton) {
-                    // TEMPORARY DEBUG: Restore fancy UI before returning
-                    if (TEST_MODE && this.overlay) {
-                        (this.overlay as HTMLElement).style.display = '';
-                        // @ts-ignore
-                        document.getElementById('fancy-gst-container').style.display = '';
-                    }
+                    this.restoreUIAfterOperation();
                     CoreNotificationUtils.error('Cannot change date: date button not found', this.namespace);
                     return;
                 }
@@ -1151,24 +1173,15 @@ class TaskModal extends ModalBase {
                 );
 
                 if (!success) {
-                    // TEMPORARY DEBUG: Restore fancy UI before returning
-                    if (TEST_MODE && this.overlay) {
-                        (this.overlay as HTMLElement).style.display = '';
-                        // @ts-ignore
-                        document.getElementById('fancy-gst-container').style.display = '';
-                    }
+                    this.restoreUIAfterOperation();
                     CoreNotificationUtils.error('Failed to update date/time', this.namespace);
                     return;
                 }
 
                 Logger.fgtlog('✅ Date/time updated successfully');
 
-                // TEMPORARY DEBUG: Restore fancy UI
-                if (TEST_MODE && this.overlay) {
-                    (this.overlay as HTMLElement).style.display = '';
-                    // @ts-ignore
-                    document.getElementById('fancy-gst-container').style.display = '';
-                }
+                // Restore UI
+                this.restoreUIAfterOperation();
 
                 // Wait a bit for UI to update
                 await new Promise(resolve => setTimeout(resolve, 300));
@@ -1182,16 +1195,9 @@ class TaskModal extends ModalBase {
             // Lock UI to prevent interaction
             this.isProcessing = true;
             CoreDOMUtils.enableLockStyles();
-            if (!TEST_MODE) {
-                this.showLoading('Adding task...');
-            }
 
-            // TEMPORARY DEBUG: Hide fancy UI to show original DOM
-            if (TEST_MODE && this.overlay) {
-                (this.overlay as HTMLElement).style.display = 'none';
-                // @ts-ignore
-                document.getElementById('fancy-gst-container').style.display = 'none';
-            }
+            // Hide UI for operation visualization
+            this.hideUIForOperation('Adding task...');
 
             Logger.fgtlog('🆕 Starting toBeAdded task operation...');
 
@@ -1255,12 +1261,8 @@ class TaskModal extends ModalBase {
                 // Wait for changes to apply - monitor DOM changes
                 await this.waitForToBeAddedChanges(titleEditor, descEditor, fullTitle, description, 5000);
 
-                // TEMPORARY DEBUG: Restore fancy UI
-                if (TEST_MODE && this.overlay) {
-                    (this.overlay as HTMLElement).style.display = '';
-                    // @ts-ignore
-                    document.getElementById('fancy-gst-container').style.display = '';
-                }
+                // Restore UI
+                this.restoreUIAfterOperation();
 
                 // Unlock UI
                 CoreDOMUtils.disableLockStyles();
@@ -1287,12 +1289,8 @@ class TaskModal extends ModalBase {
             } catch (error: any) {
                 Logger.fgterror('❌ ToBeAdded task operation failed: ' + error.message);
 
-                // TEMPORARY DEBUG: Restore fancy UI
-                if (TEST_MODE && this.overlay) {
-                    (this.overlay as HTMLElement).style.display = '';
-                    // @ts-ignore
-                    document.getElementById('fancy-gst-container').style.display = '';
-                }
+                // Restore UI
+                this.restoreUIAfterOperation();
 
                 // Unlock UI
                 CoreDOMUtils.disableLockStyles();
@@ -1311,15 +1309,9 @@ class TaskModal extends ModalBase {
             // Lock UI to prevent interaction
             this.isProcessing = true;
             CoreDOMUtils.enableLockStyles();
-            if (!TEST_MODE) {
-                this.showLoading('Updating task...');
-            }
-            // TEMPORARY DEBUG: Hide fancy UI to show original DOM
-            if (TEST_MODE && this.overlay) {
-                (this.overlay as HTMLElement).style.display = 'none';
-                // @ts-ignore
-                document.getElementById('fancy-gst-container').style.display = 'none';
-            }
+
+            // Hide UI for operation visualization
+            this.hideUIForOperation('Updating task...');
 
             Logger.fgtlog('📝 Starting task edit operation...');
 
@@ -1338,12 +1330,8 @@ class TaskModal extends ModalBase {
                     // Success callback
                     Logger.fgtlog('✅ Task edit completed');
 
-                    // TEMPORARY DEBUG: Restore fancy UI
-                    if (TEST_MODE && this.overlay) {
-                        (this.overlay as HTMLElement).style.display = '';
-                        // @ts-ignore
-                        document.getElementById('fancy-gst-container').style.display = '';
-                    }
+                    // Restore UI
+                    this.restoreUIAfterOperation();
 
                     // Unlock UI
                     CoreDOMUtils.disableLockStyles();
@@ -1369,12 +1357,8 @@ class TaskModal extends ModalBase {
                 // Error callback
                 Logger.fgterror('❌ Task edit failed: ' + error.message);
 
-                // TEMPORARY DEBUG: Restore fancy UI
-                if (TEST_MODE && this.overlay) {
-                    (this.overlay as HTMLElement).style.display = '';
-                    // @ts-ignore
-                    document.getElementById('fancy-gst-container').style.display = '';
-                }
+                // Restore UI
+                this.restoreUIAfterOperation();
 
                 // Unlock UI
                 CoreDOMUtils.disableLockStyles();
