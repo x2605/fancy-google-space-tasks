@@ -13,7 +13,7 @@ function isSupportedUrl(): boolean {
     const url = window.location.href;
 
     // Pattern 1: https://tasks.google.com/embed/room/{SPACE_ID}/...
-    const roomPattern = /^https:\/\/tasks\.google\.com\/embed\/room\/.+/;
+    const roomPattern = /^https:\/\/tasks\.google\.com\/([\da-z]{1,3}\/){0,2}embed\/room\/.+/;
 
     if (roomPattern.test(url)) {
         Logger.fgtlog('✅ Supported URL pattern detected: embed/room/*');
