@@ -28,7 +28,7 @@ class DeleteTaskInteraction extends BaseInteraction {
         try {
             Logger.fgtlog(`🗑️ Deleting task: ${taskId}`);
 
-            const taskElement = OgtFinder.findTaskElement(taskId);
+            const taskElement = OgtFinder.findTaskWrapper(taskId);
             if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
 
             await this.ensureTaskUIVisible(taskElement);

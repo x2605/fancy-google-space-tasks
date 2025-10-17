@@ -21,7 +21,7 @@ class SetAssigneeInteraction extends BaseInteraction {
         try {
             Logger.fgtlog(`👤 Setting assignee for task ${taskId}: "${assigneeName}"`);
 
-            const taskElement = OgtFinder.findTaskElement(taskId);
+            const taskElement = OgtFinder.findTaskWrapper(taskId);
             if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
 
             const checkbox = taskElement.findCompleteCheckbox();
@@ -78,7 +78,7 @@ class SetAssigneeInteraction extends BaseInteraction {
      */
     async getAvailableAssignees(taskId: string): Promise<string[]> {
         try {
-            const taskElement = OgtFinder.findTaskElement(taskId);
+            const taskElement = OgtFinder.findTaskWrapper(taskId);
             if (!taskElement) return [];
 
             await this.ensureTaskUIVisible(taskElement);

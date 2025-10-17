@@ -14,9 +14,9 @@ import { TaskChangeDetector } from '@/core/change_detector';
 import { OgtFinder } from '@/manipulator/finder';
 import { singletonAssigneeColorUtils } from '@/assignee/assignee_color_utils';
 import { TaskModal } from '@/modal/task_modal';
-import { OgtTaskElement } from '@/manipulator/task_element/task_element';
+import { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 import { loadLocaleKeywords } from '@/manipulator/task_element/date_button/date_parser';
-import { flashTaskHighlight, type FlashHighlightType } from '@/utils/flash_highlight';
+import { flashTaskHighlight } from '@/utils/flash_highlight';
 import type { ChangedFields } from '@/core/task_id_utils';
 
 Logger.fgtlog('📋 Container Manager loading...');
@@ -421,7 +421,7 @@ class ContainerManager {
                 // Check for ToBeAdded task after 100ms
                 CoreEventUtils.timeouts.create(() => {
                     if (!this.isShowingTaskModal && !this.isShowingDeleteModal) {
-                        const toBeAddedTask = OgtFinder.findTaskElementToBeAdded();
+                        const toBeAddedTask = OgtFinder.findTaskWrapperToBeAdded();
                         if (toBeAddedTask) {
                             Logger.fgtlog('🆕 ToBeAdded task detected after add new button click');
                             this.handleToBeAddedTask(toBeAddedTask);
@@ -589,10 +589,10 @@ class ContainerManager {
         let maxCategoryDepth = 0;
 
         // Use manipulator to find all task elements
-        const taskElements = OgtFinder.findAllTaskElements();
+        const taskElements = OgtFinder.findAllTaskWrappers();
         Logger.fgtlog(`🔎 Found ${taskElements.length} task elements via manipulator`);
 
-        taskElements.forEach((taskElement: OgtTaskElement, index: number) => {
+        taskElements.forEach((taskElement: OgtTaskWrapper, index: number) => {
             try {
                 const task = this.parseTaskElement(taskElement, index);
                 if (task) {
@@ -609,12 +609,12 @@ class ContainerManager {
 
     /**
      * Parse individual task element
-     * REFACTORED: Now uses OgtTaskElement methods instead of querySelector
+     * REFACTORED: Now uses OgtTaskWrapper methods instead of querySelector
      * 
      * @param taskElement - Task element wrapper (not raw element!)
      * @param index - Index position
      */
-    parseTaskElement(taskElement: OgtTaskElement, index: number) {
+    parseTaskElement(taskElement: OgtTaskWrapper, index: number) {
         const taskId = taskElement.taskId;
         if (!taskId) {
             Logger.fgtwarn(`Task at index ${index} has no ID, skipping`);
@@ -840,7 +840,7 @@ class ContainerManager {
             if (!this.isShowingTaskModal && !this.isShowingDeleteModal) {
                 // Use a small timeout to allow DOM to settle
                 CoreEventUtils.timeouts.create(() => {
-                    const toBeAddedTask = OgtFinder.findTaskElementToBeAdded();
+                    const toBeAddedTask = OgtFinder.findTaskWrapperToBeAdded();
                     if (toBeAddedTask) {
                         Logger.fgtlog('🆕 ToBeAdded task detected after UI switch, showing task modal');
                         this.handleToBeAddedTask(toBeAddedTask);
@@ -945,7 +945,7 @@ class ContainerManager {
         this.observer = new MutationObserver((mutations: any) => {
             // Check for ToBeAdded immediately (no debounce for fast response)
             if (this.isCustomUIVisible && !this.isShowingTaskModal && !this.isShowingDeleteModal) {
-                const toBeAddedTask = OgtFinder.findTaskElementToBeAdded();
+                const toBeAddedTask = OgtFinder.findTaskWrapperToBeAdded();
                 if (toBeAddedTask) {
                     Logger.fgtlog('🆕 ToBeAdded task detected (immediate), showing task modal');
                     this.handleToBeAddedTask(toBeAddedTask);
@@ -1030,7 +1030,7 @@ class ContainerManager {
      * Handle ToBeAdded task element
      * @param toBeAddedTask - Task element wrapper with Add/Cancel buttons
      */
-    handleToBeAddedTask(toBeAddedTask: OgtTaskElement) {
+    handleToBeAddedTask(toBeAddedTask: OgtTaskWrapper) {
         try {
             // Extract title from the task element
             const titleWrapper = toBeAddedTask.findTitleWrapper();
@@ -1079,7 +1079,7 @@ class ContainerManager {
      * @param toBeAddedTask - Task element wrapper
      * @param taskData - Extracted task data
      */
-    showTaskModalForToBeAdded(toBeAddedTask: OgtTaskElement, taskData: any) {
+    showTaskModalForToBeAdded(toBeAddedTask: OgtTaskWrapper, taskData: any) {
         // Check if modal is already showing
         if (this.isShowingTaskModal) {
             Logger.fgtlog('⏸️ Ignoring duplicate task modal request - modal already showing');

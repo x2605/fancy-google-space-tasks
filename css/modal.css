@@ -495,6 +495,55 @@
     }
 }
 
+/* Date/Time inputs container */
+.fancy-gst-datetime-inputs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Date and Time inputs */
+.fancy-gst-date-input,
+.fancy-gst-time-input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Below 320px: stack vertically (full width each) */
+@media (max-width: 320px) {
+    .fancy-gst-datetime-inputs {
+        flex-direction: column;
+    }
+
+    .fancy-gst-date-input,
+    .fancy-gst-time-input {
+        width: 100%;
+    }
+}
+
+/* Above 320px: side by side (50% each) */
+@media (min-width: 321px) {
+    .fancy-gst-date-input,
+    .fancy-gst-time-input {
+        flex: 1;
+        max-width: calc(50% - 4px);
+    }
+}
+
+/* Date display (current date info) */
+.fancy-gst-date-display {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #5f6368;
+    font-style: italic;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-date-display {
+        color: #9aa0a6;
+    }
+}
+
 /* ========== Delete Modal Styles ========== */
 
 .fancy-gst-delete-content {

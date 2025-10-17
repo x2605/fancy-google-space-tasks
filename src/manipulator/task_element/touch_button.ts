@@ -1,13 +1,18 @@
 // manipulator/task_element/touch_button.ts
 import * as Logger from '@/core/logger';
+import type { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('🗑️ OGT Touch Button loading...');
 
+const findTouchButtonElements = function(object: OgtTaskWrapper): NodeListOf<HTMLDivElement> {
+    return object.element.querySelectorAll('div[data-is-touch-wrapper="true"]') as NodeListOf<HTMLDivElement>;
+}
+
 /**
  * Wrapper class for the button which confirms or cancels
- * to add new task. It is inside of OgtTaskElement.
+ * to add new task. It is inside of OgtTaskWrapper.
  * Selector: div[data-is-touch-wrapper="true"]
- * Task is not present if OgtTaskElement.contains(this).
+ * Task is not present if OgtTaskWrapper.contains(this).
  * 
  * @class OgtTouchButton
  */
@@ -40,6 +45,6 @@ class OgtTouchButton {
     }
 }
 
-export { OgtTouchButton };
+export { findTouchButtonElements, OgtTouchButton };
 
 Logger.fgtlog('✅ OGT Touch Button loaded');

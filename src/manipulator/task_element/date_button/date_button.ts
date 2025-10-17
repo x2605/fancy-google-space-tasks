@@ -1,11 +1,16 @@
 // manipulator/task_element/date_button/date_button.ts
 import * as Logger from '@/core/logger';
-import { OgtDateSelectDialog } from '../../date_select_dialog';
+import { findDateSelectDialogElement, OgtDateSelectDialog } from '../../date_select_dialog';
 import { parseNaturalDate, formatDateForButton } from './date_parser';
+import type { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 //import * as Test from './date_parser_test';
 //Test
 
 Logger.fgtlog('📅 OGT Date Button loading...');
+
+const findDateButtonElement = function(object: OgtTaskWrapper): HTMLDivElement | null {
+    return object.element.querySelector('div[role="button"][data-first-date-el]') as HTMLDivElement;
+}
 
 /**
  * Wrapper class for the date selection button
@@ -21,13 +26,13 @@ Logger.fgtlog('📅 OGT Date Button loading...');
  * }
  */
 class OgtDateButton {
-    _element: Element;
+    _element: HTMLDivElement;
 
     /**
      * Create a date button wrapper
      * @param element - The date button element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLDivElement) {
         if (!element) throw new Error('OgtDateButton requires a valid DOM element');
         this._element = element;
     }
@@ -36,7 +41,7 @@ class OgtDateButton {
      * Get the underlying DOM element
      * @returns The wrapped button element
      */
-    get element(): Element { 
+    get element(): HTMLDivElement { 
         return this._element; 
     }
     
@@ -65,8 +70,8 @@ class OgtDateButton {
     async waitForDateSelectDialog(timeout: number = 3000): Promise<any> {
         const startTime = Date.now();
         while (Date.now() - startTime < timeout) {
-            const dialog = document.querySelector('div[aria-modal="true"][role="dialog"]') as HTMLDivElement;
-            if (dialog && dialog.offsetParent !== null) {
+            const dialog = findDateSelectDialogElement();
+            if (dialog) {
                 return new OgtDateSelectDialog(dialog);
             }
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -93,6 +98,6 @@ class OgtDateButton {
     }
 }
 
-export { OgtDateButton };
+export { findDateButtonElement, OgtDateButton };
 
 Logger.fgtlog('✅ OGT Date Button loaded');

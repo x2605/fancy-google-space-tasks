@@ -1,9 +1,14 @@
 // manipulator/task_element/desc_wrapper/desc_wrapper.ts
 import * as Logger from '@/core/logger';
-import { OgtDescEditor } from './desc_editor';
-import { OgtDescViewer } from './desc_viewer';
+import { findDescEditorElement, OgtDescEditor } from './desc_editor';
+import { findDescViewerElement, OgtDescViewer } from './desc_viewer';
+import type { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('📦 OGT Desc Wrapper loading...');
+
+const findDescWrapperElement = function(object: OgtTaskWrapper): HTMLDivElement | null {
+    return object.element.querySelector('div[role="group"][data-multiline][data-max-length]') as HTMLDivElement;
+}
 
 /**
  * Wrapper class for the description area container
@@ -13,13 +18,13 @@ Logger.fgtlog('📦 OGT Desc Wrapper loading...');
  * @class OgtDescWrapper
  */
 class OgtDescWrapper {
-    _element: Element;
+    _element: HTMLDivElement;
 
     /**
      * Create a description wrapper
      * @param element - The wrapper div element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLDivElement) {
         if (!element) {
             throw new Error('OgtDescWrapper requires a valid DOM element');
         }
@@ -30,7 +35,7 @@ class OgtDescWrapper {
      * Get the underlying DOM element
      * @returns The wrapped div element
      */
-    get element(): Element {
+    get element(): HTMLDivElement {
         return this._element;
     }
 
@@ -49,7 +54,7 @@ class OgtDescWrapper {
      * @returns Description viewer wrapper or null if not found
      */
     findDescViewer(): OgtDescViewer | null {
-        const viewerElement = this._element.querySelector('[jsname][title]') as HTMLTextAreaElement;
+        const viewerElement = findDescViewerElement(this);
         if (!viewerElement) {
             return null;
         }
@@ -63,7 +68,7 @@ class OgtDescWrapper {
      * @returns Description editor wrapper or null if not found
      */
     findDescEditor(): OgtDescEditor | null {
-        const editorElement = this._element.querySelector('textarea[rows][maxlength][data-is-auto-expanding]') as HTMLTextAreaElement;
+        const editorElement = findDescEditorElement(this);
         if (!editorElement) {
             return null;
         }
@@ -76,7 +81,7 @@ class OgtDescWrapper {
      * @param timeout - Maximum wait time in milliseconds
      * @returns Promise that resolves with editor wrapper
      */
-    async waitForDescEditor(timeout: number = 3000): Promise<any> {
+    async waitForDescEditor(timeout: number = 3000): Promise<OgtDescEditor | null> {
         const startTime = Date.now();
         
         while (Date.now() - startTime < timeout) {
@@ -99,6 +104,6 @@ class OgtDescWrapper {
     }
 }
 
-export { OgtDescWrapper };
+export { findDescWrapperElement, OgtDescWrapper };
 
 Logger.fgtlog('✅ OGT Desc Wrapper loaded successfully');

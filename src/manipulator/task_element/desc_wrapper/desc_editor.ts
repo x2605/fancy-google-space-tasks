@@ -1,7 +1,12 @@
 // manipulator/task_element/desc_wrapper/desc_editor.ts
 import * as Logger from '@/core/logger';
+import type { OgtDescWrapper } from '@/manipulator/task_element/desc_wrapper/desc_wrapper';
 
 Logger.fgtlog('✏️ OGT Desc Editor loading...');
+
+const findDescEditorElement = function(object: OgtDescWrapper): HTMLTextAreaElement | null {
+    return object.element.querySelector('textarea[rows][maxlength][data-is-auto-expanding]');
+}
 
 /**
  * Wrapper class for the description editor (textarea) in original Google Tasks
@@ -79,6 +84,6 @@ class OgtDescEditor {
     }
 }
 
-export { OgtDescEditor };
+export { findDescEditorElement, OgtDescEditor };
 
 Logger.fgtlog('✅ OGT Desc Editor loaded successfully');

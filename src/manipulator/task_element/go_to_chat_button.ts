@@ -1,7 +1,12 @@
 // manipulator/task_element/go_to_chat_button.ts
 import * as Logger from '@/core/logger';
+import type { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('💬 OGT Go To Chat Button loading...');
+
+const findGoToChatButtonElement = function(object: OgtTaskWrapper): HTMLButtonElement | null {
+    return object.element.querySelector('button[title]:not([aria-pressed],[data-tooltip-enabled])');
+}
 
 /**
  * Wrapper class for the "Go to chat" navigation button
@@ -16,13 +21,13 @@ Logger.fgtlog('💬 OGT Go To Chat Button loading...');
  * }
  */
 class OgtGoToChatButton {
-    _element: Element;
+    _element: HTMLButtonElement;
 
     /**
      * Create a go to chat button wrapper
      * @param element - The button element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLButtonElement) {
         if (!element) throw new Error('OgtGoToChatButton requires a valid DOM element');
         this._element = element;
     }
@@ -31,7 +36,7 @@ class OgtGoToChatButton {
      * Get the underlying DOM element
      * @returns The wrapped button element
      */
-    get element(): Element { 
+    get element(): HTMLButtonElement { 
         return this._element; 
     }
     
@@ -44,6 +49,6 @@ class OgtGoToChatButton {
     }
 }
 
-export { OgtGoToChatButton };
+export { findGoToChatButtonElement, OgtGoToChatButton };
 
 Logger.fgtlog('✅ OGT Go To Chat Button loaded');

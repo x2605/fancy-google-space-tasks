@@ -1,7 +1,12 @@
 // manipulator/task_element/title_wrapper/title_editor.ts
 import * as Logger from '@/core/logger';
+import type { OgtTitleWrapper } from '@/manipulator/task_element/title_wrapper/title_wrapper';
 
 Logger.fgtlog('✏️ OGT Title Editor loading...');
+
+const findTitleEditorElement = function(object: OgtTitleWrapper): HTMLTextAreaElement | null {
+    return object.element.querySelector('textarea[rows][maxlength]');
+}
 
 /**
  * Wrapper class for the title editor (textarea) in original Google Tasks
@@ -78,6 +83,6 @@ class OgtTitleEditor {
     }
 }
 
-export { OgtTitleEditor };
+export { findTitleEditorElement, OgtTitleEditor };
 
 Logger.fgtlog('✅ OGT Title Editor loaded successfully');

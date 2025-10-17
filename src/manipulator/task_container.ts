@@ -1,8 +1,16 @@
 // manipulator/task_container.ts
 import * as Logger from '@/core/logger';
-import { OgtTaskElement } from './task_element/task_element';
+import { findAllTaskWrapperElements, OgtTaskWrapper } from './task_element/task_element';
 
 Logger.fgtlog('📦 OGT Task Container loading...');
+
+const findTaskContainerElement = function(): HTMLDivElement | null {
+    return document.querySelector('div[role="list"]');
+}
+
+const findAllTaskContainerElements = function(): NodeListOf<HTMLDivElement> {
+    return document.querySelectorAll('div[role="list"]');
+}
 
 /**
  * Wrapper class for the task list container
@@ -13,18 +21,18 @@ Logger.fgtlog('📦 OGT Task Container loading...');
  * @example
  * const container = OgtFinder.findTaskContainer();
  * if (container) {
- *   const tasks = container.findAllTaskElements();
+ *   const tasks = container.findAllTaskWrappers();
  *   console.log(`Container has ${tasks.length} tasks`);
  * }
  */
 class OgtTaskContainer {
-    _element: Element;
+    _element: HTMLDivElement;
 
     /**
      * Create a task container wrapper
      * @param element - The container list element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLDivElement) {
         if (!element) throw new Error('OgtTaskContainer requires a valid DOM element');
         this._element = element;
     }
@@ -33,7 +41,7 @@ class OgtTaskContainer {
      * Get the underlying DOM element
      * @returns The wrapped list element
      */
-    get element(): Element { 
+    get element(): HTMLDivElement { 
         return this._element; 
     }
     
@@ -41,9 +49,9 @@ class OgtTaskContainer {
      * Find all task elements within this container
      * @returns Array of task element wrappers
      */
-    findAllTaskElements(): any[] {
-        const elements = this._element.querySelectorAll('[role="listitem"][data-id][data-type="0"]');
-        return Array.from(elements).map(el => new OgtTaskElement(el));
+    findAllTaskWrappers(): OgtTaskWrapper[] {
+        const elements = findAllTaskWrapperElements(this._element);
+        return Array.from(elements).map(el => new OgtTaskWrapper(el));
     }
     
     /**
@@ -55,6 +63,6 @@ class OgtTaskContainer {
     }
 }
 
-export { OgtTaskContainer };
+export { findTaskContainerElement, findAllTaskContainerElements, OgtTaskContainer };
 
 Logger.fgtlog('✅ OGT Task Container loaded');

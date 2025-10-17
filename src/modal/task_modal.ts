@@ -8,8 +8,12 @@ import { CoreDOMUtils } from '@/core/dom_utils';
 import { CategoryUtils } from '@/category/category_utils';
 import { parseNaturalDate, formatDateForModal } from '@/manipulator/task_element/date_button/date_parser';
 import { OgtFinder } from '@/manipulator/finder';
+import { DateManipulator } from '@/manipulator/date_manipulator';
 
 Logger.fgtlog('📝 Task Modal loading...');
+
+// Does not show loading spinner and expose original ui during operation
+const TEST_MODE = true;
 
 /**
  * Unified task modal for editing and creating tasks
@@ -133,6 +137,28 @@ class TaskModal extends ModalBase {
         });
 
         Logger.fgtlog('📝 Task modal opened: ' + this.actionType + ' for task ' + (this.taskId || 'new'));
+
+        // Log original task data for debugging
+        if (this.originalTask) {
+            Logger.fgtlog('📋 Original task data:');
+            Logger.fgtlog(`  - taskId: ${this.taskId || 'N/A'}`);
+            Logger.fgtlog(`  - actionType: ${this.actionType}`);
+            Logger.fgtlog(`  - date: ${this.originalTask.date || 'N/A'}`);
+            Logger.fgtlog(`  - dateFull: ${this.originalTask.dateFull || 'N/A'}`);
+
+            if (this.originalTask.dateFull) {
+                const locale = document.documentElement.lang || 'en';
+                const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date || '', locale);
+                if (dateInfo) {
+                    Logger.fgtlog(`  - parsed time: ${dateInfo.hours !== 99 ? dateInfo.hours : 'N/A'}:${dateInfo.minutes !== 99 ? dateInfo.minutes : 'N/A'}`);
+                    Logger.fgtlog(`  - parsed date: ${dateInfo.year}-${dateInfo.month}-${dateInfo.day}`);
+                }
+            }
+
+            Logger.fgtlog(`  - title: ${this.originalTask.displayTitle || 'N/A'}`);
+            Logger.fgtlog(`  - description: ${this.originalTask.description || 'N/A'}`);
+            Logger.fgtlog(`  - categories: ${JSON.stringify(this.originalTask.categories || [])}`);
+        }
     }
 
     /**
@@ -246,15 +272,27 @@ class TaskModal extends ModalBase {
                                   rows="3">${CoreDOMUtils.escapeHtml(this.getInitialDescription())}</textarea>
                     </div>
 
-                    <!-- Set Date/Time display -->
-                    ${this.originalTask && this.originalTask.date ? `
+                    <!-- Set Date/Time input -->
                     <div class="${this.namespace}-form-group">
                         <label class="${this.namespace}-form-label">Set Date/Time</label>
-                        <div class="${this.namespace}-readonly-field">
-                            ${this.getFormattedDueDate()}
+                        <div class="${this.namespace}-datetime-inputs">
+                            <input type="date"
+                                   id="${this.namespace}-date-input"
+                                   class="${this.namespace}-date-input ${this.namespace}-form-input"
+                                   value="${this.getDateValue()}"
+                                   title="Select date">
+                            <input type="time"
+                                   id="${this.namespace}-time-input"
+                                   class="${this.namespace}-time-input ${this.namespace}-form-input"
+                                   value="${this.getTimeValue()}"
+                                   title="Select time">
                         </div>
+                        ${this.originalTask && this.originalTask.date ? `
+                        <div class="${this.namespace}-date-display">
+                            Current: ${this.getFormattedDueDate()}
+                        </div>
+                        ` : ''}
                     </div>
-                    ` : ''}
 
                     <!-- Assignee display -->
                     ${this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ? `
@@ -281,11 +319,53 @@ class TaskModal extends ModalBase {
         if (!this.originalTask || !this.originalTask.date || !this.originalTask.dateFull) {
             return 'No date';
         }
-        
+
         // Parse date using the same logic as date button
         const locale = document.documentElement.lang || 'en';
         const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date, locale);
         return formatDateForModal(dateInfo);
+    }
+
+    /**
+     * Get date value in YYYY-MM-DD format for input[type="date"]
+     */
+    getDateValue(): string {
+        if (!this.originalTask || !this.originalTask.dateFull) {
+            return '';
+        }
+
+        const locale = document.documentElement.lang || 'en';
+        const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date || '', locale);
+
+        if (dateInfo && dateInfo.year && dateInfo.month && dateInfo.day) {
+            const year = dateInfo.year;
+            const month = String(dateInfo.month).padStart(2, '0');
+            const day = String(dateInfo.day).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        return '';
+    }
+
+    /**
+     * Get time value in HH:MM format for input[type="time"]
+     */
+    getTimeValue(): string {
+        if (!this.originalTask || !this.originalTask.dateFull) {
+            return '';
+        }
+
+        const locale = document.documentElement.lang || 'en';
+        const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date || '', locale);
+
+        // Check if time exists (hours and minutes are not 99, which means "no time")
+        if (dateInfo && dateInfo.hours !== 99 && dateInfo.minutes !== 99) {
+            const hour = String(dateInfo.hours).padStart(2, '0');
+            const minute = String(dateInfo.minutes).padStart(2, '0');
+            return `${hour}:${minute}`;
+        }
+
+        return '';
     }
 
     /**
@@ -992,12 +1072,126 @@ class TaskModal extends ModalBase {
             }
         }
 
+        // STEP 1: Handle date/time changes (COMMON for edit and toBeAdded modes)
+        if (this.actionType === 'edit' || this.actionType === 'toBeAdded') {
+            const dateInput = this.modal!.querySelector(`#${this.namespace}-date-input`) as HTMLInputElement;
+            const timeInput = this.modal!.querySelector(`#${this.namespace}-time-input`) as HTMLInputElement;
+
+            const newDateValue = dateInput?.value || ''; // YYYY-MM-DD
+            const newTimeValue = timeInput?.value || ''; // HH:MM
+
+            // Get original date/time values
+            const originalDateValue = this.getDateValue();
+            const originalTimeValue = this.getTimeValue();
+
+            // Check if date/time changed
+            const dateChanged = newDateValue !== originalDateValue;
+            const timeChanged = newTimeValue !== originalTimeValue;
+
+            if (dateChanged || timeChanged) {
+                Logger.fgtlog(`📅 Date/time change detected: date=${dateChanged}, time=${timeChanged}`);
+
+                // TEMPORARY DEBUG: Hide fancy UI to show original DOM
+                if (TEST_MODE && this.overlay) {
+                    (this.overlay as HTMLElement).style.display = 'none';
+                    // @ts-ignore
+                    document.getElementById('fancy-gst-container').style.display = 'none';
+                }
+
+                // Find task element
+                let taskElement = null;
+                if (this.actionType === 'edit' && this.taskId) {
+                    taskElement = OgtFinder.findTaskWrapper(this.taskId);
+                } else if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
+                    taskElement = this.toBeAddedTaskElement;
+                }
+
+                if (!taskElement) {
+                    // TEMPORARY DEBUG: Restore fancy UI before returning
+                    if (TEST_MODE && this.overlay) {
+                        (this.overlay as HTMLElement).style.display = '';
+                        // @ts-ignore
+                        document.getElementById('fancy-gst-container').style.display = '';
+                    }
+                    CoreNotificationUtils.error('Cannot change date: task element not found', this.namespace);
+                    return;
+                }
+
+                // Close any open dialog first
+                await DateManipulator.cancelOpenDialog();
+
+                // Activate task element first by clicking titleWrapper
+                // This is required to make date button clickable (similar to description activation)
+                const titleWrapper = taskElement.findTitleWrapper();
+                if (titleWrapper) {
+                    Logger.fgtlog('🎯 Clicking title wrapper to activate task element');
+                    this.simulateClick(titleWrapper.element);
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+
+                // Find date button
+                const dateButton = taskElement.findDateButton();
+                if (!dateButton) {
+                    // TEMPORARY DEBUG: Restore fancy UI before returning
+                    if (TEST_MODE && this.overlay) {
+                        (this.overlay as HTMLElement).style.display = '';
+                        // @ts-ignore
+                        document.getElementById('fancy-gst-container').style.display = '';
+                    }
+                    CoreNotificationUtils.error('Cannot change date: date button not found', this.namespace);
+                    return;
+                }
+
+                // Apply date/time change
+                Logger.fgtlog(`🔄 Applying date/time change: ${newDateValue} ${newTimeValue}`);
+                const success = await DateManipulator.setDateTime(
+                    dateButton,
+                    newDateValue || null,
+                    newTimeValue || undefined
+                );
+
+                if (!success) {
+                    // TEMPORARY DEBUG: Restore fancy UI before returning
+                    if (TEST_MODE && this.overlay) {
+                        (this.overlay as HTMLElement).style.display = '';
+                        // @ts-ignore
+                        document.getElementById('fancy-gst-container').style.display = '';
+                    }
+                    CoreNotificationUtils.error('Failed to update date/time', this.namespace);
+                    return;
+                }
+
+                Logger.fgtlog('✅ Date/time updated successfully');
+
+                // TEMPORARY DEBUG: Restore fancy UI
+                if (TEST_MODE && this.overlay) {
+                    (this.overlay as HTMLElement).style.display = '';
+                    // @ts-ignore
+                    document.getElementById('fancy-gst-container').style.display = '';
+                }
+
+                // Wait a bit for UI to update
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+
+        // STEP 2: Handle mode-specific operations (title/description)
+
         // Handle toBeAdded mode
         if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
             // Lock UI to prevent interaction
             this.isProcessing = true;
             CoreDOMUtils.enableLockStyles();
-            this.showLoading('Adding task...');
+            if (!TEST_MODE) {
+                this.showLoading('Adding task...');
+            }
+
+            // TEMPORARY DEBUG: Hide fancy UI to show original DOM
+            if (TEST_MODE && this.overlay) {
+                (this.overlay as HTMLElement).style.display = 'none';
+                // @ts-ignore
+                document.getElementById('fancy-gst-container').style.display = 'none';
+            }
 
             Logger.fgtlog('🆕 Starting toBeAdded task operation...');
 
@@ -1061,6 +1255,13 @@ class TaskModal extends ModalBase {
                 // Wait for changes to apply - monitor DOM changes
                 await this.waitForToBeAddedChanges(titleEditor, descEditor, fullTitle, description, 5000);
 
+                // TEMPORARY DEBUG: Restore fancy UI
+                if (TEST_MODE && this.overlay) {
+                    (this.overlay as HTMLElement).style.display = '';
+                    // @ts-ignore
+                    document.getElementById('fancy-gst-container').style.display = '';
+                }
+
                 // Unlock UI
                 CoreDOMUtils.disableLockStyles();
                 this.isProcessing = false;
@@ -1086,6 +1287,13 @@ class TaskModal extends ModalBase {
             } catch (error: any) {
                 Logger.fgterror('❌ ToBeAdded task operation failed: ' + error.message);
 
+                // TEMPORARY DEBUG: Restore fancy UI
+                if (TEST_MODE && this.overlay) {
+                    (this.overlay as HTMLElement).style.display = '';
+                    // @ts-ignore
+                    document.getElementById('fancy-gst-container').style.display = '';
+                }
+
                 // Unlock UI
                 CoreDOMUtils.disableLockStyles();
                 this.isProcessing = false;
@@ -1103,7 +1311,15 @@ class TaskModal extends ModalBase {
             // Lock UI to prevent interaction
             this.isProcessing = true;
             CoreDOMUtils.enableLockStyles();
-            this.showLoading('Updating task...');
+            if (!TEST_MODE) {
+                this.showLoading('Updating task...');
+            }
+            // TEMPORARY DEBUG: Hide fancy UI to show original DOM
+            if (TEST_MODE && this.overlay) {
+                (this.overlay as HTMLElement).style.display = 'none';
+                // @ts-ignore
+                document.getElementById('fancy-gst-container').style.display = 'none';
+            }
 
             Logger.fgtlog('📝 Starting task edit operation...');
 
@@ -1121,6 +1337,13 @@ class TaskModal extends ModalBase {
                 () => {
                     // Success callback
                     Logger.fgtlog('✅ Task edit completed');
+
+                    // TEMPORARY DEBUG: Restore fancy UI
+                    if (TEST_MODE && this.overlay) {
+                        (this.overlay as HTMLElement).style.display = '';
+                        // @ts-ignore
+                        document.getElementById('fancy-gst-container').style.display = '';
+                    }
 
                     // Unlock UI
                     CoreDOMUtils.disableLockStyles();
@@ -1145,11 +1368,18 @@ class TaskModal extends ModalBase {
             ).catch((error: any) => {
                 // Error callback
                 Logger.fgterror('❌ Task edit failed: ' + error.message);
-                
+
+                // TEMPORARY DEBUG: Restore fancy UI
+                if (TEST_MODE && this.overlay) {
+                    (this.overlay as HTMLElement).style.display = '';
+                    // @ts-ignore
+                    document.getElementById('fancy-gst-container').style.display = '';
+                }
+
                 // Unlock UI
                 CoreDOMUtils.disableLockStyles();
                 this.isProcessing = false;
-                
+
                 // Show error in modal
                 this.showError('Failed to update task: ' + error.message);
             });
@@ -1253,7 +1483,7 @@ class TaskModal extends ModalBase {
      */
     validateUniqueTitle(fullTitle: string, excludeTaskId: string | null): boolean {
         // Get all task elements using OgtFinder (imported at top)
-        const allTasks = OgtFinder.findAllTaskElements();
+        const allTasks = OgtFinder.findAllTaskWrappers();
 
         // Check each task for duplicate title
         for (const taskElement of allTasks) {

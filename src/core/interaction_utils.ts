@@ -91,7 +91,7 @@ class CoreInteractionUtils {
     async showInChat(taskId: string): Promise<void> {
         try {
             Logger.fgtlog(`💬 Showing task in chat: ${taskId}`);
-            const taskElement = OgtFinder.findTaskElement(taskId);
+            const taskElement = OgtFinder.findTaskWrapper(taskId);
             if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
 
             await this.ensureTaskUIVisible(taskElement);

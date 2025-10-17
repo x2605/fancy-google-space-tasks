@@ -1,7 +1,12 @@
 // manipulator/task_element/desc_wrapper/desc_viewer.ts
 import * as Logger from '@/core/logger';
+import type { OgtDescWrapper } from '@/manipulator/task_element/desc_wrapper/desc_wrapper';
 
 Logger.fgtlog('📝 OGT Desc Viewer loading...');
+
+const findDescViewerElement = function(object: OgtDescWrapper): HTMLTextAreaElement | null {
+    return object.element.querySelector('[jsname][title]');
+}
 
 /**
  * Wrapper class for the description viewer element in original Google Tasks
@@ -48,6 +53,6 @@ class OgtDescViewer {
     }
 }
 
-export { OgtDescViewer };
+export { findDescViewerElement, OgtDescViewer };
 
 Logger.fgtlog('✅ OGT Desc Viewer loaded successfully');

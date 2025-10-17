@@ -22,7 +22,7 @@ class SetDateInteraction extends BaseInteraction {
         try {
             Logger.fgtlog(`📅 Setting date for task ${taskId}: "${dateString}"`);
 
-            const taskElement = OgtFinder.findTaskElement(taskId);
+            const taskElement = OgtFinder.findTaskWrapper(taskId);
             if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
 
             const checkbox = taskElement.findCompleteCheckbox();

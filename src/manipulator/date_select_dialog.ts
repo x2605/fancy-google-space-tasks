@@ -3,6 +3,10 @@ import * as Logger from '@/core/logger';
 
 Logger.fgtlog('📅 OGT Date Select Dialog loading...');
 
+const findDateSelectDialogElement = function() {
+    return document.querySelector('div[data-inject-content-controller]') as HTMLDivElement;
+}
+
 /**
  * Wrapper class for the date selection dialog
  * This modal appears when user clicks the date button
@@ -16,13 +20,13 @@ Logger.fgtlog('📅 OGT Date Select Dialog loading...');
  * const okButton = dialog.findDateConfirmButton();
  */
 class OgtDateSelectDialog {
-    _element: Element;
+    _element: HTMLDivElement;
 
     /**
      * Create a date select dialog wrapper
      * @param element - The dialog element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLDivElement) {
         if (!element) throw new Error('OgtDateSelectDialog requires a valid DOM element');
         this._element = element;
     }
@@ -31,7 +35,7 @@ class OgtDateSelectDialog {
      * Get the underlying DOM element
      * @returns The wrapped dialog element
      */
-    get element(): Element { 
+    get element(): HTMLDivElement { 
         return this._element; 
     }
     
@@ -39,16 +43,24 @@ class OgtDateSelectDialog {
      * Find the month/year label in the calendar header
      * @returns The label element showing current month/year
      */
-    findMonthYearLabel(): HTMLElement | null {
-        return this._element.querySelector('[aria-live="assertive"]');
+    findMonthYearLabel(): HTMLDivElement | null {
+        return this._element.querySelector('div[aria-live="assertive"]') as HTMLDivElement;
     }
     
     /**
      * Find the previous month navigation button
      * @returns The previous button or null if not found
      */
+    findMonthChangeButtons(): NodeListOf<HTMLDivElement> {
+        return this._element.querySelectorAll('div[role="button"][data-response-delay-ms]');
+    }
+
+    /**
+     * Find the previous month navigation button
+     * @returns The previous button or null if not found
+     */
     findMonthPrevButton(): HTMLDivElement | null {
-        const buttons = this._element.querySelectorAll('div[role="button"][data-response-delay-ms]');
+        const buttons = this.findMonthChangeButtons();
         return buttons[0] as HTMLDivElement || null;
     }
     
@@ -57,7 +69,7 @@ class OgtDateSelectDialog {
      * @returns The next button or null if not found
      */
     findMonthNextButton(): HTMLDivElement | null {
-        const buttons = this._element.querySelectorAll('div[role="button"][data-response-delay-ms]');
+        const buttons = this.findMonthChangeButtons();
         return buttons[1] as HTMLDivElement || null;
     }
     
@@ -66,7 +78,7 @@ class OgtDateSelectDialog {
      * @param day - Day of month (1-31)
      * @returns The calendar cell for that day
      */
-    findDateCell(day: number): HTMLElement | null {
+    findDateCell(day: number): HTMLDivElement | null {
         return this._element.querySelector(`div[role="gridcell"][data-day-of-month="${day}"]`);
     }
     
@@ -98,7 +110,7 @@ class OgtDateSelectDialog {
      * Find the time selection dropdown
      * @returns The time listbox or null if not found
      */
-    findTimeSelectDropdown(): HTMLElement | null {
+    findTimeSelectDropdown(): HTMLDivElement | null {
         return this._element.querySelector('div[role="listbox"]');
     }
     
@@ -107,14 +119,41 @@ class OgtDateSelectDialog {
      * @param timeString - Time string to find (e.g., "14:00")
      * @returns The time option element or null if not found
      */
-    findTimeOption(timeString: string): HTMLElement | null {
+    findTimeOption(timeString: string): HTMLDivElement | null {
         const options = this._element.querySelectorAll('div[data-time]');
         for (const option of options) {
             if (option.getAttribute('data-time') === timeString) {
-                return option as HTMLElement;
+                return option as HTMLDivElement;
             }
         }
         return null;
+    }
+    
+    /**
+     * Find delete button
+     * It does not appear when no date is set to the task
+     * @returns Delete button element
+     */
+    findDeleteButton(): HTMLButtonElement | null {
+        return this._element.querySelector('button:not([data-mdc-dialog-action])');
+    }
+    
+    /**
+     * Find cancel button
+     * It always exist if no error
+     * @returns Cancel button element
+     */
+    findCancelButton(): HTMLButtonElement | null {
+        return this._element.querySelector('button[data-mdc-dialog-action="cancel"]');
+    }
+    
+    /**
+     * Find ok button
+     * It always exist if no error
+     * @returns Cancel button element
+     */
+    findOkButton(): HTMLButtonElement | null {
+        return this._element.querySelector('button[data-mdc-dialog-action="ok"]');
     }
     
     /**
@@ -126,6 +165,6 @@ class OgtDateSelectDialog {
     }
 }
 
-export { OgtDateSelectDialog };
+export { findDateSelectDialogElement, OgtDateSelectDialog };
 
 Logger.fgtlog('✅ OGT Date Select Dialog loaded');

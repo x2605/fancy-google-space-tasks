@@ -1,7 +1,12 @@
 // manipulator/task_element/title_wrapper/title_viewer.ts
 import * as Logger from '@/core/logger';
+import type { OgtTitleWrapper } from '@/manipulator/task_element/title_wrapper/title_wrapper';
 
 Logger.fgtlog('📄 OGT Title Viewer loading...');
+
+const findTitleViewerElement = function(object: OgtTitleWrapper): HTMLElement | null {
+    return object.element.querySelector('[jsname][title]');
+}
 
 /**
  * Wrapper class for the title viewer element in original Google Tasks
@@ -53,6 +58,6 @@ class OgtTitleViewer {
     }
 }
 
-export { OgtTitleViewer };
+export { findTitleViewerElement, OgtTitleViewer };
 
 Logger.fgtlog('✅ OGT Title Viewer loaded successfully');

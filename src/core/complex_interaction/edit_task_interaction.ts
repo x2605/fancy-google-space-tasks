@@ -4,7 +4,7 @@ import { CoreNotificationUtils } from '@/core/notification_utils';
 import { CoreEventUtils } from '@/core/event_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
 import { OgtFinder } from '@/manipulator/finder';
-import { OgtTaskElement } from '@/manipulator/task_element/task_element';
+import { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 import { BaseInteraction } from './base_interaction';
 import { CategoryParser } from '@/category/category_parser';
 
@@ -53,7 +53,7 @@ class EditTaskInteraction extends BaseInteraction {
             }
 
             // Find task element
-            let taskElement = OgtFinder.findTaskElement(taskId);
+            let taskElement = OgtFinder.findTaskWrapper(taskId);
             if (!taskElement) {
                 throw new Error(`Task element not found: ${taskId}`);
             }
@@ -76,7 +76,7 @@ class EditTaskInteraction extends BaseInteraction {
                 await this.updateDescription(taskElement, newDescription);
                 
                 // Re-target task element after description change
-                taskElement = OgtFinder.findTaskElement(taskId);
+                taskElement = OgtFinder.findTaskWrapper(taskId);
                 if (!taskElement) throw new Error('Task element lost after description update');
             }
 
@@ -86,7 +86,7 @@ class EditTaskInteraction extends BaseInteraction {
                 await this.updateTitle(taskElement, newTitle);
                 
                 // Re-target task element after title change
-                taskElement = OgtFinder.findTaskElement(taskId);
+                taskElement = OgtFinder.findTaskWrapper(taskId);
                 if (!taskElement) throw new Error('Task element lost after title update');
             }
 
@@ -116,7 +116,7 @@ class EditTaskInteraction extends BaseInteraction {
      * @param taskElement - Task element wrapper
      * @param newDescription - New description text
      */
-    private async updateDescription(taskElement: OgtTaskElement, newDescription: string): Promise<void> {
+    private async updateDescription(taskElement: OgtTaskWrapper, newDescription: string): Promise<void> {
         try {
             // Find description wrapper
             const descWrapper = taskElement.findDescWrapper();
@@ -235,7 +235,7 @@ class EditTaskInteraction extends BaseInteraction {
      * @param taskElement - Task element wrapper
      * @param newTitle - New title text
      */
-    private async updateTitle(taskElement: OgtTaskElement, newTitle: string): Promise<void> {
+    private async updateTitle(taskElement: OgtTaskWrapper, newTitle: string): Promise<void> {
         try {
             // Find title wrapper
             const titleWrapper = taskElement.findTitleWrapper();
@@ -350,7 +350,7 @@ class EditTaskInteraction extends BaseInteraction {
      * @param expectedDescription - Expected description
      */
     private async verifyChanges(
-        taskElement: OgtTaskElement,
+        taskElement: OgtTaskWrapper,
         expectedTitle: string,
         expectedDescription: string
     ): Promise<void> {

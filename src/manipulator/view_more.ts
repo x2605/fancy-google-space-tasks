@@ -3,6 +3,10 @@ import * as Logger from '@/core/logger';
 
 Logger.fgtlog('➕ OGT View More loading...');
 
+const findViewMoreElement = function(): HTMLDivElement | null {
+    return document.querySelector('div[role="listitem"][data-id][data-type="5"]') as HTMLDivElement;
+}
+
 /**
  * Wrapper class for the "View more" button element
  * This button appears at the bottom of the task list to load additional tasks
@@ -17,13 +21,13 @@ Logger.fgtlog('➕ OGT View More loading...');
  * }
  */
 class OgtViewMore {
-    _element: Element;
+    _element: HTMLDivElement;
 
     /**
      * Create a view more wrapper
      * @param element - The view more element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLDivElement) {
         if (!element) throw new Error('OgtViewMore requires a valid DOM element');
         this._element = element;
     }
@@ -32,7 +36,7 @@ class OgtViewMore {
      * Get the underlying DOM element
      * @returns The wrapped element
      */
-    get element(): Element { 
+    get element(): HTMLDivElement { 
         return this._element; 
     }
     
@@ -43,8 +47,16 @@ class OgtViewMore {
     isConnected(): boolean { 
         return this._element.isConnected; 
     }
+
+    /**
+     * Find a child button tag
+     * @returns Button tag element which accepts simple click event instead of click emulation.
+     */
+    get button(): HTMLButtonElement { 
+        return this._element.querySelector('button') as HTMLButtonElement; 
+    }
 }
 
-export { OgtViewMore };
+export { findViewMoreElement, OgtViewMore };
 
 Logger.fgtlog('✅ OGT View More loaded');

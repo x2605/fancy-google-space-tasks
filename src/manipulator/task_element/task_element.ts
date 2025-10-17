@@ -1,15 +1,23 @@
 // manipulator/task_element/task_element.ts
 import * as Logger from '@/core/logger';
-import { OgtDeleteButton } from './delete_button';
-import { OgtGoToChatButton } from './go_to_chat_button';
-import { OgtAssigneeButton } from './assignee_button/assignee_button';
-import { OgtDateButton } from './date_button/date_button';
-import { OgtCompleteCheckbox } from './complete_checkbox';
-import { OgtDescWrapper } from './desc_wrapper/desc_wrapper';
-import { OgtTitleWrapper } from './title_wrapper/title_wrapper';
-import { OgtTouchButton } from './touch_button';
+import { findDeleteButtonElement, OgtDeleteButton } from './delete_button';
+import { findGoToChatButtonElement, OgtGoToChatButton } from './go_to_chat_button';
+import { findAssigneeButtonElement, OgtAssigneeButton } from './assignee_button/assignee_button';
+import { findDateButtonElement, OgtDateButton } from './date_button/date_button';
+import { findCompleteCheckboxElement, OgtCompleteCheckbox } from './complete_checkbox';
+import { findDescWrapperElement, OgtDescWrapper } from './desc_wrapper/desc_wrapper';
+import { findTitleWrapperElement, OgtTitleWrapper } from './title_wrapper/title_wrapper';
+import { findTouchButtonElements, OgtTouchButton } from './touch_button';
 
 Logger.fgtlog('📋 OGT Task Element loading...');
+
+const findTaskWrapperElement = function(taskId: string): HTMLDivElement | null {
+    return document.querySelector(`div[role="listitem"][data-id="${taskId}"][data-type="0"]`);
+}
+
+const findAllTaskWrapperElements = function(parent: HTMLElement | Document): NodeListOf<HTMLDivElement> {
+    return parent.querySelectorAll('div[role="listitem"][data-id][data-type="0"]');
+}
 
 /**
  * Wrapper class for the entire task row element in Original Google Tasks
@@ -19,20 +27,20 @@ Logger.fgtlog('📋 OGT Task Element loading...');
  * completion checkbox, date button, assignee button, and action buttons.
  * 
  * The task element is the primary unit of interaction in Google Tasks.
- * Each visible task in the list is represented by one OgtTaskElement instance.
+ * Each visible task in the list is represented by one OgtTaskWrapper instance.
  * 
- * @class OgtTaskElement
+ * @class OgtTaskWrapper
  */
-class OgtTaskElement {
-    _element: Element;
+class OgtTaskWrapper {
+    _element: HTMLDivElement;
 
     /**
      * Create a task element wrapper
      * @param element - The task listitem element from original Google Tasks DOM
      */
-    constructor(element: Element) {
+    constructor(element: HTMLDivElement) {
         if (!element) {
-            throw new Error('OgtTaskElement requires a valid DOM element');
+            throw new Error('OgtTaskWrapper requires a valid DOM element');
         }
         this._element = element;
     }
@@ -41,7 +49,7 @@ class OgtTaskElement {
      * Get the underlying DOM element
      * @returns The wrapped listitem element
      */
-    get element(): Element {
+    get element(): HTMLDivElement {
         return this._element;
     }
 
@@ -60,7 +68,7 @@ class OgtTaskElement {
      * @returns Title wrapper or null if not found
      */
     findTitleWrapper(): OgtTitleWrapper | null {
-        const wrapper = this._element.querySelector('[role="group"][data-max-length]:not([data-multiline])');
+        const wrapper = findTitleWrapperElement(this);
         if (!wrapper) return null;
         return new OgtTitleWrapper(wrapper);
     }
@@ -72,7 +80,7 @@ class OgtTaskElement {
      * @returns Description wrapper or null if not found
      */
     findDescWrapper(): OgtDescWrapper | null {
-        const wrapper = this._element.querySelector('[role="group"][data-multiline][data-max-length]');
+        const wrapper = findDescWrapperElement(this);
         if (!wrapper) return null;
         return new OgtDescWrapper(wrapper);
     }
@@ -84,7 +92,7 @@ class OgtTaskElement {
      * @returns Complete checkbox or null if not found
      */
     findCompleteCheckbox(): OgtCompleteCheckbox | null {
-        const checkbox = this._element.querySelector('button[aria-pressed]');
+        const checkbox = findCompleteCheckboxElement(this);
         if (!checkbox) return null;
         return new OgtCompleteCheckbox(checkbox);
     }
@@ -96,7 +104,7 @@ class OgtTaskElement {
      * @returns Date button or null if not found
      */
     findDateButton(): OgtDateButton | null {
-        const button = this._element.querySelector('[data-first-date-el]');
+        const button = findDateButtonElement(this);
         if (!button) return null;
         return new OgtDateButton(button);
     }
@@ -108,7 +116,7 @@ class OgtTaskElement {
      * @returns Assignee button or null if not found
      */
     findAssigneeButton(): OgtAssigneeButton | null {
-        const button = this._element.querySelector('[role="button"][aria-disabled]:not([data-first-date-el])') as HTMLDivElement;
+        const button = findAssigneeButtonElement(this);
         if (!button) return null;
         return new OgtAssigneeButton(button);
     }
@@ -120,7 +128,7 @@ class OgtTaskElement {
      * @returns Go to chat button or null if not found
      */
     findGoToChatButton(): OgtGoToChatButton | null {
-        const button = this._element.querySelector('button[title]:not([aria-pressed],[data-tooltip-enabled])');
+        const button = findGoToChatButtonElement(this);
         if (!button) return null;
         return new OgtGoToChatButton(button);
     }
@@ -132,7 +140,7 @@ class OgtTaskElement {
      * @returns Delete button or null if not found
      */
     findDeleteButton(): OgtDeleteButton | null {
-        const button = this._element.querySelector('button[data-tooltip-enabled]:not([aria-pressed],[title])');
+        const button = findDeleteButtonElement(this);
         if (!button) return null;
         return new OgtDeleteButton(button);
     }
@@ -142,7 +150,7 @@ class OgtTaskElement {
      * @returns List of touch buttons. [0]: Add button, [1]: Cancel button
      */
     findTouchButtons(): OgtTouchButton[] {
-        const elements = this._element.querySelectorAll('div[data-is-touch-wrapper="true"]') as NodeListOf<HTMLDivElement>;
+        const elements = findTouchButtonElements(this);
         return Array.from(elements).map(el => new OgtTouchButton(el));
     }
 
@@ -198,6 +206,6 @@ class OgtTaskElement {
     }
 }
 
-export { OgtTaskElement };
+export { findTaskWrapperElement, findAllTaskWrapperElements, OgtTaskWrapper };
 
 Logger.fgtlog('✅ OGT Task Element loaded successfully');

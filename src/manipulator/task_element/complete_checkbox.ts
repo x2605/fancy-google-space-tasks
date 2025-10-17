@@ -1,7 +1,12 @@
 // manipulator/task_element/complete_checkbox.ts
 import * as Logger from '@/core/logger';
+import type { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('✅ OGT Complete Checkbox loading...');
+
+const findCompleteCheckboxElement = function(object: OgtTaskWrapper): HTMLButtonElement | null {
+    return object.element.querySelector('button[aria-pressed]') as HTMLButtonElement;
+}
 
 /**
  * Wrapper class for the task completion checkbox button
@@ -16,13 +21,13 @@ Logger.fgtlog('✅ OGT Complete Checkbox loading...');
  * }
  */
 class OgtCompleteCheckbox {
-    _element: Element;
+    _element: HTMLButtonElement;
 
     /**
      * Create a complete checkbox wrapper
      * @param element - The checkbox button element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLButtonElement) {
         if (!element) throw new Error('OgtCompleteCheckbox requires a valid DOM element');
         this._element = element;
     }
@@ -31,7 +36,7 @@ class OgtCompleteCheckbox {
      * Get the underlying DOM element
      * @returns The wrapped button element
      */
-    get element(): Element { 
+    get element(): HTMLButtonElement { 
         return this._element; 
     }
     
@@ -52,6 +57,6 @@ class OgtCompleteCheckbox {
     }
 }
 
-export { OgtCompleteCheckbox };
+export { findCompleteCheckboxElement as findCompleteCheckboxElement, OgtCompleteCheckbox };
 
 Logger.fgtlog('✅ OGT Complete Checkbox loaded');

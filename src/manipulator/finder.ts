@@ -1,17 +1,17 @@
 // manipulator/finder.ts
 import * as Logger from '@/core/logger';
-import { OgtTaskElement } from './task_element/task_element';
-import { OgtDeleteConfirmDialog } from './delete_confirm_dialog';
-import { OgtViewMore } from './view_more';
-import { OgtTaskContainer } from './task_container';
-import { OgtAddNewButton } from './add_new_button';
+import { findTaskWrapperElement, findAllTaskWrapperElements, OgtTaskWrapper } from './task_element/task_element';
+import { findDeleteConfirmDialogElement, OgtDeleteConfirmDialog } from './delete_confirm_dialog';
+import { findViewMoreElement, OgtViewMore } from './view_more';
+import { findTaskContainerElement, findAllTaskContainerElements, OgtTaskContainer } from './task_container';
+import { findAddNewButtonElement, OgtAddNewButton } from './add_new_button';
 
 Logger.fgtlog('🔍 OGT Finder loading...');
 
 /**
  * Top-level finder functions for Original Google Tasks DOM elements
  * These are the entry points for finding elements in the page
- * All functions can accept either taskId (string) or OgtTaskElement instance
+ * All functions can accept either taskId (string) or OgtTaskWrapper instance
  * 
  * @class OgtFinder
  */
@@ -21,30 +21,30 @@ class OgtFinder {
      * @param taskId - The task ID from data-id attribute
      * @returns Task element wrapper or null if not found
      */
-    static findTaskElement(taskId: string): OgtTaskElement | null {
+    static findTaskWrapper(taskId: string): OgtTaskWrapper | null {
         if (!taskId) {
-            Logger.fgterror('findTaskElement requires a taskId');
+            Logger.fgterror('findTaskWrapper requires a taskId');
             return null;
         }
         
-        const element = document.querySelector(`[role="listitem"][data-id="${taskId}"][data-type="0"]`);
+        const element = findTaskWrapperElement(taskId);
         if (!element) {
             return null;
         }
         
-        return new OgtTaskElement(element);
+        return new OgtTaskWrapper(element);
     }
 
     /**
      * Find all task elements in the page
      * @returns Array of task element wrappers
      */
-    static findAllTaskElements(): OgtTaskElement[] {
-        const elements = document.querySelectorAll('[role="listitem"][data-id][data-type="0"]');
-        let array = Array.from(elements).map(el => new OgtTaskElement(el));
+    static findAllTaskWrappers(): OgtTaskWrapper[] {
+        const elements = findAllTaskWrapperElements(document);
+        let array = Array.from(elements).map(el => new OgtTaskWrapper(el));
         for (let i = array.length - 1; i >= 0; i--) {
             const subElements = array[i].findTouchButtons();
-            // OgtTaskElement including 2 or more OgtTouchButton is not real task.
+            // OgtTaskWrapper including 2 or more OgtTouchButton is not real task.
             // 2 buttons: [0]=add, [1]=cancel
             // 3 buttons: [0]=expand description, [1]=add, [2]=cancel
             if (subElements.length >= 2) {
@@ -59,13 +59,13 @@ class OgtFinder {
      *
      * @returns Task element wrapper which contains Add/Cancel button
      */
-    static findTaskElementToBeAdded(): OgtTaskElement | null {
-        const elements = document.querySelectorAll('[role="listitem"][data-id][data-type="0"]');
-        let array = Array.from(elements).map(el => new OgtTaskElement(el));
+    static findTaskWrapperToBeAdded(): OgtTaskWrapper | null {
+        const elements = findAllTaskWrapperElements(document)
+        let array = Array.from(elements).map(el => new OgtTaskWrapper(el));
         let target = null;
         for (let i = 0; i < array.length; i++) {
             const subElements = array[i].findTouchButtons();
-            // OgtTaskElement including 2 or more OgtTouchButton is not real task.
+            // OgtTaskWrapper including 2 or more OgtTouchButton is not real task.
             // 2 buttons: [0]=add, [1]=cancel
             // 3 buttons: [0]=expand description, [1]=add, [2]=cancel
             if (subElements.length >= 2) {
@@ -82,8 +82,7 @@ class OgtFinder {
      * @returns Addnew button or null if not found
      */
     static findAddNewButton(): OgtAddNewButton | null {
-        const anchor = document.querySelector('[role="listitem"]');
-        const element = anchor?.parentElement?.parentElement?.parentElement?.parentElement?.querySelector('button[data-idom-class]') as HTMLButtonElement;
+        const element = findAddNewButtonElement()
 
         if (!element) {
             return null;
@@ -96,8 +95,8 @@ class OgtFinder {
      * Find the first task container
      * @returns Task container wrapper or null if not found
      */
-    static findTaskContainer(): any {
-        const element = document.querySelector('[role="list"]');
+    static findTaskContainer(): OgtTaskContainer | null {
+        const element = findTaskContainerElement();
         if (!element) {
             return null;
         }
@@ -109,8 +108,8 @@ class OgtFinder {
      * Find all task containers in the page
      * @returns Array of task container wrappers
      */
-    static findAllTaskContainers(): any[] {
-        const elements = document.querySelectorAll('[role="list"]');
+    static findAllTaskContainers(): OgtTaskContainer[] {
+        const elements = findAllTaskContainerElements();
         return Array.from(elements).map(el => new OgtTaskContainer(el));
     }
 
@@ -118,8 +117,8 @@ class OgtFinder {
      * Find the "view more" button element
      * @returns View more wrapper or null if not found
      */
-    static findViewMore(): any {
-        const element = document.querySelector('[role="listitem"][data-id][data-type="5"]');
+    static findViewMore(): OgtViewMore | null {
+        const element = findViewMoreElement()
         if (!element) {
             return null;
         }
@@ -129,7 +128,7 @@ class OgtFinder {
 
     /**
      * Find title wrapper for a task
-     * Accepts either taskId or OgtTaskElement for convenience
+     * Accepts either taskId or OgtTaskWrapper for convenience
      * @param taskIdOrElement - Task ID or task element instance
      * @returns Title wrapper or null if not found
      */
@@ -217,7 +216,7 @@ class OgtFinder {
      * @returns Delete confirmation dialog or null if not found
      */
     static findDeleteConfirmDialog(): any {
-        const element = document.querySelector('div[aria-modal="true"][role="dialog"]');
+        const element = findDeleteConfirmDialogElement();
         if (!element) {
             return null;
         }
@@ -226,7 +225,7 @@ class OgtFinder {
     }
 
     /**
-     * Helper: Resolve taskId or OgtTaskElement to OgtTaskElement
+     * Helper: Resolve taskId or OgtTaskWrapper to OgtTaskWrapper
      * Internal method used by other finder functions
      * @param taskIdOrElement - Task ID string or task element instance
      * @returns Resolved task element or null
@@ -236,14 +235,14 @@ class OgtFinder {
             return null;
         }
         
-        // If it's already an OgtTaskElement, return as-is
-        if (taskIdOrElement instanceof OgtTaskElement) {
+        // If it's already an OgtTaskWrapper, return as-is
+        if (taskIdOrElement instanceof OgtTaskWrapper) {
             return taskIdOrElement;
         }
         
         // If it's a string (taskId), find the task element
         if (typeof taskIdOrElement === 'string') {
-            return OgtFinder.findTaskElement(taskIdOrElement);
+            return OgtFinder.findTaskWrapper(taskIdOrElement);
         }
         
         Logger.fgtwarn('Invalid input to finder function: ' + taskIdOrElement);

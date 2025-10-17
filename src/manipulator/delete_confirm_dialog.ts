@@ -3,6 +3,10 @@ import * as Logger from '@/core/logger';
 
 Logger.fgtlog('⚠️ OGT Delete Confirm Dialog loading...');
 
+const findDeleteConfirmDialogElement = function(): HTMLDivElement | null {
+    return document.querySelector('div[aria-modal="true"][role="dialog"]');
+}
+
 /**
  * Wrapper class for the delete confirmation dialog
  * This modal appears when user clicks the delete button
@@ -18,13 +22,13 @@ Logger.fgtlog('⚠️ OGT Delete Confirm Dialog loading...');
  * }
  */
 class OgtDeleteConfirmDialog {
-    _element: Element;
+    _element: HTMLDivElement;
 
     /**
      * Create a delete confirm dialog wrapper
      * @param element - The dialog element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLDivElement) {
         if (!element) throw new Error('OgtDeleteConfirmDialog requires a valid DOM element');
         this._element = element;
     }
@@ -33,7 +37,7 @@ class OgtDeleteConfirmDialog {
      * Get the underlying DOM element
      * @returns The wrapped dialog element
      */
-    get element(): Element { 
+    get element(): HTMLDivElement { 
         return this._element; 
     }
     
@@ -56,6 +60,6 @@ class OgtDeleteConfirmDialog {
     }
 }
 
-export { OgtDeleteConfirmDialog };
+export { findDeleteConfirmDialogElement, OgtDeleteConfirmDialog };
 
 Logger.fgtlog('✅ OGT Delete Confirm Dialog loaded');

@@ -3,7 +3,7 @@ import * as Logger from '@/core/logger';
 import { CoreDOMUtils } from '@/core/dom_utils';
 import { CoreEventUtils } from '@/core/event_utils';
 import { OgtDateSelectDialog } from '@/manipulator/date_select_dialog';
-import { OgtTaskElement } from '@/manipulator/task_element/task_element';
+import { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('🔧 Base Interaction loading...');
 
@@ -81,7 +81,7 @@ class BaseInteraction {
      * Ensure task UI is visible (for narrow screens)
      * @param taskElement - Task element wrapper
      */
-    protected async ensureTaskUIVisible(taskElement: OgtTaskElement): Promise<void> {
+    protected async ensureTaskUIVisible(taskElement: OgtTaskWrapper): Promise<void> {
         if (!taskElement) return;
 
         const firstDiv = taskElement.findFirstDiv();

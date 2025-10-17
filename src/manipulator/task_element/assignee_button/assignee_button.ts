@@ -3,8 +3,13 @@ import * as Logger from '@/core/logger';
 import { OgtAssigneeListbox } from './assignee_listbox';
 import { OgtAssigneeImage } from './assignee_image';
 import { OgtAssigneeText } from './assignee_text';
+import type { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('👤 OGT Assignee Button loading...');
+
+const findAssigneeButtonElement = function(object: OgtTaskWrapper): HTMLDivElement | null {
+    return object.element.querySelector('div[role="button"][aria-disabled]:not([data-first-date-el])');
+}
 
 /**
  * Wrapper class for the assignee button element
@@ -83,6 +88,6 @@ class OgtAssigneeButton {
     }
 }
 
-export { OgtAssigneeButton };
+export { findAssigneeButtonElement, OgtAssigneeButton };
 
 Logger.fgtlog('✅ OGT Assignee Button loaded successfully');

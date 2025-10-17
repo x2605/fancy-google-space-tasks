@@ -1,7 +1,12 @@
 // manipulator/task_element/delete_button.ts
 import * as Logger from '@/core/logger';
+import type { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('🗑️ OGT Delete Button loading...');
+
+const findDeleteButtonElement = function(object: OgtTaskWrapper): HTMLButtonElement | null {
+    return object.element.querySelector('button[data-tooltip-enabled]:not([aria-pressed],[title])');
+}
 
 /**
  * Wrapper class for the task delete button
@@ -44,6 +49,6 @@ class OgtDeleteButton {
     }
 }
 
-export { OgtDeleteButton };
+export { findDeleteButtonElement, OgtDeleteButton };
 
 Logger.fgtlog('✅ OGT Delete Button loaded');

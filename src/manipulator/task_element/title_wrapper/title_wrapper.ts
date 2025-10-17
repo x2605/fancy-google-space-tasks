@@ -1,9 +1,14 @@
 // manipulator/task_element/title_wrapper/title_wrapper.ts
 import * as Logger from '@/core/logger';
-import { OgtTitleEditor } from './title_editor';
-import { OgtTitleViewer } from './title_viewer';
+import { findTitleEditorElement, OgtTitleEditor } from './title_editor';
+import { findTitleViewerElement, OgtTitleViewer } from './title_viewer';
+import type { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('📦 OGT Title Wrapper loading...');
+
+const findTitleWrapperElement = function(object: OgtTaskWrapper): HTMLDivElement | null {
+    return object.element.querySelector('div[role="group"][data-max-length]:not([data-multiline])');
+}
 
 /**
  * Wrapper class for the title area container
@@ -40,7 +45,7 @@ class OgtTitleWrapper {
      * @returns Title viewer wrapper or null if not found
      */
     findTitleViewer(): OgtTitleViewer | null {
-        const viewerElement = this._element.querySelector('[jsname][title]');
+        const viewerElement = findTitleViewerElement(this);
         if (!viewerElement) {
             return null;
         }
@@ -54,7 +59,7 @@ class OgtTitleWrapper {
      * @returns Title editor wrapper or null if not found
      */
     findTitleEditor(): any {
-        const editorElement = this._element.querySelector('textarea[rows][maxlength]') as HTMLTextAreaElement;
+        const editorElement = findTitleEditorElement(this);
         if (!editorElement) {
             return null;
         }
@@ -90,6 +95,6 @@ class OgtTitleWrapper {
     }
 }
 
-export { OgtTitleWrapper };
+export { findTitleWrapperElement, OgtTitleWrapper };
 
 Logger.fgtlog('✅ OGT Title Wrapper loaded successfully');

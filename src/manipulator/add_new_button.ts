@@ -3,6 +3,11 @@ import * as Logger from '@/core/logger';
 
 Logger.fgtlog('🗑️ OGT AddNew Button loading...');
 
+const findAddNewButtonElement = function(): HTMLButtonElement | null {
+    const anchor = document.querySelector('[role="list"]');
+    return anchor?.parentElement?.parentElement?.parentElement?.querySelector('button[data-idom-class]') as HTMLButtonElement;
+}
+
 /**
  * 
  * @class OgtAddNewButton
@@ -36,6 +41,6 @@ class OgtAddNewButton {
     }
 }
 
-export { OgtAddNewButton };
+export { findAddNewButtonElement, OgtAddNewButton };
 
 Logger.fgtlog('✅ OGT AddNew Button loaded');
