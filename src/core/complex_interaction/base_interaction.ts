@@ -3,7 +3,8 @@ import * as Logger from '@/core/logger';
 import { CoreDOMUtils } from '@/core/dom_utils';
 import { CoreEventUtils } from '@/core/event_utils';
 import { OgtDateSelectDialog } from '@/manipulator/date_select_dialog';
-import { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
+import { findTaskWrapperElement, OgtTaskWrapper } from '@/manipulator/task_element/task_element';
+
 
 Logger.fgtlog('🔧 Base Interaction loading...');
 
@@ -153,22 +154,75 @@ class BaseInteraction {
         const timeInput = dateDialog.findTimeInput();
         if (!timeInput) return;
 
+        // Focus input
         timeInput.focus();
+        await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 100));
 
-        // Wait for dropdown to appear
-        await this.waitForElement('div[role="listbox"]', 2000, dateDialog.element);
+        // Clear existing value
+        timeInput.value = '';
+        await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 50));
 
-        const [hour, minute] = timeString.split(':');
-        const targetTime = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:00`;
+        // Type each character using keyboard events
+        for (const char of timeString) {
+            // Get key code and code for this character
+            let keyCode: number;
+            let code: string;
 
-        const timeOption = dateDialog.findTimeOption(targetTime);
-        if (timeOption) {
-            this.triggerClick(timeOption);
+            if (char >= '0' && char <= '9') {
+                keyCode = char.charCodeAt(0);
+                code = `Digit${char}`;
+            } else if (char === ':') {
+                keyCode = 186; // Semicolon key code (Shift+: on most keyboards)
+                code = 'Semicolon';
+            } else {
+                keyCode = char.charCodeAt(0);
+                code = `Key${char.toUpperCase()}`;
+            }
+
+            // Dispatch keydown event
+            const keydownEvent = new KeyboardEvent('keydown', {
+                key: char,
+                code: code,
+                keyCode: keyCode,
+                bubbles: true,
+                cancelable: true
+            });
+            timeInput.dispatchEvent(keydownEvent);
+
+            // Dispatch keypress event
+            const keypressEvent = new KeyboardEvent('keypress', {
+                key: char,
+                code: code,
+                keyCode: keyCode,
+                bubbles: true,
+                cancelable: true
+            });
+            timeInput.dispatchEvent(keypressEvent);
+
+            // Update value manually
+            timeInput.value += char;
+
+            // Dispatch input event
+            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+            timeInput.dispatchEvent(inputEvent);
+
+            // Dispatch keyup event
+            const keyupEvent = new KeyboardEvent('keyup', {
+                key: char,
+                code: code,
+                keyCode: keyCode,
+                bubbles: true,
+                cancelable: true
+            });
+            timeInput.dispatchEvent(keyupEvent);
+
+            // Small delay between characters
+            await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 30));
         }
 
-        // Click outside to close dropdown
-        this.triggerClick(dateDialog.element);
-        await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 300));
+        // Blur input
+        timeInput.blur();
+        await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 100));
     }
 
     /**
@@ -179,7 +233,7 @@ class BaseInteraction {
     protected async verifyTaskElement(taskId: string): Promise<boolean> {
         return new Promise((resolve) => {
             const check = () => {
-                const element = document.querySelector(`[role="listitem"][data-id="${taskId}"][data-type="0"]`);
+                const element = findTaskWrapperElement(taskId);
                 resolve(!!element);
             };
             

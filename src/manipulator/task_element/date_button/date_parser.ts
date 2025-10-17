@@ -401,7 +401,7 @@ export function parseNaturalDate(fullLabel: string, text: string, locale: string
 /**
  * Get locale keywords from global storage
  */
-function getLocaleKeywords(locale: string): LocaleKeywords | null {
+export function getLocaleKeywords(locale: string): LocaleKeywords | null {
     if (typeof window === 'undefined') {
         return null;
     }
@@ -531,7 +531,7 @@ function escapeRegExp(text: string): string {
  * Normalize numbers from local digits to Latin digits
  * Example: Bengali "১২৩" → "123", Devanagari "१२३" → "123"
  */
-function normalizeNumbers(text: string, keywords: LocaleKeywords): string {
+export function normalizeNumbers(text: string, keywords: LocaleKeywords): string {
     if (keywords.usesLatinNumbers || !keywords.numberingDigits) {
         return text;
     }
@@ -929,19 +929,19 @@ function parseRouteC_SpecialKeywords(
 
 /**
  * Extract and remove time from text
- * 
+ *
  * CRITICAL FIXES:
  * 1. Meridiem can appear BEFORE or AFTER time (e.g., "오후 1:30" or "1:30 PM")
  * 2. Correct 12-hour to 24-hour conversion for ALL cases
  * 3. Word boundary for single-letter meridiem (except CJK)
- * 
+ *
  * Pattern examples:
  * - "오후 1:30" (Korean: meridiem before)
  * - "1:30 PM" (English: meridiem after)
  * - "PM 1:30" (meridiem before)
  * - "오후1:30" (Korean: no space, still valid)
  */
-function extractAndRemoveTime(text: string, keywords: LocaleKeywords): { hours: number | null; minutes: number | null; remainingText: string } {
+export function extractAndRemoveTime(text: string, keywords: LocaleKeywords): { hours: number | null; minutes: number | null; remainingText: string } {
     const timeSep = keywords.timeSeparator || ':';
     const timeSepEscaped = timeSep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     

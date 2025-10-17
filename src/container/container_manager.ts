@@ -490,6 +490,8 @@ class ContainerManager {
      * Executes immediately after operation verification completes
      */
     handleTableDataChange() {
+        Logger.fgtlog('🔍 [DEBUG] handleTableDataChange called');
+
         // Skip if already rendering to prevent double render
         if (this.operationVerifier && this.operationVerifier.isOperationInProgress()) {
             Logger.fgtlog('⏸️ Skipping table refresh - operation in progress');
@@ -499,6 +501,7 @@ class ContainerManager {
         Logger.fgtlog('📊 Table data changed, refreshing...');
         this.lastManualRefreshTime = Date.now();
         this.extractAndDisplayTasks();
+        Logger.fgtlog('🔍 [DEBUG] extractAndDisplayTasks completed');
     }
 
     /**
@@ -1279,6 +1282,8 @@ class ContainerManager {
             allCategories: allCategories,
             namespace: this.namespace,
             onConfirm: (resultData: any) => {
+                Logger.fgtlog('🔍 [DEBUG] onConfirm callback triggered in container_manager');
+
                 // Clear modal flag
                 this.isShowingTaskModal = false;
 
@@ -1290,7 +1295,9 @@ class ContainerManager {
                 Logger.fgtlog('✅ Task modal confirmed:' + resultData);
 
                 // Trigger manual refresh to ensure table re-renders immediately
+                Logger.fgtlog('🔍 [DEBUG] About to call handleTableDataChange()');
                 this.handleTableDataChange();
+                Logger.fgtlog('🔍 [DEBUG] handleTableDataChange() returned');
             },
             onCancel: () => {
                 // Clear modal flag

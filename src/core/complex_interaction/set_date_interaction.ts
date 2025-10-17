@@ -3,7 +3,7 @@ import * as Logger from '@/core/logger';
 import { CoreNotificationUtils } from '@/core/notification_utils';
 import { CoreEventUtils } from '@/core/event_utils';
 import { OgtFinder } from '@/manipulator/finder';
-import { OgtDateSelectDialog } from '@/manipulator/date_select_dialog';
+import { findDateSelectDialogElement, OgtDateSelectDialog } from '@/manipulator/date_select_dialog';
 import { BaseInteraction } from './base_interaction';
 
 Logger.fgtlog('📅 Set Date Interaction loading...');
@@ -41,7 +41,7 @@ class SetDateInteraction extends BaseInteraction {
 
             if (!dateString) {
                 // Clear date
-                const deleteButton = dateDialog.element.querySelector('button:not([data-mdc-dialog-action])');
+                const deleteButton = dateDialog.findDeleteButton();
                 if (deleteButton) {
                     this.triggerClick(deleteButton);
                 } else {
@@ -74,7 +74,7 @@ class SetDateInteraction extends BaseInteraction {
 
             // Confirm
             await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 300));
-            const newDialog = new OgtDateSelectDialog(document.querySelector('div[aria-modal="true"][role="dialog"]') as HTMLDivElement);
+            const newDialog = new OgtDateSelectDialog(findDateSelectDialogElement());
             const okButton = newDialog.findDateConfirmButton();
             if (!okButton) throw new Error('OK button not found');
 

@@ -3,6 +3,7 @@ import * as Logger from '@/core/logger';
 import { CoreEventUtils } from './event_utils';
 import { CoreNotificationUtils } from './notification_utils';
 import { CoreDOMUtils } from './dom_utils';
+import { findTaskWrapperElement } from '@/manipulator/task_element/task_element';
 
 Logger.fgtlog('🔍 Operation Verifier loading...');
 
@@ -341,7 +342,7 @@ class OperationVerifier {
      */
     static waitForTaskDelete(taskId: string): Function {
         return () => {
-            return !document.querySelector(`[role="listitem"][data-id="${taskId}"][data-type="0"]`);
+            return !findTaskWrapperElement(taskId);
         };
     }
 
@@ -354,7 +355,7 @@ class OperationVerifier {
      */
     static waitForTaskAttributeChange(taskId: string, attribute: string, expectedValue: string): Function {
         return () => {
-            const element = document.querySelector(`[role="listitem"][data-id="${taskId}"][data-type="0"]`);
+            const element = findTaskWrapperElement(taskId);
             if (!element) return false;
 
             const actualValue = element.querySelector(`[${attribute}]`)?.getAttribute(attribute);

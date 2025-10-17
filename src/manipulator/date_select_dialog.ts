@@ -99,11 +99,27 @@ class OgtDateSelectDialog {
     }
     
     /**
+     * Find the time input text field wrapper
+     * @returns The time input wrapper or null if not found
+     */
+    findTimeInputWrapper(): HTMLDivElement | null {
+        return this._element.querySelector('div[data-use-native-validation]');
+    }
+
+    /**
      * Find the time input text field
      * @returns The time input or null if not found
      */
     findTimeInput(): HTMLInputElement | null {
-        return this._element.querySelector('input[type="text"]');
+        return this.findTimeInputWrapper()?.querySelector('input[type="text"]') as HTMLInputElement;
+    }
+    
+    /**
+     * Find the time icon next to time input text field
+     * @returns The time icon div or null if not found
+     */
+    findTimeIcon(): HTMLDivElement | null {
+        return this._element.querySelector('i[aria-hidden]')?.parentElement as HTMLDivElement;
     }
     
     /**

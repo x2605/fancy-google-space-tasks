@@ -67,7 +67,7 @@ class OgtDateButton {
      * @param timeout - Maximum wait time in milliseconds
      * @returns Promise resolving to dialog wrapper
      */
-    async waitForDateSelectDialog(timeout: number = 3000): Promise<any> {
+    async waitForDateSelectDialog(timeout: number = 3000): Promise<OgtDateSelectDialog> {
         const startTime = Date.now();
         while (Date.now() - startTime < timeout) {
             const dialog = findDateSelectDialogElement();
