@@ -126,7 +126,7 @@ export async function testDateParser(
 
     try {
         const lines = testContent.split('\n');
-        let currentLocale = 'en'; // Default locale
+        let currentLocale = ''; // No default locale
         let totalTests = 0;
         let successCount = 0;
         let failCount = 0;

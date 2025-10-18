@@ -197,8 +197,12 @@ class ContainerManager {
 
         try {
             // Load locale keywords in global scope
-            const locale = document.documentElement.lang || 'en';
-            await loadLocaleKeywords(locale);
+            const locale = document.documentElement.lang || '';
+            if (locale) {
+                await loadLocaleKeywords(locale);
+            } else {
+                Logger.fgtwarn('⚠️ No locale detected - Date features will be disabled');
+            }
 
             // Initialize storage key for current space
             this.initializeStorageKey();

@@ -501,7 +501,7 @@ class TableRenderer {
         const assigneeColorStyle = this.getAssigneeButtonStyle(task);
         
         // Format date for display
-        const locale = document.documentElement.lang || 'en';
+        const locale = document.documentElement.lang || '';
         const dateInfo = parseNaturalDate(task.dateFull || '', task.date || '', locale);
         const formattedDate = formatDateForButton(dateInfo);
         

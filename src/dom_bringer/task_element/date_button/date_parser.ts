@@ -294,6 +294,13 @@ export interface LocaleKeywords {
  * - en-US (US English) → en (English)
  */
 export async function loadLocaleKeywords(locale: string): Promise<LocaleKeywords> {
+    // Early return for empty locale
+    if (!locale || locale.trim() === '') {
+        const errorMsg = 'Empty locale provided - cannot load keywords';
+        Logger.fgterror(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
+    }
+
     // Initialize FGT_LOCALE (can be changed in this block after)
     window.FGT_LOCALE = locale;
 
@@ -1403,8 +1410,8 @@ export function formatDateForModal(dateInfo: ParsedDateInfo | null): string {
  */
 export function parseMonthYearLabel(labelText: string): { year: number; month: number } | null {
     const locale: string = (typeof window !== 'undefined')
-        ? (window.FGT_LOCALE || document.documentElement.lang || 'en')
-        : 'en';
+        ? (window.FGT_LOCALE || document.documentElement.lang || '')
+        : '';
 
     const keywords = getLocaleKeywords(locale);
     if (!keywords) {

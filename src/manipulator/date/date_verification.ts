@@ -105,7 +105,7 @@ export class DateVerification {
                     Logger.fgtlog(`  - text: "${originalText}" → "${currentText}"`);
 
                     // Parse the new date
-                    const locale = document.documentElement.lang || 'en';
+                    const locale = document.documentElement.lang || '';
                     const dateInfo = parseNaturalDate(currentFullLabel, currentText, locale);
 
                     if (!dateInfo) {

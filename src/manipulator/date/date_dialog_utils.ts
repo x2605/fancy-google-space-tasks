@@ -408,7 +408,7 @@ export class DateDialogUtils {
         Logger.fgtlog(`🕐 Raw time input value: "${rawTimeValue}"`);
 
         // Parse using date_parser with locale support
-        const locale = document.documentElement.lang || 'en';
+        const locale = document.documentElement.lang || '';
         const keywords = getLocaleKeywords(locale);
         if (!keywords) {
             Logger.fgtwarn('⚠️ Could not get locale keywords for time parsing');
