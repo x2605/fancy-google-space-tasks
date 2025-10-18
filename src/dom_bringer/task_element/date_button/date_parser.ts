@@ -381,7 +381,8 @@ export async function loadLocaleKeywords(locale: string): Promise<LocaleKeywords
  * @param locale - Locale code (e.g., "en", "ko", "vi")
  * @returns Date object or null if parsing fails
  */
-export function parseNaturalDate(fullLabel: string, text: string, locale: string): ParsedDateInfo | null {
+export function parseNaturalDate(fullLabel: string, text: string, locale: string, options?: { verbose?: boolean }): ParsedDateInfo | null {
+    const verbose = options?.verbose ?? false;
     const keywords = getLocaleKeywords(locale);
     if (!keywords) {
         Logger.fgtwarn(`[DateParser] No keywords found for locale: ${locale}`);
@@ -407,29 +408,29 @@ export function parseNaturalDate(fullLabel: string, text: string, locale: string
 
     // ROUTE SELECTION:
     // Priority 1: Check for "week" keyword → ROUTE B (Weeks Mode)
-    const hasWeek = containsWeekKeyword(normalizedFullLabel, keywords) || 
-                    containsWeekKeyword(normalizedText, keywords);
-    
+    const hasWeek = containsWeekKeyword(normalizedFullLabel, keywords, verbose) ||
+                    containsWeekKeyword(normalizedText, keywords, verbose);
+
     if (hasWeek) {
-        return parseRouteB_RelativeDates(normalizedFullLabel, normalizedText, keywords, fullLabel, 'week');
+        return parseRouteB_RelativeDates(normalizedFullLabel, normalizedText, keywords, fullLabel, 'week', verbose);
     }
-    
+
     // Priority 2: Check for "2-6 days ago" pattern → ROUTE B (Days Mode)
     const hasRecentDays = detectRecentDayPattern(normalizedFullLabel, normalizedText);
-    
+
     if (hasRecentDays) {
-        return parseRouteB_RelativeDates(normalizedFullLabel, normalizedText, keywords, fullLabel, 'day');
+        return parseRouteB_RelativeDates(normalizedFullLabel, normalizedText, keywords, fullLabel, 'day', verbose);
     }
-    
+
     // Priority 3: Try ROUTE A (Absolute Dates)
-    const result = parseRouteA_AbsoluteDates(normalizedFullLabel, normalizedText, keywords, fullLabel, text);
-    
+    const result = parseRouteA_AbsoluteDates(normalizedFullLabel, normalizedText, keywords, fullLabel, text, verbose);
+
     if (result) {
         return result;
     }
-    
+
     // Priority 4: Fallback to ROUTE C (Special Keywords)
-    return parseRouteC_SpecialKeywords(normalizedFullLabel, normalizedText, keywords);
+    return parseRouteC_SpecialKeywords(normalizedFullLabel, normalizedText, keywords, verbose);
 }
 
 /**
@@ -517,20 +518,22 @@ function detectRecentDayPattern(fullLabel: string, text: string): boolean {
  * - extractAndRemoveMonth() splits month name variants
  * - extractAndRemoveTime() splits meridiem variants
  */
-function containsWeekKeyword(text: string, keywords: LocaleKeywords): boolean {
+function containsWeekKeyword(text: string, keywords: LocaleKeywords, verbose: boolean = false): boolean {
     if (!keywords.week) {
-        Logger.fgtlog(`[containsWeekKeyword] No week keywords defined`);
+        if (verbose) Logger.fgtlog(`[containsWeekKeyword] No week keywords defined`);
         return false;
     }
 
     const textLower = text.toLowerCase();
-    Logger.fgtlog(`[containsWeekKeyword] Testing text: "${text}" (lower: "${textLower}")`);
-    Logger.fgtlog(`[containsWeekKeyword] Week keywords - singular: ${keywords.week.singular}, plural: ${keywords.week.plural}`);
+    if (verbose) {
+        Logger.fgtlog(`[containsWeekKeyword] Testing text: "${text}" (lower: "${textLower}")`);
+        Logger.fgtlog(`[containsWeekKeyword] Week keywords - singular: ${keywords.week.singular}, plural: ${keywords.week.plural}`);
+    }
 
     // Check singular variants
     if (keywords.week.singular) {
         const singularVariants = keywords.week.singular.split('|');
-        Logger.fgtlog(`[containsWeekKeyword] Checking ${singularVariants.length} singular variant(s)`);
+        if (verbose) Logger.fgtlog(`[containsWeekKeyword] Checking ${singularVariants.length} singular variant(s)`);
         for (const variant of singularVariants) {
             // Match keyword with flexible boundaries:
             // Before keyword: start of string OR whitespace OR digit (allows "1주전")
@@ -538,9 +541,9 @@ function containsWeekKeyword(text: string, keywords: LocaleKeywords): boolean {
             // This prevents false positives like "понедельник" containing "недел"
             // while allowing both "1 주 전" (with spaces) and "1주전" (without spaces)
             const pattern = new RegExp(`(?:^|\\s|\\d)${escapeRegExp(variant.toLowerCase())}(?:$|\\s)`);
-            Logger.fgtlog(`[containsWeekKeyword]   - Testing singular variant "${variant}" with pattern: ${pattern.toString()}`);
+            if (verbose) Logger.fgtlog(`[containsWeekKeyword]   - Testing singular variant "${variant}" with pattern: ${pattern.toString()}`);
             if (pattern.test(textLower)) {
-                Logger.fgtlog(`[containsWeekKeyword]   ✅ MATCH found with singular variant "${variant}"`);
+                if (verbose) Logger.fgtlog(`[containsWeekKeyword]   ✅ MATCH found with singular variant "${variant}"`);
                 return true;
             }
         }
@@ -549,18 +552,18 @@ function containsWeekKeyword(text: string, keywords: LocaleKeywords): boolean {
     // Check plural variants
     if (keywords.week.plural) {
         const pluralVariants = keywords.week.plural.split('|');
-        Logger.fgtlog(`[containsWeekKeyword] Checking ${pluralVariants.length} plural variant(s)`);
+        if (verbose) Logger.fgtlog(`[containsWeekKeyword] Checking ${pluralVariants.length} plural variant(s)`);
         for (const variant of pluralVariants) {
             const pattern = new RegExp(`(?:^|\\s|\\d)${escapeRegExp(variant.toLowerCase())}(?:$|\\s)`);
-            Logger.fgtlog(`[containsWeekKeyword]   - Testing plural variant "${variant}" with pattern: ${pattern.toString()}`);
+            if (verbose) Logger.fgtlog(`[containsWeekKeyword]   - Testing plural variant "${variant}" with pattern: ${pattern.toString()}`);
             if (pattern.test(textLower)) {
-                Logger.fgtlog(`[containsWeekKeyword]   ✅ MATCH found with plural variant "${variant}"`);
+                if (verbose) Logger.fgtlog(`[containsWeekKeyword]   ✅ MATCH found with plural variant "${variant}"`);
                 return true;
             }
         }
     }
 
-    Logger.fgtlog(`[containsWeekKeyword] ❌ No week keyword match found`);
+    if (verbose) Logger.fgtlog(`[containsWeekKeyword] ❌ No week keyword match found`);
     return false;
 }
 
@@ -705,7 +708,7 @@ function createAndValidateDate(year: number, month: number, day: number): Date |
 
 /**
  * ROUTE A: Parse absolute dates
- * 
+ *
  * Sequential removal from BOTH texts simultaneously:
  * 1. Remove time (both)
  * 2. Remove year (fullLabel required, text optional)
@@ -718,7 +721,8 @@ function parseRouteA_AbsoluteDates(
     text: string,
     keywords: LocaleKeywords,
     originalFullLabel: string,
-    originalText: string
+    originalText: string,
+    verbose: boolean = false
 ): ParsedDateInfo | null {
     let fullLabelRemaining = fullLabel;
     let textRemaining = text;
@@ -744,57 +748,59 @@ function parseRouteA_AbsoluteDates(
     // STEP A2: Remove YEAR from fullLabel (required) and text (optional)
     const fullLabelYearResult = extractNumber(fullLabelRemaining, 'year', keywords);
     if (!fullLabelYearResult) {
-        Logger.fgtlog(`[ROUTE A] Failed: No year found in fullLabel`);
+        if (verbose) Logger.fgtlog(`[ROUTE A] Failed: No year found in fullLabel`);
         return null;
     }
-    
+
     extractedYear = parseInt(fullLabelYearResult.number, 10);
     fullLabelRemaining = fullLabelYearResult.remaining;
-    
+
     // Try to extract year from text (may not exist if current year)
     const textYearResult = extractNumber(textRemaining, 'year', keywords);
     if (textYearResult) {
         const textYear = parseInt(textYearResult.number, 10);
         if (textYear !== extractedYear) {
-            Logger.fgtlog(`[ROUTE A] Failed: Year mismatch (fullLabel=${extractedYear}, text=${textYear})`);
+            if (verbose) Logger.fgtlog(`[ROUTE A] Failed: Year mismatch (fullLabel=${extractedYear}, text=${textYear})`);
             return null;
         }
         textRemaining = textYearResult.remaining;
     }
-    
+
     // STEP A3: Remove MONTH from both texts
     const monthResult = extractAndRemoveMonth(fullLabelRemaining, textRemaining, keywords);
     if (!monthResult) {
-        Logger.fgtlog(`[ROUTE A] Failed: No month found`);
+        if (verbose) Logger.fgtlog(`[ROUTE A] Failed: No month found`);
         return null;
     }
-    
+
     extractedMonth = monthResult.month;
     fullLabelRemaining = monthResult.fullLabelRemaining;
     textRemaining = monthResult.textRemaining;
-    
+
     // STEP A4: Remove DAY from both texts
     const fullLabelDayResult = extractNumber(fullLabelRemaining, 'day', keywords);
     if (!fullLabelDayResult) {
-        Logger.fgtlog(`[ROUTE A] Failed: No day found in fullLabel`);
+        if (verbose) Logger.fgtlog(`[ROUTE A] Failed: No day found in fullLabel`);
         return null;
     }
-    
+
     extractedDay = parseInt(fullLabelDayResult.number, 10);
     fullLabelRemaining = fullLabelDayResult.remaining;
-    
+
     const textDayResult = extractNumber(textRemaining, 'day', keywords);
     if (textDayResult) {
         textRemaining = textDayResult.remaining;
     }
-    
+
     // STEP A5: Validate no digits remain
     if (hasRemainingDigits(fullLabelRemaining, keywords) || hasRemainingDigits(textRemaining, keywords)) {
-        Logger.fgtlog(`[ROUTE A] Failed: Digits remain after parsing`);
-        Logger.fgtlog(`  Original fullLabel: "${originalFullLabel}"`);
-        Logger.fgtlog(`  Remaining fullLabel: "${fullLabelRemaining}"`);
-        Logger.fgtlog(`  Original text: "${originalText}"`);
-        Logger.fgtlog(`  Remaining text: "${textRemaining}"`);
+        if (verbose) {
+            Logger.fgtlog(`[ROUTE A] Failed: Digits remain after parsing`);
+            Logger.fgtlog(`  Original fullLabel: "${originalFullLabel}"`);
+            Logger.fgtlog(`  Remaining fullLabel: "${fullLabelRemaining}"`);
+            Logger.fgtlog(`  Original text: "${originalText}"`);
+            Logger.fgtlog(`  Remaining text: "${textRemaining}"`);
+        }
         return null;
     }
     
@@ -817,10 +823,10 @@ function parseRouteA_AbsoluteDates(
 
 /**
  * ROUTE B: Parse relative dates (days or weeks based)
- * 
+ *
  * Mode 'day': "2 days ago", "3일 전" (day keyword optional)
  * Mode 'week': "1 week ago", "48주 전" (week keyword required for detection)
- * 
+ *
  * @param mode - 'day' or 'week' determines multiplier and keyword handling
  */
 function parseRouteB_RelativeDates(
@@ -828,7 +834,8 @@ function parseRouteB_RelativeDates(
     _text: string,
     keywords: LocaleKeywords,
     originalFullLabel: string,
-    mode: 'day' | 'week'
+    mode: 'day' | 'week',
+    verbose: boolean = false
 ): ParsedDateInfo | null {
     // Use fullLabel for parsing (it has complete information)
     let remaining = fullLabel;
@@ -836,24 +843,26 @@ function parseRouteB_RelativeDates(
     // STEP B1: Extract COUNT
     const countResult = extractNumber(remaining, 'count', keywords);
     if (!countResult) {
-        Logger.fgtlog(`[ROUTE B] Failed: No count found`);
+        if (verbose) Logger.fgtlog(`[ROUTE B] Failed: No count found`);
         return null;
     }
-    
+
     const count = parseInt(countResult.number, 10);
     remaining = countResult.remaining;
-    
+
     // Validate count is reasonable (1-999)
     if (count < 1 || count > 999) {
-        Logger.fgtlog(`[ROUTE B] Failed: Count out of range: ${count}`);
+        if (verbose) Logger.fgtlog(`[ROUTE B] Failed: Count out of range: ${count}`);
         return null;
     }
-    
+
     // STEP B2: Validate no digits remain
     if (hasRemainingDigits(remaining, keywords)) {
-        Logger.fgtlog(`[ROUTE B] Failed: Digits remain after parsing`);
-        Logger.fgtlog(`  Original fullLabel: "${originalFullLabel}"`);
-        Logger.fgtlog(`  Remaining: "${remaining}"`);
+        if (verbose) {
+            Logger.fgtlog(`[ROUTE B] Failed: Digits remain after parsing`);
+            Logger.fgtlog(`  Original fullLabel: "${originalFullLabel}"`);
+            Logger.fgtlog(`  Remaining: "${remaining}"`);
+        }
         return null;
     }
     
@@ -889,12 +898,12 @@ function parseRouteB_RelativeDates(
 
 /**
  * ROUTE C: Parse special keywords (today, tomorrow, yesterday)
- * 
+ *
  * CRITICAL FIX: Also extract time information
- * 
+ *
  * Before: Only returned date with 00:00 time
  * After: Extracts time using extractAndRemoveTime
- * 
+ *
  * Examples:
  * - "내일 오전 12:30" → Tomorrow at 00:30
  * - "오늘 오후 8:30" → Today at 20:30
@@ -903,7 +912,8 @@ function parseRouteB_RelativeDates(
 function parseRouteC_SpecialKeywords(
     fullLabel: string,
     text: string,
-    keywords: LocaleKeywords
+    keywords: LocaleKeywords,
+    verbose: boolean = false
 ): ParsedDateInfo | null {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -954,9 +964,11 @@ function parseRouteC_SpecialKeywords(
     
     // If no keyword matched, fail
     if (!resultDate) {
-        Logger.fgtlog(`[ROUTE C] Failed: No special keywords matched`);
-        Logger.fgtlog(`  fullLabel: "${fullLabel}"`);
-        Logger.fgtlog(`  text: "${text}"`);
+        if (verbose) {
+            Logger.fgtlog(`[ROUTE C] Failed: No special keywords matched`);
+            Logger.fgtlog(`  fullLabel: "${fullLabel}"`);
+            Logger.fgtlog(`  text: "${text}"`);
+        }
         return null;
     }
     

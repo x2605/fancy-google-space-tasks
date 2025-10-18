@@ -1,5 +1,6 @@
 // manipulator/date/date_controller.ts - Main controller for date/time manipulation
 import * as Logger from '@/core/logger';
+import { CoreDOMUtils } from '@/core/dom_utils';
 import { DateVerification } from './date_verification';
 import { DateDialogUtils } from './date_dialog_utils';
 import { OgtDateSelectDialog } from '@/dom_bringer/date_select_dialog';
@@ -81,8 +82,17 @@ export class DateController {
                 if (snippetMode) console.log('🖱️ [SNIPPET MODE] Clicking delete button...');
                 deleteButton.click();
 
-                // Wait for dialog to close
-                await DateDialogUtils.waitForDialogClose(dialog);
+                // Wait a moment for delete action to be processed
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Click OK button to confirm deletion
+                Logger.fgtlog('🖱️ Clicking OK button to confirm deletion...');
+                if (snippetMode) console.log('🖱️ [SNIPPET MODE] Clicking OK button to confirm deletion...');
+                await DateDialogUtils.clickOkButton(dialog, snippetMode);
+
+                // Blur currently focused element to trigger Google Tasks DOM update
+                await CoreDOMUtils.blurActiveElement(AFTER_FOCUS_BLUR_WAIT);
+
                 Logger.fgtlog('✅ Date deleted successfully');
                 if (snippetMode) console.log('✅ [SNIPPET MODE] Date deleted successfully');
                 return true;
@@ -128,12 +138,7 @@ export class DateController {
             await DateDialogUtils.clickOkButton(dialog, snippetMode);
 
             // Blur currently focused element (titleEditor) to trigger Google Tasks DOM update
-            Logger.fgtlog('👋 Blurring currently focused element...');
-            if (document.activeElement && document.activeElement instanceof HTMLElement) {
-                Logger.fgtlog(`  - Focused element: ${document.activeElement.tagName}`);
-                document.activeElement.blur();
-                await new Promise(resolve => setTimeout(resolve, AFTER_FOCUS_BLUR_WAIT));
-            }
+            await CoreDOMUtils.blurActiveElement(AFTER_FOCUS_BLUR_WAIT);
 
             // Verify changes by polling for DOM update
             // IMPORTANT: Must pass taskElement to allow refetching

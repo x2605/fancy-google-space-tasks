@@ -70,6 +70,14 @@ class OgtDateButton {
     get text(): string {
         return this._element.textContent?.trim() || '';
     }
+
+    /**
+     * Checks whether the button shows default label
+     * @returns true if default label, false if date is specified
+     */
+    isEmpty(): boolean {
+        return this.fullLabel === this.text;
+    }
     
     /**
      * Wait for date selection dialog to appear after clicking button

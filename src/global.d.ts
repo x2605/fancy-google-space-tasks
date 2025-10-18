@@ -92,7 +92,7 @@ declare global {
         linkifyStr: (text: string) => HtmlString;
 
         // FGT locale system (ALL_CAPS globals only)
-        FGT_LOCALE?: string;
+        FGT_LOCALE: string;
         FGT_DATE_KEYWORDS?: Record<string, LocaleKeywords>;
         FGT_GET_LOCALE_KEYWORDS?: (key: string) => LocaleKeywords | null;
     }

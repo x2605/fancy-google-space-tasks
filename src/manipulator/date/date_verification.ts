@@ -24,7 +24,7 @@ export class DateVerification {
      * Verify date/time change by polling date button for DOM updates
      *
      * @param taskElement - Task element wrapper for refetching to avoid stale references
-     * @param expectedDate - Expected date (YYYY-MM-DD)
+     * @param expectedDate - Expected date (YYYY-MM-DD) or null for date deletion
      * @param expectedTime - Expected time (HH:MM to verify time, null/'' to expect cleared time, undefined to skip time verification)
      * @param originalFullLabel - Original fullLabel before change
      * @param originalText - Original text before change
@@ -33,7 +33,7 @@ export class DateVerification {
      */
     static async verifyDateTimeChange(
         taskElement: OgtTaskWrapper,
-        expectedDate: string,
+        expectedDate: string | null,
         expectedTime: string | null | undefined,
         originalFullLabel: string,
         originalText: string,
@@ -44,7 +44,8 @@ export class DateVerification {
         // Check if this is a past date + time-only change scenario
         // For past dates, Google Tasks doesn't display time in the date button,
         // so we need to verify by opening the calendar dialog and checking time input directly
-        const isPastDateTimeChange = this.isPastDateWithTimeChange(expectedDate, expectedTime);
+        // Skip this check if expectedDate is null (date deletion case)
+        const isPastDateTimeChange = expectedDate !== null && this.isPastDateWithTimeChange(expectedDate, expectedTime);
 
         if (isPastDateTimeChange) {
             Logger.fgtlog('🔍 Detected past date + time change scenario, will verify via calendar dialog');
@@ -104,6 +105,21 @@ export class DateVerification {
                     Logger.fgtlog(`  - fullLabel: "${originalFullLabel}" → "${currentFullLabel}"`);
                     Logger.fgtlog(`  - text: "${originalText}" → "${currentText}"`);
 
+                    // Check for date deletion case
+                    if (expectedDate === null) {
+                        // Expecting date deletion - check if date button is now empty
+                        if (dateButton.isEmpty()) {
+                            Logger.fgtlog('✅ Date successfully deleted (button is now empty)');
+                            if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
+                            if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
+                            resolve(true);
+                            return true;
+                        } else {
+                            Logger.fgtwarn('⚠️ Expected empty date button after deletion, but date is still set');
+                            return false;
+                        }
+                    }
+
                     // Parse the new date
                     const locale = document.documentElement.lang || '';
                     const dateInfo = parseNaturalDate(currentFullLabel, currentText, locale);
@@ -116,11 +132,11 @@ export class DateVerification {
                     // Parse expected date
                     const [expYear, expMonth, expDay] = expectedDate.split('-').map(Number);
 
-                    // Check if "# week(s) ago" pattern (flexible date range)
+                    // Check if "# week(s) ago" pattern using dateInfo.weekago field (works for all locales)
                     // This pattern appears for past dates that are 7+ days ago
-                    const weeksAgoMatch = currentText.match(/^(\d+)\s+weeks?\s+ago$/i);
-                    if (weeksAgoMatch) {
-                        const weeksAgo = parseInt(weeksAgoMatch[1]);
+                    // date_parser.ts returns: year=0, month=0, day=0, weekago=N
+                    if (dateInfo.weekago && dateInfo.weekago > 0) {
+                        const weeksAgo = dateInfo.weekago;
 
                         // Calculate flexible date range: n*7 to n*7+6 days ago from today
                         const today = new Date();
@@ -131,7 +147,8 @@ export class DateVerification {
 
                         const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - maxDaysAgo);
                         const maxDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - minDaysAgo);
-                        const actualDate = new Date(dateInfo.year, dateInfo.month - 1, dateInfo.day);
+                        // Use expected date (not dateInfo which is 0-0-0 for weeks ago pattern)
+                        const actualDate = new Date(expYear, expMonth - 1, expDay);
 
                         if (actualDate >= minDate && actualDate <= maxDate) {
                             Logger.fgtlog(`✅ Date verified (weeks ago pattern): ${weeksAgo} week(s) ago is within range`);

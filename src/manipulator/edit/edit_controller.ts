@@ -96,7 +96,7 @@ export class EditController extends TaskManipulatorBase {
 
             // Step 5: Finalize
             Logger.fgtlog('🏁 Step 5: Finalizing');
-            document.activeElement && (document.activeElement as HTMLElement).blur();
+            await CoreDOMUtils.blurActiveElement(500);
 
             await new Promise(resolve => CoreEventUtils.timeouts.create(resolve, 500));
 

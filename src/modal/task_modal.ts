@@ -129,7 +129,8 @@ class TaskModal extends ModalBase {
             this.parsedDateInfo = parseNaturalDate(
                 this.originalTask.dateFull,
                 this.originalTask.date || '',
-                window.FGT_LOCALE
+                window.FGT_LOCALE,
+                { verbose: true }
             );
             Logger.fgtlog(`📅 Date info parsed and cached: year=${this.parsedDateInfo?.year}, month=${this.parsedDateInfo?.month}, day=${this.parsedDateInfo?.day}, weekago=${this.parsedDateInfo?.weekago}`);
         } else {
@@ -214,7 +215,11 @@ class TaskModal extends ModalBase {
             }
         }
 
-        Logger.fgtlog('📝 Task modal opened: ' + this.actionType + ' for task ' + (this.taskId || 'new'));
+        // Get extension version for debugging
+        const manifest = chrome.runtime.getManifest();
+        const version = manifest.version;
+
+        Logger.fgtlog(`📝 Task modal opened (v${version}): ${this.actionType} for task ${this.taskId || 'new'}`);
 
         // Log original task data for debugging
         if (this.originalTask) {
@@ -1681,7 +1686,7 @@ class TaskModal extends ModalBase {
                 // Wait for DOM changes to be applied and verified
                 const verified = await DateVerification.verifyDateTimeChange(
                     taskElement,
-                    newDateValue,
+                    newDateValue || null,
                     timeToSet,
                     originalFullLabel,
                     originalText,
