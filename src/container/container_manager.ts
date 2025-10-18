@@ -11,11 +11,11 @@ import { TableRenderer } from '@/table/table_renderer';
 import { TableEvents } from '@/table/table_events';
 import { CategoryParser } from '@/category/category_parser';
 import { TaskChangeDetector } from '@/core/change_detector';
-import { OgtFinder } from '@/manipulator/finder';
+import { OgtFinder } from '@/dom_bringer/finder';
 import { singletonAssigneeColorUtils } from '@/assignee/assignee_color_utils';
 import { TaskModal } from '@/modal/task_modal';
-import { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
-import { loadLocaleKeywords } from '@/manipulator/task_element/date_button/date_parser';
+import { OgtTaskWrapper } from '@/dom_bringer/task_element/task_element';
+import { loadLocaleKeywords } from '@/dom_bringer/task_element/date_button/date_parser';
 import { flashTaskHighlight } from '@/utils/flash_highlight';
 import type { ChangedFields } from '@/core/task_id_utils';
 

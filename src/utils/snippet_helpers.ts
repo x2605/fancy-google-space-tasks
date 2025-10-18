@@ -16,9 +16,9 @@
 // ============================================================
 
 import * as Logger from '@/core/logger';
-import { DateManipulator } from '@/manipulator/date_manipulator';
+import { DateController } from '@/manipulator/date/date_controller';
 import { CoreDOMUtils } from '@/core/dom_utils';
-import { OgtFinder } from '@/manipulator/finder';
+import { OgtFinder } from '@/dom_bringer/finder';
 
 Logger.fgtlog('🔧 Snippet Helpers loading...');
 
@@ -55,7 +55,7 @@ export function fgtTestClick(element: Element): void {
  * Change task date and time through original Google Tasks UI
  * Exposed to window as: fgtChangeDateTime(taskId, dateStr, timeStr?)
  *
- * This is a wrapper around DateManipulator.setDateTime() with snippetMode enabled,
+ * This is a wrapper around DateController.setDateTime() with snippetMode enabled,
  * providing detailed console logging for each step of the process.
  *
  * @param taskId - Task ID (from data-id attribute)
@@ -101,18 +101,19 @@ export async function fgtChangeDateTime(
         console.log('');
 
         // STEP 3: Call production code with snippetMode
-        console.log('🚀 [fgtChangeDateTime] STEP 3: Calling DateManipulator.setDateTime()...');
+        console.log('🚀 [fgtChangeDateTime] STEP 3: Calling DateController.setDateTime()...');
         console.log('   (snippetMode enabled for detailed logging)');
         console.log('');
 
         // ============================================================
         // SNIPPET WRAPPER: Call production code with snippetMode
         // ============================================================
-        const success = await DateManipulator.setDateTime(
+        const success = await DateController.setDateTime(
             dateButton,
             dateStr,
             timeStr,
-            { snippetMode: true }  // Enable detailed logging
+            { snippetMode: true },  // Enable detailed logging
+            taskElement  // Pass taskElement for verification
         );
 
         console.log('');

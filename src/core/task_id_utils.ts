@@ -1,8 +1,8 @@
 // core/task_id_utils.ts - TaskId extraction utilities (REFACTORED)
 import * as Logger from '@/core/logger';
-import { OgtFinder } from '@/manipulator/finder';
-import { OgtTaskWrapper } from '@/manipulator/task_element/task_element';
-import { OgtTaskContainer } from '@/manipulator/task_container';
+import { OgtFinder } from '@/dom_bringer/finder';
+import { OgtTaskWrapper } from '@/dom_bringer/task_element/task_element';
+import { OgtTaskContainer } from '@/dom_bringer/task_container';
 
 Logger.fgtlog('🆔 Task ID Utils loading...');
 

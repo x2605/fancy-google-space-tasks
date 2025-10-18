@@ -4,7 +4,7 @@ import { CategoryUtils } from '@/category/category_utils';
 import { AssigneeUtils } from '@/assignee/assignee_utils';
 import { singletonAssigneeColorUtils } from '@/assignee/assignee_color_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
-import { parseNaturalDate, formatDateForButton } from '@/manipulator/task_element/date_button/date_parser';
+import { parseNaturalDate, formatDateForButton } from '@/dom_bringer/task_element/date_button/date_parser';
 
 Logger.fgtlog('📊 Table Renderer loading...');
 

@@ -6,9 +6,11 @@ import { CategoryParser } from '@/category/category_parser';
 import { CoreEventUtils } from '@/core/event_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
 import { CategoryUtils } from '@/category/category_utils';
-import { parseNaturalDate, formatDateForModal, extractAndRemoveTime, getLocaleKeywords, normalizeNumbers } from '@/manipulator/task_element/date_button/date_parser';
-import { OgtFinder } from '@/manipulator/finder';
-import { DateManipulator } from '@/manipulator/date_manipulator';
+import { parseNaturalDate, formatDateForModal, extractAndRemoveTime, getLocaleKeywords, normalizeNumbers } from '@/dom_bringer/task_element/date_button/date_parser';
+import { OgtFinder } from '@/dom_bringer/finder';
+import { DateController } from '@/manipulator/date/date_controller';
+import { DateVerification } from '@/manipulator/date/date_verification';
+import { DATE_VERIFICATION_TIMEOUT } from '@/dom_bringer/date/date_constants';
 
 Logger.fgtlog('📝 Task Modal loading...');
 
@@ -436,7 +438,7 @@ class TaskModal extends ModalBase {
 
             Logger.fgtlog(`📍 Calendar shows: "${labelText}"`);
 
-            // Parse month/year (using DateManipulator logic)
+            // Parse month/year from dialog label
             const locale = document.documentElement.lang || 'en';
             const parsed = this.parseMonthYearLabel(labelText, locale);
             if (!parsed) {
@@ -513,7 +515,7 @@ class TaskModal extends ModalBase {
 
             // Try to close dialog if open
             try {
-                await DateManipulator.cancelOpenDialog();
+                await DateController.cancelOpenDialog();
             } catch {}
 
             return { date: '', time: '' };
@@ -1426,7 +1428,7 @@ class TaskModal extends ModalBase {
                 if (TEST_MODE) {
                     this.restoreUIAfterOperation();
                 }
-                await DateManipulator.cancelOpenDialog();
+                await DateController.cancelOpenDialog();
 
                 // Activate task element first by clicking titleWrapper
                 // This is required to make date button clickable (similar to description activation)
@@ -1473,11 +1475,11 @@ class TaskModal extends ModalBase {
 
                 // Apply date/time change
                 Logger.fgtlog(`🔄 Applying date/time change: date=${newDateValue}, time=${timeToSet}`);
-                const success = await DateManipulator.setDateTime(
+                const success = await DateController.setDateTime(
                     dateButton,
                     newDateValue || null,
                     timeToSet,
-                    undefined,
+                    {},
                     taskElement
                 );
 
@@ -1490,13 +1492,13 @@ class TaskModal extends ModalBase {
                 Logger.fgtlog('✅ Date/time setDateTime call completed, now waiting for DOM changes...');
 
                 // Wait for DOM changes to be applied and verified
-                const verified = await this.waitForDateTimeChange(
+                const verified = await DateVerification.verifyDateTimeChange(
                     taskElement,
                     newDateValue,
                     timeToSet,
                     originalFullLabel,
                     originalText,
-                    10000
+                    DATE_VERIFICATION_TIMEOUT
                 );
 
                 // Restore UI after verification or timeout
@@ -1742,239 +1744,6 @@ class TaskModal extends ModalBase {
             this.onClose = null;
             this.close();
         }
-    }
-
-    /**
-     * Wait for date/time changes to be applied to the DOM
-     * @param taskElement - Task element
-     * @param expectedDateValue - Expected date value (YYYY-MM-DD)
-     * @param expectedTimeValue - Expected time (HH:MM to verify time, null to expect cleared time, undefined to skip time verification)
-     * @param originalFullLabel - Original fullLabel before change
-     * @param originalText - Original text before change
-     * @param timeout - Maximum wait time (default 10000ms)
-     * @returns Promise<boolean> - true if change verified, false if timeout
-     */
-    async waitForDateTimeChange(
-        taskElement: any,
-        expectedDateValue: string,
-        expectedTimeValue: string | null | undefined,
-        originalFullLabel: string,
-        originalText: string,
-        timeout: number = 10000
-    ): Promise<boolean> {
-        const startTime = Date.now();
-
-        return new Promise((resolve) => {
-            let intervalId: number | null = null;
-            let timeoutId: number | null = null;
-
-            const checkChange = () => {
-                const elapsed = Date.now() - startTime;
-
-                try {
-                    // Refetch taskElement by ID on each poll (matching Title/Desc pattern)
-                    // This ensures we always read from fresh DOM after table re-renders
-                    const taskId = taskElement.taskId;
-                    Logger.fgtlog(`🔍 [${elapsed}ms] Polling: taskId="${taskId}"`);
-
-                    const freshTaskElement = OgtFinder.findTaskWrapper(taskId);
-                    if (!freshTaskElement) {
-                        Logger.fgtwarn(`⚠️ Task element not found for ID: ${taskId}`);
-                        return false;
-                    }
-
-                    const taskElementConnected = freshTaskElement.element.isConnected;
-                    Logger.fgtlog(`  - freshTaskElement found, isConnected=${taskElementConnected}`);
-
-                    // Find date button from fresh task element
-                    const dateButton = freshTaskElement.findDateButton();
-                    if (!dateButton) {
-                        Logger.fgtwarn('⚠️ Date button not found');
-                        return false;
-                    }
-
-                    const dateButtonConnected = dateButton.element.isConnected;
-                    Logger.fgtlog(`  - dateButton found, isConnected=${dateButtonConnected}`);
-
-                    const currentFullLabel = dateButton.fullLabel || '';
-                    const currentText = dateButton.text || '';
-
-                    Logger.fgtlog(`  - currentText: "${currentText}"`);
-                    Logger.fgtlog(`  - currentFullLabel: "${currentFullLabel}"`);
-
-                    // Check if date button changed
-                    if (currentFullLabel === originalFullLabel && currentText === originalText) {
-                        Logger.fgtlog(`  - No change detected (values match original)`);
-                        return false;
-                    }
-
-                    Logger.fgtlog(`📅 Date button changed detected after ${elapsed}ms`);
-                    Logger.fgtlog(`  - fullLabel: "${originalFullLabel}" → "${currentFullLabel}"`);
-                    Logger.fgtlog(`  - text: "${originalText}" → "${currentText}"`);
-
-                    // Parse the new date
-                    const locale = document.documentElement.lang || 'en';
-                    const dateInfo = parseNaturalDate(currentFullLabel, currentText, locale);
-
-                    if (!dateInfo) {
-                        Logger.fgtwarn('⚠️ Failed to parse new date');
-                        return false;
-                    }
-
-                    // Parse expected date
-                    const [expYear, expMonth, expDay] = expectedDateValue.split('-').map(Number);
-
-                    // Check if "# week(s) ago" pattern (flexible date range)
-                    const weeksAgoMatch = currentText.match(/^(\d+)\s+weeks?\s+ago$/i);
-                    if (weeksAgoMatch) {
-                        const weeksAgo = parseInt(weeksAgoMatch[1]);
-
-                        // Calculate flexible date range: n*7 to n*7+6 days ago from today
-                        const minDaysAgo = weeksAgo * 7;
-                        const maxDaysAgo = weeksAgo * 7 + 6;
-
-                        const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - maxDaysAgo);
-                        const maxDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - minDaysAgo);
-                        const actualDate = new Date(dateInfo.year, dateInfo.month - 1, dateInfo.day);
-
-                        if (actualDate >= minDate && actualDate <= maxDate) {
-                            Logger.fgtlog(`✅ Date verified (weeks ago pattern): ${weeksAgo} week(s) ago is within range`);
-
-                            // Handle time verification based on expectedTimeValue
-                            if (expectedTimeValue === undefined) {
-                                // Case 1: undefined - Don't verify time at all
-                                Logger.fgtlog('ℹ️ Time verification skipped (expectedTimeValue is undefined)');
-                                if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
-                                if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
-                                resolve(true);
-                                return true;
-
-                            } else if (expectedTimeValue === null || expectedTimeValue === '') {
-                                // Case 2: null or '' - Expect cleared time (99:99)
-                                if (dateInfo.hours === 99 && dateInfo.minutes === 99) {
-                                    Logger.fgtlog('✅ Time cleared as expected (99:99)');
-                                    if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
-                                    if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
-                                    resolve(true);
-                                    return true;
-                                } else {
-                                    Logger.fgtwarn(`⚠️ Expected cleared time (99:99), but got ${dateInfo.hours}:${dateInfo.minutes}`);
-                                    return false;
-                                }
-
-                            } else {
-                                // Case 3: 'HH:MM' - Verify specific time (weeks ago dates don't display time, so expect 99:99)
-                                // Past dates always hide time in display
-                                if (dateInfo.hours === 99 && dateInfo.minutes === 99) {
-                                    Logger.fgtlog('✅ Time hidden as expected for past date (weeks ago pattern)');
-                                    if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
-                                    if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
-                                    resolve(true);
-                                    return true;
-                                } else {
-                                    Logger.fgtwarn(`⚠️ Expected hidden time (99:99) for weeks ago pattern, but got ${dateInfo.hours}:${dateInfo.minutes}`);
-                                    return false;
-                                }
-                            }
-                        } else {
-                            Logger.fgtwarn(`⚠️ Date out of range for ${weeksAgo} week(s) ago pattern`);
-                            return false;
-                        }
-                    }
-
-                    // Normal date verification
-                    if (dateInfo.year !== expYear || dateInfo.month !== expMonth || dateInfo.day !== expDay) {
-                        Logger.fgtwarn(`⚠️ Date mismatch: expected ${expYear}-${expMonth}-${expDay}, got ${dateInfo.year}-${dateInfo.month}-${dateInfo.day}`);
-                        return false;
-                    }
-
-                    Logger.fgtlog(`✅ Date verified: ${expYear}-${expMonth}-${expDay}`);
-
-                    // Handle time verification based on expectedTimeValue
-                    if (expectedTimeValue === undefined) {
-                        // Case 1: undefined - Don't verify time at all
-                        Logger.fgtlog('ℹ️ Time verification skipped (expectedTimeValue is undefined)');
-                        if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
-                        if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
-                        resolve(true);
-                        return true;
-
-                    } else if (expectedTimeValue === null || expectedTimeValue === '') {
-                        // Case 2: null or '' - Expect cleared time (99:99)
-                        if (dateInfo.hours === 99 && dateInfo.minutes === 99) {
-                            Logger.fgtlog('✅ Time cleared as expected (99:99)');
-                            if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
-                            if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
-                            resolve(true);
-                            return true;
-                        } else {
-                            Logger.fgtwarn(`⚠️ Expected cleared time (99:99), but got ${dateInfo.hours}:${dateInfo.minutes}`);
-                            return false;
-                        }
-
-                    } else {
-                        // Case 3: 'HH:MM' - Verify specific time with display rules
-                        const [expHours, expMinutes] = expectedTimeValue.split(':').map(Number);
-
-                        // CRITICAL: Time display rules in Google Tasks
-                        // - Time is ONLY displayed for TODAY (D-DAY) or FUTURE dates
-                        // - Past dates (D+1 ~ D+6) do NOT display time
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const expectedDate = new Date(expYear, expMonth - 1, expDay);
-                        expectedDate.setHours(0, 0, 0, 0);
-                        const diffDays = Math.round((expectedDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                        // diffDays > 0: future, diffDays = 0: today, diffDays < 0: past
-
-                        const isPastDate = diffDays < 0;
-
-                        if (isPastDate) {
-                            // For past dates, Google Tasks hides time in display
-                            // Parser returns 99:99 for hidden time
-                            Logger.fgtlog(`ℹ️ Date is ${Math.abs(diffDays)} days in past - time hidden in display`);
-                            if (dateInfo.hours === 99 && dateInfo.minutes === 99) {
-                                Logger.fgtlog('✅ Time hidden as expected for past date');
-                                if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
-                                if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
-                                resolve(true);
-                                return true;
-                            } else {
-                                Logger.fgtwarn(`⚠️ Expected hidden time (99:99) for past date, but got ${dateInfo.hours}:${dateInfo.minutes}`);
-                                return false;
-                            }
-                        } else {
-                            // For today or future dates, verify exact time
-                            if (dateInfo.hours === expHours && dateInfo.minutes === expMinutes) {
-                                Logger.fgtlog(`✅ Time verified: ${expHours}:${expMinutes}`);
-                                if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
-                                if (timeoutId !== null) CoreEventUtils.timeouts.clear(timeoutId);
-                                resolve(true);
-                                return true;
-                            } else {
-                                Logger.fgtwarn(`⚠️ Time mismatch: expected ${expHours}:${expMinutes}, got ${dateInfo.hours}:${dateInfo.minutes}`);
-                                return false;
-                            }
-                        }
-                    }
-                } catch (error: any) {
-                    Logger.fgtwarn(`⚠️ Error checking date/time changes: ${error.message}`);
-                }
-
-                return false;
-            };
-
-            // Start polling (matching Title/Desc pattern)
-            intervalId = CoreEventUtils.intervals.create(() => {
-                checkChange();
-            }, 50);
-
-            // Set timeout
-            timeoutId = CoreEventUtils.timeouts.create(() => {
-                if (intervalId !== null) CoreEventUtils.intervals.clear(intervalId);
-                Logger.fgtwarn(`⏱️ Date/time change verification timeout after ${timeout}ms`);
-                resolve(false);
-            }, timeout);
-        });
     }
 
     /**

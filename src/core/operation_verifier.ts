@@ -3,7 +3,7 @@ import * as Logger from '@/core/logger';
 import { CoreEventUtils } from './event_utils';
 import { CoreNotificationUtils } from './notification_utils';
 import { CoreDOMUtils } from './dom_utils';
-import { findTaskWrapperElement } from '@/manipulator/task_element/task_element';
+import { OgtTaskWrapper } from '@/dom_bringer/task_element/task_element';
 
 Logger.fgtlog('🔍 Operation Verifier loading...');
 
@@ -342,7 +342,7 @@ class OperationVerifier {
      */
     static waitForTaskDelete(taskId: string): Function {
         return () => {
-            return !findTaskWrapperElement(taskId);
+            return !OgtTaskWrapper.findElementByTaskId(taskId);
         };
     }
 
@@ -355,7 +355,7 @@ class OperationVerifier {
      */
     static waitForTaskAttributeChange(taskId: string, attribute: string, expectedValue: string): Function {
         return () => {
-            const element = findTaskWrapperElement(taskId);
+            const element = OgtTaskWrapper.findElementByTaskId(taskId);
             if (!element) return false;
 
             const actualValue = element.querySelector(`[${attribute}]`)?.getAttribute(attribute);
