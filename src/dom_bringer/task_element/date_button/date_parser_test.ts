@@ -46,8 +46,8 @@ interface KeywordsBackup {
  */
 function backupKeywords(): KeywordsBackup {
     return {
-        keywords: (window as any).FGT_DATE_KEYWORDS as Record<string, LocaleKeywords> | undefined,
-        getFunction: (window as any).FGT_GET_LOCALE_KEYWORDS as ((locale: string) => LocaleKeywords | null) | undefined
+        keywords: window.FGT_DATE_KEYWORDS,
+        getFunction: window.FGT_GET_LOCALE_KEYWORDS
     };
 }
 
@@ -56,17 +56,17 @@ function backupKeywords(): KeywordsBackup {
  */
 function restoreKeywords(backup: KeywordsBackup): void {
     if (backup.keywords !== undefined) {
-        (window as any).FGT_DATE_KEYWORDS = backup.keywords;
+        window.FGT_DATE_KEYWORDS = backup.keywords;
     } else {
         delete (window as any).FGT_DATE_KEYWORDS;
     }
-    
+
     if (backup.getFunction !== undefined) {
-        (window as any).FGT_GET_LOCALE_KEYWORDS = backup.getFunction;
+        window.FGT_GET_LOCALE_KEYWORDS = backup.getFunction;
     } else {
         delete (window as any).FGT_GET_LOCALE_KEYWORDS;
     }
-    
+
     console.log('✅ Restored original keywords state');
 }
 
@@ -284,7 +284,7 @@ function formatDateResult(dateInfo: ParsedDateInfo): string {
 
 // Expose test function to window for browser console access
 if (typeof window !== 'undefined') {
-    (window as any).fancyTestUnformatDate = testDateParser;
+    (window as any).fancyTestUnformatDate = testDateParser as (testContent: string, expectedTimesContent?: string) => Promise<void>;
     console.log('✅ Test function registered: window.fancyTestUnformatDate(testString, expectedTimesString?)');
     console.log('   Note: This is an async function, use await or .then()');
 }

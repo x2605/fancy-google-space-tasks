@@ -420,7 +420,7 @@ class TableRenderer {
     renderTaskTitle(task: any): string {
         // linkifyStr handles HTML escaping internally, so don't double-escape
         // Convert newlines to <br/> for proper HTML display (same as description)
-        const html = (window as any).linkifyStr(task.displayTitle || '').replace(/(\r\n|\r|\n)/g, '<br/>');
+        const html: HtmlString = window.linkifyStr(task.displayTitle || '').replace(/(\r\n|\r|\n)/g, '<br/>');
         return `
             <div class="${this.namespace}-title-wrapper">
                 ${this.renderTaskCheckbox(task)}
@@ -438,7 +438,7 @@ class TableRenderer {
      */
     renderTaskDescription(task: any): string {
         // linkifyStr handles HTML escaping internally, so don't double-escape
-        const html = (window as any).linkifyStr(task.description || '').replace(/(\r\n|\r|\n)/g, '<br/>');
+        const html: HtmlString = window.linkifyStr(task.description || '').replace(/(\r\n|\r|\n)/g, '<br/>');
         return `
             <div class="${this.namespace}-description-wrapper">
                 <div class="${this.namespace}-task-description"

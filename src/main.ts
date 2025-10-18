@@ -80,8 +80,8 @@ async function exposeSnippetHelpers() {
         const { fgtTestClick, fgtChangeDateTime } = await import('@/utils/snippet_helpers');
 
         // Expose to window for DevTools console access
-        (window as any).fgtTestClick = fgtTestClick;
-        (window as any).fgtChangeDateTime = fgtChangeDateTime;
+        (window as any).fgtTestClick = fgtTestClick as (element: Element) => void;
+        (window as any).fgtChangeDateTime = fgtChangeDateTime as (taskId: TaskId, dateStr: DateString | null, timeStr?: string) => Promise<void>;
 
         Logger.fgtlog('🔧 Snippet helpers exposed to window:');
         Logger.fgtlog('   - window.fgtTestClick(element)');

@@ -61,7 +61,7 @@ class TaskModal extends ModalBase {
         this.toBeAddedTaskElement = null;
         this.lastBadgeRemoveTime = 0;
         this.parsedDateInfo = null;
-        this.localeAvailable = !!(window as any).FGT_LOCALE;
+        this.localeAvailable = !!window.FGT_LOCALE;
     }
 
     /**
@@ -129,7 +129,7 @@ class TaskModal extends ModalBase {
             this.parsedDateInfo = parseNaturalDate(
                 this.originalTask.dateFull,
                 this.originalTask.date || '',
-                (window as any).FGT_LOCALE
+                window.FGT_LOCALE
             );
             Logger.fgtlog(`📅 Date info parsed and cached: year=${this.parsedDateInfo?.year}, month=${this.parsedDateInfo?.month}, day=${this.parsedDateInfo?.day}, weekago=${this.parsedDateInfo?.weekago}`);
         } else {
@@ -461,7 +461,7 @@ class TaskModal extends ModalBase {
             }
 
             // Get locale from global constant (set during app initialization)
-            const locale = (window as any).FGT_LOCALE;
+            const locale: string | undefined = window.FGT_LOCALE;
             if (!locale) {
                 throw new Error('Locale not initialized - cannot parse date');
             }

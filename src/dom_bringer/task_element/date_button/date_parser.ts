@@ -295,20 +295,20 @@ export interface LocaleKeywords {
  */
 export async function loadLocaleKeywords(locale: string): Promise<LocaleKeywords> {
     // Initialize FGT_LOCALE (can be changed in this block after)
-    (window as any).FGT_LOCALE = locale;
+    window.FGT_LOCALE = locale;
 
     // Helper function to store keywords in global space
     const storeKeywords = (localeKey: string, keywords: LocaleKeywords) => {
-        if (!(window as any).FGT_DATE_KEYWORDS) {
-            (window as any).FGT_DATE_KEYWORDS = {} as Record<string, LocaleKeywords>;
+        if (!window.FGT_DATE_KEYWORDS) {
+            window.FGT_DATE_KEYWORDS = {} as Record<string, LocaleKeywords>;
         }
-        
-        ((window as any).FGT_DATE_KEYWORDS as Record<string, LocaleKeywords>)[localeKey] = keywords;
-        
+
+        window.FGT_DATE_KEYWORDS[localeKey] = keywords;
+
         // Set up the getter function if not exists
-        if (!(window as any).FGT_GET_LOCALE_KEYWORDS) {
-            (window as any).FGT_GET_LOCALE_KEYWORDS = (key: string): LocaleKeywords | null => {
-                const allKeywords = (window as any).FGT_DATE_KEYWORDS as Record<string, LocaleKeywords> | undefined;
+        if (!window.FGT_GET_LOCALE_KEYWORDS) {
+            window.FGT_GET_LOCALE_KEYWORDS = (key: string): LocaleKeywords | null => {
+                const allKeywords: Record<string, LocaleKeywords> | undefined = window.FGT_DATE_KEYWORDS;
                 return allKeywords?.[key] || null;
             };
         }
@@ -346,9 +346,9 @@ export async function loadLocaleKeywords(locale: string): Promise<LocaleKeywords
                 // IMPORTANT: Store with ORIGINAL locale key (pt-BR, not pt)
                 // so that future lookups with pt-BR will find it
                 storeKeywords(locale, keywords);
-                
+
                 Logger.fgtlog(`✅ Loaded keywords for locale: ${locale} (using base locale: ${baseLocale})`);
-                (window as any).FGT_LOCALE = baseLocale
+                window.FGT_LOCALE = baseLocale;
                 return keywords;
             }
         } catch (baseError) {
@@ -1402,8 +1402,8 @@ export function formatDateForModal(dateInfo: ParsedDateInfo | null): string {
  * @returns { year, month } or null if parsing fails
  */
 export function parseMonthYearLabel(labelText: string): { year: number; month: number } | null {
-    const locale = (typeof window !== 'undefined')
-        ? ((window as any).FGT_LOCALE || document.documentElement.lang || 'en')
+    const locale: string = (typeof window !== 'undefined')
+        ? (window.FGT_LOCALE || document.documentElement.lang || 'en')
         : 'en';
 
     const keywords = getLocaleKeywords(locale);

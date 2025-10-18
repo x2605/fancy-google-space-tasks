@@ -102,7 +102,7 @@ class OgtDateButton {
      * @returns Formatted date string
      */
     getFormattedDate(): string {
-        const dateInfo = parseNaturalDate(this.fullLabel, this.text, (window as any).FGT_LOCALE);
+        const dateInfo = parseNaturalDate(this.fullLabel, this.text, window.FGT_LOCALE);
         return formatDateForButton(dateInfo);
     }
 }
