@@ -2,15 +2,14 @@
 import * as Logger from '@/core/logger';
 import { CoreEventUtils } from './event_utils';
 import { OperationVerifier } from './operation_verifier';
-import { OgtFinder } from '@/manipulator/finder';
+import { OgtFinder } from '@/dom_bringer/finder';
 import { CoreNotificationUtils } from './notification_utils';
 import { CoreDOMUtils } from './dom_utils';
 
-// Import complex interactions
-import { editTaskInteraction } from './complex_interaction/edit_task_interaction';
-import { deleteTaskInteraction } from './complex_interaction/delete_task_interaction';
-import { setDateInteraction } from './complex_interaction/set_date_interaction';
-import { setAssigneeInteraction } from './complex_interaction/set_assignee_interaction';
+// Import manipulator controllers
+import { EditController } from '@/manipulator/edit/edit_controller';
+import { DeleteController } from '@/manipulator/delete/delete_controller';
+import { AssigneeController } from '@/manipulator/assignee/assignee_controller';
 
 Logger.fgtlog('🔄 Core Interaction Utils loading (refactored)...');
 
@@ -21,10 +20,16 @@ Logger.fgtlog('🔄 Core Interaction Utils loading (refactored)...');
 class CoreInteractionUtils {
     namespace: string;
     verifier: any;
+    editController: EditController;
+    deleteController: DeleteController;
+    assigneeController: AssigneeController;
 
     constructor(namespace: string = 'fancy-gst') {
         this.namespace = namespace;
         this.verifier = new OperationVerifier(namespace);
+        this.editController = new EditController(namespace);
+        this.deleteController = new DeleteController(namespace);
+        this.assigneeController = new AssigneeController(namespace);
     }
 
     // ========== Simple Interactions (kept here) ==========
@@ -91,7 +96,7 @@ class CoreInteractionUtils {
     async showInChat(taskId: string): Promise<void> {
         try {
             Logger.fgtlog(`💬 Showing task in chat: ${taskId}`);
-            const taskElement = OgtFinder.findTaskElement(taskId);
+            const taskElement = OgtFinder.findTaskWrapper(taskId);
             if (!taskElement) throw new Error(`Task element not found: ${taskId}`);
 
             await this.ensureTaskUIVisible(taskElement);
@@ -126,7 +131,7 @@ class CoreInteractionUtils {
         originalDescription: string = '',
         onComplete: Function | null = null
     ): Promise<void> {
-        return editTaskInteraction.editTask(
+        return this.editController.editTask(
             taskId,
             newTitle,
             newDescription,
@@ -140,28 +145,21 @@ class CoreInteractionUtils {
      * Delete task with confirmation
      */
     async deleteTask(taskId: string, onComplete: Function): Promise<void> {
-        return deleteTaskInteraction.deleteTask(taskId, onComplete);
-    }
-
-    /**
-     * Set task date
-     */
-    async setTaskDate(taskId: string, dateString: string | null, onComplete: Function): Promise<void> {
-        return setDateInteraction.setTaskDate(taskId, dateString, onComplete);
+        return this.deleteController.deleteTask(taskId, onComplete);
     }
 
     /**
      * Set task assignee
      */
     async setTaskAssignee(taskId: string, assigneeName: string | null, onComplete: Function): Promise<void> {
-        return setAssigneeInteraction.setTaskAssignee(taskId, assigneeName, onComplete);
+        return this.assigneeController.setTaskAssignee(taskId, assigneeName, onComplete);
     }
 
     /**
      * Get available assignees from a task
      */
     async getAvailableAssignees(taskId: string): Promise<string[]> {
-        return setAssigneeInteraction.getAvailableAssignees(taskId);
+        return this.assigneeController.getAvailableAssignees(taskId);
     }
 
     // ========== Helper Methods ==========
@@ -203,8 +201,10 @@ class CoreInteractionUtils {
         if (this.verifier) {
             this.verifier.cleanup();
         }
-        // Cleanup complex interaction resources
-        deleteTaskInteraction.cleanup();
+        // Cleanup controller resources
+        if (this.deleteController) {
+            this.deleteController.cleanup();
+        }
     }
 }
 

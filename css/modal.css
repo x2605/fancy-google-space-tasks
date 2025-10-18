@@ -495,6 +495,121 @@
     }
 }
 
+/* Date/Time inputs container */
+.fancy-gst-datetime-inputs {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Date/Time input wrapper - contains input + delete button */
+.fancy-gst-datetime-input-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Date and Time inputs */
+.fancy-gst-date-input,
+.fancy-gst-time-input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Delete Date/Time buttons */
+.fancy-gst-delete-datetime-btn {
+    padding: 4px 10px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    background: white;
+    color: #5f6368;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    align-self: flex-start;
+    white-space: nowrap;
+}
+
+.fancy-gst-delete-datetime-btn:hover {
+    background: #fef7e0;
+    border-color: #f9ab00;
+    color: #b06000;
+}
+
+.fancy-gst-delete-datetime-btn:active {
+    background: #feefc3;
+    border-color: #ee8100;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-delete-datetime-btn {
+        background: #2d2d2d;
+        color: #e0e0e0;
+        border-color: #444;
+    }
+
+    .fancy-gst-delete-datetime-btn:hover {
+        background: #3d3020;
+        border-color: #f9ab00;
+        color: #fdd663;
+    }
+
+    .fancy-gst-delete-datetime-btn:active {
+        background: #4d4030;
+        border-color: #fdd663;
+    }
+}
+
+/* Below 320px: stack vertically (full width each) */
+@media (max-width: 320px) {
+    .fancy-gst-datetime-inputs {
+        flex-direction: column;
+    }
+
+    .fancy-gst-datetime-input-wrapper {
+        width: 100%;
+    }
+
+    .fancy-gst-date-input,
+    .fancy-gst-time-input {
+        width: 100%;
+    }
+
+    .fancy-gst-delete-datetime-btn {
+        align-self: stretch;
+    }
+}
+
+/* Above 320px: side by side (50% each) */
+@media (min-width: 321px) {
+    .fancy-gst-datetime-input-wrapper {
+        flex: 1;
+        max-width: calc(50% - 6px);
+    }
+
+    .fancy-gst-date-input,
+    .fancy-gst-time-input {
+        flex: 1;
+    }
+}
+
+/* Date display (current date info) */
+.fancy-gst-date-display {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #5f6368;
+    font-style: italic;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-date-display {
+        color: #9aa0a6;
+    }
+}
+
 /* ========== Delete Modal Styles ========== */
 
 .fancy-gst-delete-content {
@@ -618,6 +733,44 @@
     .fancy-gst-category-badges {
         flex-direction: column;
         align-items: stretch;
+    }
+}
+
+/* ========== Visual Operating Mode ========== */
+
+/* When in visual operating mode, make modal semi-transparent to show background operations */
+.fancy-gst-modal-overlay.fgt-operating-visual .fancy-gst-modal {
+    opacity: 0.2;
+    transition: opacity 0.05s;
+    pointer-events: none;
+}
+
+/* Make fancy container semi-transparent to reveal original UI */
+#fancy-gst-container.fgt-operating-visual {
+    opacity: 0.3;
+    transition: opacity 0.05s;
+    pointer-events: none;
+}
+
+/* Operating spinner - displayed in center of screen during visual mode */
+.fancy-gst-operating-spinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 32px;
+    height: 32px;
+    border: 4px solid white;
+    border-top: 4px solid #0078ff;
+    border-radius: 50%;
+    animation: fancy-gst-modal-spin 1s linear infinite;
+    z-index: 1000000;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-operating-spinner {
+        border-color: black;
+        border-top-color: #ff8c00;
     }
 }
 

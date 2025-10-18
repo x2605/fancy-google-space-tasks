@@ -4,7 +4,7 @@ import { CategoryUtils } from '@/category/category_utils';
 import { AssigneeUtils } from '@/assignee/assignee_utils';
 import { singletonAssigneeColorUtils } from '@/assignee/assignee_color_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
-import { parseNaturalDate, formatDateForButton } from '@/manipulator/task_element/date_button/date_parser';
+import { parseNaturalDate, formatDateForButton } from '@/dom_bringer/task_element/date_button/date_parser';
 
 Logger.fgtlog('📊 Table Renderer loading...');
 
@@ -420,7 +420,7 @@ class TableRenderer {
     renderTaskTitle(task: any): string {
         // linkifyStr handles HTML escaping internally, so don't double-escape
         // Convert newlines to <br/> for proper HTML display (same as description)
-        const html = (window as any).linkifyStr(task.displayTitle || '').replace(/(\r\n|\r|\n)/g, '<br/>');
+        const html: HtmlString = window.linkifyStr(task.displayTitle || '').replace(/(\r\n|\r|\n)/g, '<br/>');
         return `
             <div class="${this.namespace}-title-wrapper">
                 ${this.renderTaskCheckbox(task)}
@@ -438,7 +438,7 @@ class TableRenderer {
      */
     renderTaskDescription(task: any): string {
         // linkifyStr handles HTML escaping internally, so don't double-escape
-        const html = (window as any).linkifyStr(task.description || '').replace(/(\r\n|\r|\n)/g, '<br/>');
+        const html: HtmlString = window.linkifyStr(task.description || '').replace(/(\r\n|\r|\n)/g, '<br/>');
         return `
             <div class="${this.namespace}-description-wrapper">
                 <div class="${this.namespace}-task-description"
@@ -501,7 +501,7 @@ class TableRenderer {
         const assigneeColorStyle = this.getAssigneeButtonStyle(task);
         
         // Format date for display
-        const locale = document.documentElement.lang || 'en';
+        const locale = document.documentElement.lang || '';
         const dateInfo = parseNaturalDate(task.dateFull || '', task.date || '', locale);
         const formattedDate = formatDateForButton(dateInfo);
         

@@ -162,7 +162,7 @@ class AssigneeColorUtils {
      */
     async getDominantColor(imgElement: HTMLImageElement): Promise<number[]> {
         // Ensure ColorThief is available
-        if (typeof (window as any).ColorThief === 'undefined') {
+        if (typeof window.ColorThief === 'undefined') {
             throw new Error('ColorThief library not available');
         }
 
@@ -171,7 +171,7 @@ class AssigneeColorUtils {
             return new Promise((resolve, reject) => {
                 imgElement.addEventListener('load', () => {
                     try {
-                        const colorThief = new (window as any).ColorThief();
+                        const colorThief: ColorThief = new window.ColorThief();
                         const color = colorThief.getColor(imgElement, 10);
 
                         if (!Array.isArray(color) || color.length !== 3) {
@@ -191,7 +191,7 @@ class AssigneeColorUtils {
         }
 
         // Image is already loaded, safe to extract color
-        const colorThief = new (window as any).ColorThief();
+        const colorThief: ColorThief = new window.ColorThief();
         const color = colorThief.getColor(imgElement, 10);
 
         // Ensure we have a valid RGB array

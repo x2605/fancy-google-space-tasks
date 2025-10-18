@@ -13,7 +13,7 @@ function isSupportedUrl(): boolean {
     const url = window.location.href;
 
     // Pattern 1: https://tasks.google.com/embed/room/{SPACE_ID}/...
-    const roomPattern = /^https:\/\/tasks\.google\.com\/embed\/room\/.+/;
+    const roomPattern = /^https:\/\/tasks\.google\.com\/([\da-z]{1,3}\/){0,2}embed\/room\/.+/;
 
     if (roomPattern.test(url)) {
         Logger.fgtlog('✅ Supported URL pattern detected: embed/room/*');
@@ -49,6 +49,11 @@ async function loadContainerManager() {
             const manager = new ContainerManager();
             manager.initialize();
             window.fancyGSTManager = manager;
+
+            // ============================================================
+            // SNIPPET HELPERS - Expose to window for DevTools testing
+            // ============================================================
+            exposeSnippetHelpers();
         };
 
         if (document.readyState === 'loading') {
@@ -60,6 +65,30 @@ async function loadContainerManager() {
 
     } catch (error: any) {
         Logger.fgterror('❌ Failed to load container manager: ' + error.message);
+    }
+}
+
+/**
+ * Expose snippet helper functions to window for DevTools console testing
+ * These are thin wrappers around production code with detailed logging
+ */
+async function exposeSnippetHelpers() {
+    try {
+        // ============================================================
+        // SNIPPET HELPERS - Dynamic import and window exposure
+        // ============================================================
+        const { fgtTestClick, fgtChangeDateTime } = await import('@/utils/snippet_helpers');
+
+        // Expose to window for DevTools console access
+        (window as any).fgtTestClick = fgtTestClick as (element: Element) => void;
+        (window as any).fgtChangeDateTime = fgtChangeDateTime as (taskId: TaskId, dateStr: DateString | null, timeStr?: string) => Promise<void>;
+
+        Logger.fgtlog('🔧 Snippet helpers exposed to window:');
+        Logger.fgtlog('   - window.fgtTestClick(element)');
+        Logger.fgtlog('   - window.fgtChangeDateTime(taskId, dateStr, timeStr?)');
+
+    } catch (error: any) {
+        Logger.fgtwarn('⚠️ Failed to load snippet helpers: ' + error.message);
     }
 }
 

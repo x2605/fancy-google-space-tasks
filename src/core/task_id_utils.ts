@@ -1,8 +1,8 @@
 // core/task_id_utils.ts - TaskId extraction utilities (REFACTORED)
 import * as Logger from '@/core/logger';
-import { OgtFinder } from '@/manipulator/finder';
-import { OgtTaskElement } from '@/manipulator/task_element/task_element';
-import { OgtTaskContainer } from '@/manipulator/task_container';
+import { OgtFinder } from '@/dom_bringer/finder';
+import { OgtTaskWrapper } from '@/dom_bringer/task_element/task_element';
+import { OgtTaskContainer } from '@/dom_bringer/task_container';
 
 Logger.fgtlog('🆔 Task ID Utils loading...');
 
@@ -35,14 +35,14 @@ export interface DetailedChangeResult {
 class TaskIdUtils {
     /**
      * Extract only taskId from a task element (lightweight version)
-     * REFACTORED: Now uses OgtTaskElement
+     * REFACTORED: Now uses OgtTaskWrapper
      */
     static extractTaskId(element: Element, fallbackIndex: number): string | null {
         if (!element) return null;
 
-        // Wrap in OgtTaskElement to use consistent interface
+        // Wrap in OgtTaskWrapper to use consistent interface
         try {
-            const taskElement = new OgtTaskElement(element);
+            const taskElement = new OgtTaskWrapper(element);
             
             // Validate it's actually a task element
             if (!taskElement.taskId) {
@@ -62,7 +62,7 @@ class TaskIdUtils {
      */
     static extractAllTaskIds(): Set<string> {
         // Use manipulator to find all tasks
-        const taskElements = OgtFinder.findAllTaskElements();
+        const taskElements = OgtFinder.findAllTaskWrappers();
         const taskIds = new Set<string>();
 
         taskElements.forEach((taskElement: any) => {
@@ -77,12 +77,12 @@ class TaskIdUtils {
 
     /**
      * Extract lightweight task data for comparison
-     * REFACTORED: Now uses OgtTaskElement and its find methods
+     * REFACTORED: Now uses OgtTaskWrapper and its find methods
      */
     static extractLightweightTaskData(element: Element, fallbackIndex: number): any {
         try {
-            // Wrap element in OgtTaskElement
-            const taskElement = new OgtTaskElement(element);
+            // Wrap element in OgtTaskWrapper
+            const taskElement = new OgtTaskWrapper(element);
             const taskId = taskElement.taskId || `task-${fallbackIndex}`;
 
             // Use manipulator to find components
@@ -145,7 +145,7 @@ class TaskIdUtils {
      */
     static extractAllLightweightTaskData(): Map<string, any> {
         // Use manipulator to find all tasks
-        const taskElements = OgtFinder.findAllTaskElements();
+        const taskElements = OgtFinder.findAllTaskWrappers();
         const taskData = new Map<string, any>();
 
         taskElements.forEach((taskElement: any, index: number) => {
@@ -281,7 +281,7 @@ class TaskIdUtils {
         // Use manipulator to check if it has tasks
         try {
             const container = new OgtTaskContainer(savedTaskContainer);
-            const tasks = container.findAllTaskElements();
+            const tasks = container.findAllTaskWrappers();
             return tasks.length > 0;
         } catch (error) {
             return false;

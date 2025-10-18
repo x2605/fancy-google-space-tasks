@@ -444,6 +444,26 @@ class CoreDOMUtils {
             Logger.fgtlog('🧹 Depth styles cleaned up');
         }
     }
+
+    // ========== Focus/Blur Management ==========
+
+    /**
+     * Blur currently focused element to trigger Google Tasks DOM update
+     *
+     * This is critical for ensuring Google Tasks recognizes changes made to input fields.
+     * When an element (like textarea or input) has focus, Google Tasks may not update
+     * its internal state until the element is blurred.
+     *
+     * @param waitTime - Wait time after blur in milliseconds (default: 100)
+     */
+    static async blurActiveElement(waitTime: number = 100): Promise<void> {
+        Logger.fgtlog('👋 Blurring currently focused element...');
+        if (document.activeElement && document.activeElement instanceof HTMLElement) {
+            Logger.fgtlog(`  - Focused element: ${document.activeElement.tagName}`);
+            document.activeElement.blur();
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+    }
 }
 
 export { CoreDOMUtils };
