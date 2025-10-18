@@ -496,13 +496,17 @@ class TaskModal extends ModalBase {
                 // Calculate target month for navigation
                 if (dateInfo.weekago > 0) {
                     // Week pattern: calculate actual date from weeks ago
+                    // IMPORTANT: "N weeks ago" in Google Tasks means (N×7 to N×7+6) days ago
+                    // Use middle of range (N×7+3) for better month targeting on month boundaries
+                    // See date_parser.ts header comments for detailed explanation
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     const targetDate = new Date(today);
-                    targetDate.setDate(targetDate.getDate() - (dateInfo.weekago * 7));
+                    const daysAgo = dateInfo.weekago * 7 + 3; // Middle of range
+                    targetDate.setDate(targetDate.getDate() - daysAgo);
                     targetYear = targetDate.getFullYear();
                     targetMonth = targetDate.getMonth() + 1; // 1-based
-                    Logger.fgtlog(`📅 Week pattern: ${dateInfo.weekago} week(s) ago → target ${targetYear}-${targetMonth}`);
+                    Logger.fgtlog(`📅 Week pattern: ${dateInfo.weekago} week(s) ago (${daysAgo} days) → target ${targetYear}-${targetMonth}`);
                 } else if (dateInfo.year > 0) {
                     // Normal date pattern
                     targetYear = dateInfo.year;
@@ -544,6 +548,25 @@ class TaskModal extends ModalBase {
                 }
                 Logger.fgtlog(`⏳ Waiting for selected cell (attempt ${i + 1}/${maxPolling})...`);
                 await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            // Fallback: For "weeks ago" pattern, check previous month if not found
+            // This handles edge cases where actual date is at end of range and spans month boundary
+            // Example: "2 weeks ago" = 14-20 days ago, actual date might be 20 days ago (previous month)
+            if (!selectedCell && dateInfo && dateInfo.weekago > 0 && targetYear && targetMonth) {
+                Logger.fgtlog('⚠️ Selected cell not found in target month, checking previous month for weeks ago pattern...');
+
+                const prevMonth = targetMonth - 1;
+                const prevYear = prevMonth < 1 ? targetYear - 1 : targetYear;
+                const adjustedPrevMonth = prevMonth < 1 ? 12 : prevMonth;
+
+                await DateDialogUtils.navigateToMonthYear(dialog, prevYear, adjustedPrevMonth);
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                selectedCell = dialog.element.querySelector('[role="gridcell"][aria-selected="true"]');
+                if (selectedCell) {
+                    Logger.fgtlog('✅ Selected cell found in previous month');
+                }
             }
 
             if (!selectedCell) {

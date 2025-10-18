@@ -85,10 +85,28 @@
  * -----------------------------------
  * Pattern: "N weeks ago" where N ≥ 1
  * Handled by: ROUTE B (Relative Dates - Weeks Mode)
+ *
+ * CRITICAL: "N weeks ago" RANGE CALCULATION
+ * ----------------------------------------
+ * Google Tasks displays "N weeks ago" for dates in this range:
+ * - Range: (N × 7) to (N × 7 + 6) days ago (inclusive)
+ *
  * Examples:
- * - "Scheduled for 1 week ago" → 1주 전
- * - "Scheduled for 48 weeks ago" → 48주 전
- * - "Scheduled for 112 weeks ago" → 112주 전
+ * - "1 week ago" (1주 전) = 7 to 13 days ago
+ * - "2 weeks ago" (2주 전) = 14 to 20 days ago
+ * - "3 weeks ago" (3주 전) = 21 to 27 days ago
+ * - "48 weeks ago" (48주 전) = 336 to 342 days ago
+ *
+ * Edge case example (discovered 2025-10-19):
+ * - Today: 2025-10-19 (Sunday)
+ * - Task date: 2025-09-29 (Monday) = 20 days ago
+ * - Google Tasks displays: "2주 전" (2 weeks ago)
+ * - This is correct: 20 is within range [14, 20] for "2 weeks ago"
+ *
+ * Implementation implications:
+ * - When navigating calendar to find selected cell, use middle of range: (N × 7 + 3) days
+ * - This ensures we land in the correct month for dates spanning month boundaries
+ * - Example: "2 weeks ago" → calculate 14+3 = 17 days ago as navigation target
  *
  * Detection: Presence of "week" or "weeks" keyword in the text
  *
