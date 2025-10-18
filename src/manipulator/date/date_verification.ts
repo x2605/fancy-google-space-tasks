@@ -3,7 +3,8 @@ import * as Logger from '@/core/logger';
 import { CoreEventUtils } from '@/core/event_utils';
 import { OgtFinder } from '@/dom_bringer/finder';
 import { parseNaturalDate } from '@/dom_bringer/task_element/date_button/date_parser';
-import { DATE_VERIFICATION_TIMEOUT, DATE_VERIFICATION_POLL_INTERVAL } from '@/dom_bringer/date/date_constants';
+import { DATE_VERIFICATION_TIMEOUT, DATE_VERIFICATION_POLL_INTERVAL, DIALOG_WAIT_TIMEOUT } from '@/dom_bringer/date/date_constants';
+import { DateDialogUtils } from './date_dialog_utils';
 import type { OgtTaskWrapper } from '@/dom_bringer/task_element/task_element';
 
 Logger.fgtlog('✅ Date Verification loading...');
@@ -39,6 +40,16 @@ export class DateVerification {
         timeout: number = DATE_VERIFICATION_TIMEOUT
     ): Promise<boolean> {
         const startTime = Date.now();
+
+        // Check if this is a past date + time-only change scenario
+        // For past dates, Google Tasks doesn't display time in the date button,
+        // so we need to verify by opening the calendar dialog and checking time input directly
+        const isPastDateTimeChange = this.isPastDateWithTimeChange(expectedDate, expectedTime);
+
+        if (isPastDateTimeChange) {
+            Logger.fgtlog('🔍 Detected past date + time change scenario, will verify via calendar dialog');
+            return this.verifyTimeViaCalendarDialog(taskElement, expectedDate, expectedTime);
+        }
 
         return new Promise((resolve) => {
             let intervalId: number | null = null;
@@ -319,6 +330,141 @@ export class DateVerification {
                     return false;
                 }
             }
+        }
+    }
+
+    /**
+     * Check if this is a past date with time change scenario
+     *
+     * Past dates in Google Tasks don't display time in the date button UI,
+     * so normal verification (checking date button text changes) won't work.
+     *
+     * @param expectedDate - Expected date in YYYY-MM-DD format
+     * @param expectedTime - Expected time (undefined means no time change)
+     * @returns true if this is a past date AND time is being changed
+     */
+    private static isPastDateWithTimeChange(
+        expectedDate: string,
+        expectedTime: string | null | undefined
+    ): boolean {
+        // If expectedTime is undefined, no time change is happening
+        if (expectedTime === undefined) {
+            return false;
+        }
+
+        // Parse expected date
+        const [expYear, expMonth, expDay] = expectedDate.split('-').map(Number);
+
+        // Calculate if date is in the past
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const targetDate = new Date(expYear, expMonth - 1, expDay);
+        targetDate.setHours(0, 0, 0, 0);
+
+        const diffMs = targetDate.getTime() - today.getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+        // diffDays < 0 means past date
+        const isPastDate = diffDays < 0;
+
+        if (isPastDate) {
+            Logger.fgtlog(`📅 Date ${expectedDate} is ${Math.abs(diffDays)} day(s) in the past`);
+        }
+
+        return isPastDate;
+    }
+
+    /**
+     * Verify time by opening calendar dialog and reading time input directly
+     *
+     * This is used for past dates where Google Tasks hides time in the date button UI.
+     * We open the calendar dialog, read the time input value, and compare with expected time.
+     *
+     * @param taskElement - Task element wrapper
+     * @param expectedDate - Expected date (not used, but kept for consistency)
+     * @param expectedTime - Expected time (HH:MM, null, or undefined)
+     * @returns Promise<boolean> - true if time matches, false otherwise
+     */
+    private static async verifyTimeViaCalendarDialog(
+        taskElement: OgtTaskWrapper,
+        expectedDate: string,
+        expectedTime: string | null | undefined
+    ): Promise<boolean> {
+        try {
+            Logger.fgtlog('🔍 Verifying time via calendar dialog...');
+
+            // Wait a bit for any pending DOM updates to complete
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Get fresh task element and date button
+            const taskId = taskElement.taskId;
+            if (!taskId) {
+                Logger.fgtwarn('⚠️ Task ID not available');
+                return false;
+            }
+
+            const freshTaskElement = OgtFinder.findTaskWrapper(taskId);
+            if (!freshTaskElement) {
+                Logger.fgtwarn('⚠️ Task element not found');
+                return false;
+            }
+
+            const dateButton = freshTaskElement.findDateButton();
+            if (!dateButton) {
+                Logger.fgtwarn('⚠️ Date button not found');
+                return false;
+            }
+
+            // Click date button to open calendar dialog
+            Logger.fgtlog('🖱️ Clicking date button to open calendar dialog...');
+            dateButton.element.click();
+
+            // Wait for dialog to appear
+            const dialog = await dateButton.waitForDateSelectDialog(DIALOG_WAIT_TIMEOUT);
+            Logger.fgtlog('✅ Calendar dialog opened');
+
+            // Read time from dialog
+            const actualTime = DateDialogUtils.readTime(dialog);
+            Logger.fgtlog(`⏰ Read time from dialog: "${actualTime}"`);
+
+            // Close dialog with Cancel button
+            const cancelButton = dialog.findCancelButton();
+            if (cancelButton) {
+                Logger.fgtlog('🔄 Closing dialog with Cancel button...');
+                cancelButton.click();
+                await new Promise(resolve => setTimeout(resolve, 300));
+                Logger.fgtlog('✅ Dialog closed');
+            }
+
+            // Compare times
+            if (expectedTime === null || expectedTime === '') {
+                // Expect cleared time (empty string)
+                if (actualTime === '') {
+                    Logger.fgtlog('✅ Time cleared as expected');
+                    return true;
+                } else {
+                    Logger.fgtwarn(`⚠️ Expected cleared time, but got "${actualTime}"`);
+                    return false;
+                }
+            } else if (expectedTime === undefined) {
+                // This shouldn't happen (we filter this case earlier), but handle it anyway
+                Logger.fgtlog('ℹ️ Time verification skipped (expectedTime is undefined)');
+                return true;
+            } else {
+                // Expect specific time
+                if (actualTime === expectedTime) {
+                    Logger.fgtlog(`✅ Time verified: ${expectedTime}`);
+                    return true;
+                } else {
+                    Logger.fgtwarn(`⚠️ Time mismatch: expected "${expectedTime}", got "${actualTime}"`);
+                    return false;
+                }
+            }
+
+        } catch (error: any) {
+            Logger.fgterror(`❌ Calendar dialog verification failed: ${error.message}`);
+            return false;
         }
     }
 }

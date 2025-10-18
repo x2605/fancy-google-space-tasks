@@ -1,7 +1,7 @@
 // manipulator/date/date_dialog_utils.ts - Date dialog manipulation utilities
 import * as Logger from '@/core/logger';
 import { CoreDOMUtils } from '@/core/dom_utils';
-import { parseMonthYearLabel } from '@/dom_bringer/task_element/date_button/date_parser';
+import { parseMonthYearLabel, getLocaleKeywords, normalizeNumbers, extractAndRemoveTime } from '@/dom_bringer/task_element/date_button/date_parser';
 import { DIALOG_WAIT_TIMEOUT, TIME_INPUT_BLUR_WAIT } from '@/dom_bringer/date/date_constants';
 import type { OgtDateSelectDialog } from '@/dom_bringer/date_select_dialog';
 
@@ -386,6 +386,52 @@ export class DateDialogUtils {
 
         Logger.fgtlog('✅ Time cleared');
         if (snippetMode) console.log('✅ [SNIPPET MODE] Time cleared');
+    }
+
+    /**
+     * Read time from dialog's time input
+     *
+     * Reads the current time value from the time input field and parses it
+     * using locale-aware parsing to handle different time formats.
+     *
+     * @param dialog - The OgtDateSelectDialog
+     * @returns Time in HH:MM format (24-hour) or empty string if no time set
+     */
+    static readTime(dialog: OgtDateSelectDialog): string {
+        const timeInput = dialog.findTimeInput();
+        if (!timeInput || !timeInput.value) {
+            Logger.fgtlog('⏰ No time set (time input is empty)');
+            return '';
+        }
+
+        const rawTimeValue = timeInput.value.trim();
+        Logger.fgtlog(`🕐 Raw time input value: "${rawTimeValue}"`);
+
+        // Parse using date_parser with locale support
+        const locale = document.documentElement.lang || 'en';
+        const keywords = getLocaleKeywords(locale);
+        if (!keywords) {
+            Logger.fgtwarn('⚠️ Could not get locale keywords for time parsing');
+            return '';
+        }
+
+        // Normalize numbers first (handles Bengali, Devanagari, etc.)
+        const normalizedTime = normalizeNumbers(rawTimeValue, keywords);
+
+        // Extract time (handles both 12-hour and 24-hour formats)
+        const timeResult = extractAndRemoveTime(normalizedTime, keywords);
+
+        if (timeResult.hours !== null && timeResult.minutes !== null) {
+            // Format as HH:MM (24-hour format with leading zeros)
+            const hours = String(timeResult.hours).padStart(2, '0');
+            const minutes = String(timeResult.minutes).padStart(2, '0');
+            const timeStr = `${hours}:${minutes}`;
+            Logger.fgtlog(`⏰ Parsed time: ${timeStr}`);
+            return timeStr;
+        }
+
+        Logger.fgtlog('⏰ Time input exists but could not be parsed');
+        return '';
     }
 
     /**

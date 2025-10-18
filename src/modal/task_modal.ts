@@ -10,6 +10,7 @@ import { parseNaturalDate, formatDateForModal, extractAndRemoveTime, getLocaleKe
 import { OgtFinder } from '@/dom_bringer/finder';
 import { DateController } from '@/manipulator/date/date_controller';
 import { DateVerification } from '@/manipulator/date/date_verification';
+import { DateDialogUtils } from '@/manipulator/date/date_dialog_utils';
 import { DATE_VERIFICATION_TIMEOUT } from '@/dom_bringer/date/date_constants';
 
 Logger.fgtlog('📝 Task Modal loading...');
@@ -35,6 +36,8 @@ class TaskModal extends ModalBase {
     dropdownCleanup: Function | null;
     toBeAddedTaskElement: any;
     lastBadgeRemoveTime: number;
+    parsedDateInfo: any; // Cached parsed date info to avoid repeated parsing
+    localeAvailable: boolean; // Whether locale keywords are available for date parsing
 
     constructor(namespace: string = 'fancy-gst') {
         super(namespace);
@@ -57,6 +60,8 @@ class TaskModal extends ModalBase {
         this.dropdownCleanup = null;
         this.toBeAddedTaskElement = null;
         this.lastBadgeRemoveTime = 0;
+        this.parsedDateInfo = null;
+        this.localeAvailable = !!(window as any).FGT_LOCALE;
     }
 
     /**
@@ -118,24 +123,20 @@ class TaskModal extends ModalBase {
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
 
-        // Pre-load exact date for "# weeks ago" pattern
-        if (this.originalTask && this.originalTask.dateFull) {
-            const locale = document.documentElement.lang || 'en';
-            const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date || '', locale);
-
-            if (dateInfo && dateInfo.weekago > 0) {
-                Logger.fgtlog(`📅 Pre-loading exact date for ${dateInfo.weekago} week(s) ago pattern...`);
-                const result = await this.loadExactDateFromCalendar();
-                if (result && result.date) {
-                    // Store exact date and time in originalTask for later use
-                    this.originalTask.exactDate = result.date;
-                    this.originalTask.exactTime = result.time;
-                    Logger.fgtlog(`✅ Exact date loaded: ${result.date}${result.time ? ', time: ' + result.time : ''}`);
-                }
-            }
+        // Parse date info once and cache it to avoid repeated parsing
+        // Uses window.FGT_LOCALE set during app initialization
+        if (this.localeAvailable && this.originalTask && this.originalTask.dateFull) {
+            this.parsedDateInfo = parseNaturalDate(
+                this.originalTask.dateFull,
+                this.originalTask.date || '',
+                (window as any).FGT_LOCALE
+            );
+            Logger.fgtlog(`📅 Date info parsed and cached: year=${this.parsedDateInfo?.year}, month=${this.parsedDateInfo?.month}, day=${this.parsedDateInfo?.day}, weekago=${this.parsedDateInfo?.weekago}`);
+        } else {
+            this.parsedDateInfo = null;
         }
 
-        // Create modal
+        // Create modal first
         this.createModal({
             size: 'large',
             closeOnBackdrop: false,
@@ -155,6 +156,64 @@ class TaskModal extends ModalBase {
             }
         });
 
+        // Pre-load exact date for past date patterns (after modal is opened)
+        // This includes "# weeks ago" and "# days ago" patterns where time is hidden in UI
+        if (this.localeAvailable && this.parsedDateInfo) {
+            const dateInfo = this.parsedDateInfo;
+
+            let needsCalendarLoad = false;
+            let patternDescription = '';
+
+            if (dateInfo) {
+                if (dateInfo.weekago > 0) {
+                    // Week pattern: "1 week ago", "18 weeks ago", etc.
+                    needsCalendarLoad = true;
+                    patternDescription = `${dateInfo.weekago} week(s) ago`;
+                } else if (dateInfo.year > 0) {
+                    // Check if it's a past date (D+# pattern: "2 days ago", "3 days ago", etc.)
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const taskDate = new Date(dateInfo.year, dateInfo.month - 1, dateInfo.day);
+                    taskDate.setHours(0, 0, 0, 0);
+                    const isPast = taskDate < today;
+
+                    if (isPast) {
+                        const diffMs = today.getTime() - taskDate.getTime();
+                        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                        needsCalendarLoad = true;
+                        patternDescription = `${diffDays} day(s) ago (past date)`;
+                    }
+                }
+            }
+
+            if (needsCalendarLoad) {
+                Logger.fgtlog(`📅 Pre-loading exact date for ${patternDescription} pattern...`);
+
+                try {
+                    // Show loading spinner
+                    if (!TEST_MODE) {
+                        this.showLoading('Loading date information...', true);
+                    }
+
+                    const result = await this.loadExactDateFromCalendar();
+
+                    if (result && result.date) {
+                        // Store exact date and time in originalTask for later use
+                        this.originalTask.exactDate = result.date;
+                        this.originalTask.exactTime = result.time;
+                        Logger.fgtlog(`✅ Exact date loaded: ${result.date}${result.time ? ', time: ' + result.time : ''}`);
+                    }
+                } finally {
+                    // Always restore modal content and remove spinner (even if error occurred)
+                    if (!TEST_MODE) {
+                        this.updateContent(this.generateTaskModalHTML());
+                        this.attachTaskModalHandlers();
+                        this.removeLoadingSpinner(); // Remove spinner only (preserve event listeners)
+                    }
+                }
+            }
+        }
+
         Logger.fgtlog('📝 Task modal opened: ' + this.actionType + ' for task ' + (this.taskId || 'new'));
 
         // Log original task data for debugging
@@ -165,13 +224,10 @@ class TaskModal extends ModalBase {
             Logger.fgtlog(`  - date: ${this.originalTask.date || 'N/A'}`);
             Logger.fgtlog(`  - dateFull: ${this.originalTask.dateFull || 'N/A'}`);
 
-            if (this.originalTask.dateFull) {
-                const locale = document.documentElement.lang || 'en';
-                const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date || '', locale);
-                if (dateInfo) {
-                    Logger.fgtlog(`  - parsed time: ${dateInfo.hours !== 99 ? dateInfo.hours : 'N/A'}:${dateInfo.minutes !== 99 ? dateInfo.minutes : 'N/A'}`);
-                    Logger.fgtlog(`  - parsed date: ${dateInfo.year}-${dateInfo.month}-${dateInfo.day}`);
-                }
+            // Use cached parsed date info
+            if (this.parsedDateInfo) {
+                Logger.fgtlog(`  - parsed time: ${this.parsedDateInfo.hours !== 99 ? this.parsedDateInfo.hours : 'N/A'}:${this.parsedDateInfo.minutes !== 99 ? this.parsedDateInfo.minutes : 'N/A'}`);
+                Logger.fgtlog(`  - parsed date: ${this.parsedDateInfo.year}-${this.parsedDateInfo.month}-${this.parsedDateInfo.day}`);
             }
 
             Logger.fgtlog(`  - title: ${this.originalTask.displayTitle || 'N/A'}`);
@@ -292,8 +348,8 @@ class TaskModal extends ModalBase {
                     </div>
 
                     <!-- Set Date/Time input -->
-                    <!-- TEMPORARY: Disable date/time editing for completed tasks -->
-                    ${!this.originalTask?.isCompleted ? `
+                    <!-- TEMPORARY: Disable date/time editing for completed tasks or when locale is unavailable -->
+                    ${!this.originalTask?.isCompleted && this.localeAvailable ? `
                     <div class="${this.namespace}-form-group">
                         <label class="${this.namespace}-form-label">Set Date/Time</label>
                         <div class="${this.namespace}-datetime-inputs">
@@ -342,10 +398,8 @@ class TaskModal extends ModalBase {
             return 'No date';
         }
 
-        // Parse date using the same logic as date button
-        const locale = document.documentElement.lang || 'en';
-        const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date, locale);
-        return formatDateForModal(dateInfo);
+        // Use cached parsed date info
+        return formatDateForModal(this.parsedDateInfo);
     }
 
     /**
@@ -364,9 +418,8 @@ class TaskModal extends ModalBase {
             return this.originalTask.exactDate;
         }
 
-        // Normal parsing
-        const locale = document.documentElement.lang || 'en';
-        const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date || '', locale);
+        // Use cached parsed date info
+        const dateInfo = this.parsedDateInfo;
 
         if (dateInfo && dateInfo.year && dateInfo.month && dateInfo.day) {
             const year = dateInfo.year;
@@ -407,6 +460,38 @@ class TaskModal extends ModalBase {
                 return { date: '', time: '' };
             }
 
+            // Get locale from global constant (set during app initialization)
+            const locale = (window as any).FGT_LOCALE;
+            if (!locale) {
+                throw new Error('Locale not initialized - cannot parse date');
+            }
+
+            // Use cached parsed date info to determine navigation target
+            const dateInfo = this.parsedDateInfo;
+            let targetYear: number | null = null;
+            let targetMonth: number | null = null;
+
+            if (dateInfo) {
+                // Calculate target month for navigation
+                if (dateInfo.weekago > 0) {
+                    // Week pattern: calculate actual date from weeks ago
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const targetDate = new Date(today);
+                    targetDate.setDate(targetDate.getDate() - (dateInfo.weekago * 7));
+                    targetYear = targetDate.getFullYear();
+                    targetMonth = targetDate.getMonth() + 1; // 1-based
+                    Logger.fgtlog(`📅 Week pattern: ${dateInfo.weekago} week(s) ago → target ${targetYear}-${targetMonth}`);
+                } else if (dateInfo.year > 0) {
+                    // Normal date pattern
+                    targetYear = dateInfo.year;
+                    targetMonth = dateInfo.month;
+                    Logger.fgtlog(`📅 Normal date pattern: ${targetYear}-${targetMonth}-${dateInfo.day}`);
+                }
+            } else {
+                Logger.fgtlog('⚠️ No cached date info, will try without navigation');
+            }
+
             // Click date button to open calendar
             Logger.fgtlog('🖱️ Clicking date button to open calendar...');
             dateButton.element.click();
@@ -415,43 +500,33 @@ class TaskModal extends ModalBase {
             const dialog = await dateButton.waitForDateSelectDialog(3000);
             Logger.fgtlog('✅ Calendar dialog opened');
 
-            // Read month/year from label
-            const label = dialog.findMonthYearLabel();
-            if (!label) {
-                throw new Error('Month/year label not found');
-            }
+            // Navigate to target month (ALWAYS navigate to ensure selected cell is visible)
+            // Even if target month = current month, we need to do this because calendar
+            // may open showing current month but selected cell might not be rendered yet
+            if (targetYear && targetMonth) {
+                Logger.fgtlog(`🧭 Navigating to target month: ${targetYear}-${targetMonth}`);
+                await DateDialogUtils.navigateToMonthYear(dialog, targetYear, targetMonth);
+                Logger.fgtlog('✅ Navigation complete');
 
-            // Wait for label text to populate
-            let labelText = label.innerText.trim();
-            let pollAttempts = 0;
-            const maxPollAttempts = 20;
-
-            while (!labelText && pollAttempts < maxPollAttempts) {
+                // Wait a bit for calendar rendering after navigation
                 await new Promise(resolve => setTimeout(resolve, 100));
-                labelText = label.innerText.trim();
-                pollAttempts++;
             }
 
-            if (!labelText) {
-                throw new Error('Month/year label text is empty after polling');
+            // Poll for selected cell (it may take time to render)
+            let selectedCell: Element | null = null;
+            const maxPolling = 10; // Max 1 second
+            for (let i = 0; i < maxPolling; i++) {
+                selectedCell = dialog.element.querySelector('[role="gridcell"][aria-selected="true"]');
+                if (selectedCell) {
+                    Logger.fgtlog(`✅ Selected cell found (attempt ${i + 1}/${maxPolling})`);
+                    break;
+                }
+                Logger.fgtlog(`⏳ Waiting for selected cell (attempt ${i + 1}/${maxPolling})...`);
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
-            Logger.fgtlog(`📍 Calendar shows: "${labelText}"`);
-
-            // Parse month/year from dialog label
-            const locale = document.documentElement.lang || 'en';
-            const parsed = this.parseMonthYearLabel(labelText, locale);
-            if (!parsed) {
-                throw new Error(`Failed to parse month/year: "${labelText}"`);
-            }
-
-            const year = parsed.year;
-            const month = parsed.month;
-
-            // Find selected cell ([aria-selected='true'])
-            const selectedCell = dialog.element.querySelector('[role="gridcell"][aria-selected="true"]');
             if (!selectedCell) {
-                throw new Error('No selected cell found in calendar');
+                throw new Error('No selected cell found in calendar after polling');
             }
 
             const dayAttr = selectedCell.getAttribute('data-day-of-month');
@@ -460,6 +535,22 @@ class TaskModal extends ModalBase {
             }
 
             const day = parseInt(dayAttr, 10);
+
+            // Read current month/year from label after navigation
+            const label = dialog.findMonthYearLabel();
+            if (!label) {
+                throw new Error('Month/year label not found');
+            }
+
+            let labelText = label.innerText.trim();
+            const parsed = this.parseMonthYearLabel(labelText, locale);
+            if (!parsed) {
+                throw new Error(`Failed to parse month/year: "${labelText}"`);
+            }
+
+            const year = parsed.year;
+            const month = parsed.month;
+
             Logger.fgtlog(`📅 Read exact date from calendar: ${year}-${month}-${day}`);
 
             // Read time from time input field
@@ -599,9 +690,8 @@ class TaskModal extends ModalBase {
             return this.originalTask.exactTime;
         }
 
-        // Priority 2: Parse from dateFull text (normal dates)
-        const locale = document.documentElement.lang || 'en';
-        const dateInfo = parseNaturalDate(this.originalTask.dateFull, this.originalTask.date || '', locale);
+        // Priority 2: Use cached parsed date info
+        const dateInfo = this.parsedDateInfo;
 
         // Check if time exists (hours and minutes are not 99, which means "no time")
         if (dateInfo && dateInfo.hours !== 99 && dateInfo.minutes !== 99) {

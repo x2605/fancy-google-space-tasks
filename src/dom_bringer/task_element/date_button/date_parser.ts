@@ -89,8 +89,35 @@
  * - "Scheduled for 1 week ago" → 1주 전
  * - "Scheduled for 48 weeks ago" → 48주 전
  * - "Scheduled for 112 weeks ago" → 112주 전
- * 
+ *
  * Detection: Presence of "week" or "weeks" keyword in the text
+ *
+ * CRITICAL BEHAVIOR - CALENDAR DIALOG FOR WEEK PATTERNS:
+ * -------------------------------------------------------
+ * When opening the calendar dialog for a task with "N weeks ago" pattern:
+ * - Google Tasks ALWAYS shows the CURRENT month by default
+ * - The selected date cell is NOT visible because it's in a PAST month
+ * - To read the exact date and time, you MUST navigate to the past month
+ *
+ * Example scenario:
+ * - Today: 2025-10-19
+ * - Task date: "18 weeks ago" (2025-06-10)
+ * - Calendar dialog opens showing: 2025-10 (current month)
+ * - Selected cell is in: 2025-06 (past month, NOT visible)
+ * - Solution: Navigate backwards to 2025-06 to find the selected cell
+ *
+ * This applies to ALL past dates including:
+ * - "N weeks ago" patterns (7+ days ago)
+ * - "2-6 days ago" patterns (when current day of month is 1-6, selected day may be in previous month)
+ * - "Yesterday" (when today is the 1st of month)
+ *
+ * Implementation note:
+ * When loading exact date/time from calendar (e.g., in task modal):
+ * 1. Open calendar dialog
+ * 2. Calculate expected month from parsed date
+ * 3. Navigate to that month using DateDialogUtils.navigateToMonthYear()
+ * 4. Find selected cell and read date/time
+ * 5. Close dialog
  * 
  * ============================================================================
  * PARSING STRATEGY - THREE ROUTES WITH PRIORITY
@@ -485,14 +512,18 @@ function detectRecentDayPattern(fullLabel: string, text: string): boolean {
  */
 function containsWeekKeyword(text: string, keywords: LocaleKeywords): boolean {
     if (!keywords.week) {
+        Logger.fgtlog(`[containsWeekKeyword] No week keywords defined`);
         return false;
     }
-    
+
     const textLower = text.toLowerCase();
-    
+    Logger.fgtlog(`[containsWeekKeyword] Testing text: "${text}" (lower: "${textLower}")`);
+    Logger.fgtlog(`[containsWeekKeyword] Week keywords - singular: ${keywords.week.singular}, plural: ${keywords.week.plural}`);
+
     // Check singular variants
     if (keywords.week.singular) {
         const singularVariants = keywords.week.singular.split('|');
+        Logger.fgtlog(`[containsWeekKeyword] Checking ${singularVariants.length} singular variant(s)`);
         for (const variant of singularVariants) {
             // Match keyword with flexible boundaries:
             // Before keyword: start of string OR whitespace OR digit (allows "1주전")
@@ -500,23 +531,29 @@ function containsWeekKeyword(text: string, keywords: LocaleKeywords): boolean {
             // This prevents false positives like "понедельник" containing "недел"
             // while allowing both "1 주 전" (with spaces) and "1주전" (without spaces)
             const pattern = new RegExp(`(?:^|\\s|\\d)${escapeRegExp(variant.toLowerCase())}(?:$|\\s)`);
+            Logger.fgtlog(`[containsWeekKeyword]   - Testing singular variant "${variant}" with pattern: ${pattern.toString()}`);
             if (pattern.test(textLower)) {
+                Logger.fgtlog(`[containsWeekKeyword]   ✅ MATCH found with singular variant "${variant}"`);
                 return true;
             }
         }
     }
-    
+
     // Check plural variants
     if (keywords.week.plural) {
         const pluralVariants = keywords.week.plural.split('|');
+        Logger.fgtlog(`[containsWeekKeyword] Checking ${pluralVariants.length} plural variant(s)`);
         for (const variant of pluralVariants) {
             const pattern = new RegExp(`(?:^|\\s|\\d)${escapeRegExp(variant.toLowerCase())}(?:$|\\s)`);
+            Logger.fgtlog(`[containsWeekKeyword]   - Testing plural variant "${variant}" with pattern: ${pattern.toString()}`);
             if (pattern.test(textLower)) {
+                Logger.fgtlog(`[containsWeekKeyword]   ✅ MATCH found with plural variant "${variant}"`);
                 return true;
             }
         }
     }
-    
+
+    Logger.fgtlog(`[containsWeekKeyword] ❌ No week keyword match found`);
     return false;
 }
 

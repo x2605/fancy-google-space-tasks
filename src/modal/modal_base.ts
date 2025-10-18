@@ -326,9 +326,10 @@ class ModalBase {
     }
 
     /**
-     * Cleanup resources
+     * Remove loading spinner and visual mode classes only
+     * Does NOT remove event listeners (unlike cleanup())
      */
-    cleanup(): void {
+    removeLoadingSpinner(): void {
         // Remove visual mode classes and spinner if in visual mode
         if (this.overlay?.classList.contains('fgt-operating-visual')) {
             // Remove spinner from overlay
@@ -336,6 +337,9 @@ class ModalBase {
             if (spinner) {
                 spinner.remove();
             }
+
+            // Remove class from overlay
+            this.overlay.classList.remove('fgt-operating-visual');
 
             // Remove class from container
             const container = document.getElementById('fancy-gst-container');
@@ -349,6 +353,14 @@ class ModalBase {
                 buttonContainer.classList.remove('fgt-operating-visual');
             }
         }
+    }
+
+    /**
+     * Cleanup resources
+     */
+    cleanup(): void {
+        // Remove spinner and visual mode classes
+        this.removeLoadingSpinner();
 
         // Cleanup event listeners
         this.cleanupFunctions.forEach(cleanup => cleanup());
