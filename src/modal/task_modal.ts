@@ -353,16 +353,32 @@ class TaskModal extends ModalBase {
                     <div class="${this.namespace}-form-group">
                         <label class="${this.namespace}-form-label">Set Date/Time</label>
                         <div class="${this.namespace}-datetime-inputs">
-                            <input type="date"
-                                   id="${this.namespace}-date-input"
-                                   class="${this.namespace}-date-input ${this.namespace}-form-input"
-                                   value="${this.getDateValue()}"
-                                   title="Select date">
-                            <input type="time"
-                                   id="${this.namespace}-time-input"
-                                   class="${this.namespace}-time-input ${this.namespace}-form-input"
-                                   value="${this.getTimeValue()}"
-                                   title="Select time">
+                            <div class="${this.namespace}-datetime-input-wrapper">
+                                <input type="date"
+                                       id="${this.namespace}-date-input"
+                                       class="${this.namespace}-date-input ${this.namespace}-form-input"
+                                       value="${this.getDateValue()}"
+                                       title="Select date">
+                                <button type="button"
+                                        class="${this.namespace}-delete-date-btn ${this.namespace}-delete-datetime-btn"
+                                        id="${this.namespace}-delete-date-btn"
+                                        title="Delete date and time">
+                                    Delete Date
+                                </button>
+                            </div>
+                            <div class="${this.namespace}-datetime-input-wrapper">
+                                <input type="time"
+                                       id="${this.namespace}-time-input"
+                                       class="${this.namespace}-time-input ${this.namespace}-form-input"
+                                       value="${this.getTimeValue()}"
+                                       title="Select time">
+                                <button type="button"
+                                        class="${this.namespace}-delete-time-btn ${this.namespace}-delete-datetime-btn"
+                                        id="${this.namespace}-delete-time-btn"
+                                        title="Delete time only">
+                                    Delete Time
+                                </button>
+                            </div>
                         </div>
                         ${this.originalTask && this.originalTask.date ? `
                         <div class="${this.namespace}-date-display">
@@ -795,6 +811,33 @@ class TaskModal extends ModalBase {
             });
             this.cleanupFunctions.push(cleanup4);
         }
+
+        // Delete Date button
+        const deleteDateBtn = this.modal!.querySelector(`#${this.namespace}-delete-date-btn`);
+        if (deleteDateBtn) {
+            const cleanup5 = CoreEventUtils.addListener(deleteDateBtn, 'click', () => {
+                this.handleDeleteDate();
+            });
+            this.cleanupFunctions.push(cleanup5);
+        }
+
+        // Delete Time button
+        const deleteTimeBtn = this.modal!.querySelector(`#${this.namespace}-delete-time-btn`);
+        if (deleteTimeBtn) {
+            const cleanup6 = CoreEventUtils.addListener(deleteTimeBtn, 'click', () => {
+                this.handleDeleteTime();
+            });
+            this.cleanupFunctions.push(cleanup6);
+        }
+
+        // Time input focus - auto-fill today's date if date is empty
+        const timeInput = this.modal!.querySelector(`#${this.namespace}-time-input`);
+        if (timeInput) {
+            const cleanup7 = CoreEventUtils.addListener(timeInput, 'focus', () => {
+                this.handleTimeFocus();
+            });
+            this.cleanupFunctions.push(cleanup7);
+        }
     }
 
     /**
@@ -1122,6 +1165,60 @@ class TaskModal extends ModalBase {
             } else {
                 CoreNotificationUtils.warning('Invalid category name', this.namespace);
             }
+        }
+    }
+
+    /**
+     * Handle Delete Date button - clears both date and time
+     */
+    handleDeleteDate(): void {
+        const dateInput = this.modal!.querySelector(`#${this.namespace}-date-input`) as HTMLInputElement;
+        const timeInput = this.modal!.querySelector(`#${this.namespace}-time-input`) as HTMLInputElement;
+
+        if (dateInput) {
+            dateInput.value = '';
+            Logger.fgtlog('🗑️ Date cleared');
+        }
+
+        if (timeInput) {
+            timeInput.value = '';
+            Logger.fgtlog('🗑️ Time cleared');
+        }
+
+        CoreNotificationUtils.success('Date and time deleted', this.namespace);
+    }
+
+    /**
+     * Handle Delete Time button - clears time only
+     */
+    handleDeleteTime(): void {
+        const timeInput = this.modal!.querySelector(`#${this.namespace}-time-input`) as HTMLInputElement;
+
+        if (timeInput) {
+            timeInput.value = '';
+            Logger.fgtlog('🗑️ Time cleared');
+            CoreNotificationUtils.success('Time deleted', this.namespace);
+        }
+    }
+
+    /**
+     * Handle Time input focus - auto-fill today's date if date is empty
+     */
+    handleTimeFocus(): void {
+        const dateInput = this.modal!.querySelector(`#${this.namespace}-date-input`) as HTMLInputElement;
+        const timeInput = this.modal!.querySelector(`#${this.namespace}-time-input`) as HTMLInputElement;
+
+        // Only auto-fill if date is empty and user is trying to enter time
+        if (dateInput && !dateInput.value && timeInput) {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const todayString = `${year}-${month}-${day}`;
+
+            dateInput.value = todayString;
+            Logger.fgtlog(`📅 Auto-filled today's date: ${todayString}`);
+            CoreNotificationUtils.info('Date auto-filled to today', this.namespace);
         }
     }
 

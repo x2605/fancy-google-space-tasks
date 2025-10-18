@@ -498,8 +498,17 @@
 /* Date/Time inputs container */
 .fancy-gst-datetime-inputs {
     display: flex;
-    gap: 8px;
+    gap: 12px;
     flex-wrap: wrap;
+}
+
+/* Date/Time input wrapper - contains input + delete button */
+.fancy-gst-datetime-input-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 /* Date and Time inputs */
@@ -509,24 +518,81 @@
     min-width: 0;
 }
 
+/* Delete Date/Time buttons */
+.fancy-gst-delete-datetime-btn {
+    padding: 4px 10px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    background: white;
+    color: #5f6368;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    align-self: flex-start;
+    white-space: nowrap;
+}
+
+.fancy-gst-delete-datetime-btn:hover {
+    background: #fef7e0;
+    border-color: #f9ab00;
+    color: #b06000;
+}
+
+.fancy-gst-delete-datetime-btn:active {
+    background: #feefc3;
+    border-color: #ee8100;
+}
+
+@media (prefers-color-scheme: dark) {
+    .fancy-gst-delete-datetime-btn {
+        background: #2d2d2d;
+        color: #e0e0e0;
+        border-color: #444;
+    }
+
+    .fancy-gst-delete-datetime-btn:hover {
+        background: #3d3020;
+        border-color: #f9ab00;
+        color: #fdd663;
+    }
+
+    .fancy-gst-delete-datetime-btn:active {
+        background: #4d4030;
+        border-color: #fdd663;
+    }
+}
+
 /* Below 320px: stack vertically (full width each) */
 @media (max-width: 320px) {
     .fancy-gst-datetime-inputs {
         flex-direction: column;
     }
 
+    .fancy-gst-datetime-input-wrapper {
+        width: 100%;
+    }
+
     .fancy-gst-date-input,
     .fancy-gst-time-input {
         width: 100%;
+    }
+
+    .fancy-gst-delete-datetime-btn {
+        align-self: stretch;
     }
 }
 
 /* Above 320px: side by side (50% each) */
 @media (min-width: 321px) {
+    .fancy-gst-datetime-input-wrapper {
+        flex: 1;
+        max-width: calc(50% - 6px);
+    }
+
     .fancy-gst-date-input,
     .fancy-gst-time-input {
         flex: 1;
-        max-width: calc(50% - 4px);
     }
 }
 
