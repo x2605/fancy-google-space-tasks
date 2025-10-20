@@ -38,6 +38,10 @@ class TaskModal extends ModalBase {
     lastBadgeRemoveTime: number;
     parsedDateInfo: any; // Cached parsed date info to avoid repeated parsing
     localeAvailable: boolean; // Whether locale keywords are available for date parsing
+    initialAssigneeText: string; // Original assignee text when modal opened
+    availableAssignees: Array<{name: string, email: string}>; // List of available assignees
+    selectedAssignee: {name: string, email: string} | null; // Currently selected assignee
+    hasUnassignOption: boolean; // Whether unassign option is available
 
     constructor(namespace: string = 'fancy-gst') {
         super(namespace);
@@ -62,6 +66,12 @@ class TaskModal extends ModalBase {
         this.lastBadgeRemoveTime = 0;
         this.parsedDateInfo = null;
         this.localeAvailable = !!window.FGT_LOCALE;
+
+        // Assignee state
+        this.initialAssigneeText = '';
+        this.availableAssignees = [];
+        this.selectedAssignee = null;
+        this.hasUnassignOption = false;
     }
 
     /**
@@ -211,6 +221,26 @@ class TaskModal extends ModalBase {
                         this.attachTaskModalHandlers();
                         this.removeLoadingSpinner(); // Remove spinner only (preserve event listeners)
                     }
+                }
+            }
+        }
+
+        // Load assignee information after date loading is complete
+        // This includes remembering initial assignee text and fetching available assignees
+        if (this.actionType === 'edit' || this.actionType === 'toBeAdded') {
+            try {
+                // Show loading spinner
+                if (!TEST_MODE) {
+                    this.showLoading('Loading assignee information...', true);
+                }
+
+                await this.loadAssigneeInformation();
+            } finally {
+                // Always restore modal content and remove spinner
+                if (!TEST_MODE) {
+                    this.updateContent(this.generateTaskModalHTML());
+                    this.attachTaskModalHandlers();
+                    this.removeLoadingSpinner();
                 }
             }
         }
@@ -393,8 +423,27 @@ class TaskModal extends ModalBase {
                     </div>
                     ` : ''}
 
-                    <!-- Assignee display -->
-                    ${this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ? `
+                    <!-- Assignee selector -->
+                    ${this.availableAssignees.length > 0 ? `
+                    <div class="${this.namespace}-form-group">
+                        <label for="${this.namespace}-assignee-select" class="${this.namespace}-form-label">
+                            Assignee
+                        </label>
+                        <select id="${this.namespace}-assignee-select"
+                                class="${this.namespace}-assignee-select ${this.namespace}-form-input">
+                            ${this.hasUnassignOption ? `
+                            <option value="">-- Unassign --</option>
+                            ` : ''}
+                            ${this.availableAssignees.map(assignee => `
+                            <option value="${CoreDOMUtils.escapeHtml(assignee.email)}"
+                                    ${this.selectedAssignee && this.selectedAssignee.email === assignee.email ? 'selected' : ''}>
+                                ${CoreDOMUtils.escapeHtml(assignee.name)} (${CoreDOMUtils.escapeHtml(assignee.email)})
+                            </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    ` : this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ? `
+                    <!-- Assignee display (read-only fallback) -->
                     <div class="${this.namespace}-form-group">
                         <label class="${this.namespace}-form-label">Assignee</label>
                         <div class="${this.namespace}-readonly-field">
@@ -654,6 +703,337 @@ class TaskModal extends ModalBase {
             } catch {}
 
             return { date: '', time: '' };
+        }
+    }
+
+    /**
+     * Load assignee information from task element
+     * Step 1: Remember initial assignee text
+     * Step 2: Get available assignees list via polling
+     */
+    async loadAssigneeInformation(): Promise<void> {
+        try {
+            // Find task element
+            let taskElement = null;
+            if (this.actionType === 'edit' && this.taskId) {
+                taskElement = OgtFinder.findTaskWrapper(this.taskId);
+            } else if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
+                taskElement = this.toBeAddedTaskElement;
+            }
+
+            if (!taskElement) {
+                Logger.fgtlog('ℹ️ Cannot load assignee info: task element not found');
+                return;
+            }
+
+            // Step 1: Remember initial assignee text
+            const assigneeButton = taskElement.element.querySelector('div[role="button"][aria-disabled]:not([data-first-date-el])');
+            if (!assigneeButton) {
+                Logger.fgtlog('ℹ️ Assignee button not found - assignee feature may not be available');
+                return;
+            }
+
+            const assigneeText = assigneeButton.querySelector('span[title]');
+            if (assigneeText) {
+                this.initialAssigneeText = assigneeText.textContent?.trim() || '';
+                Logger.fgtlog(`👤 Initial assignee text: "${this.initialAssigneeText}"`);
+            }
+
+            // Step 2: Click button to open list and get available assignees
+            Logger.fgtlog('🖱️ Clicking assignee button to open list...');
+            (assigneeButton as HTMLElement).click();
+
+            // Wait a bit for the input container to appear
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Start polling for assignee items
+            const maxPollingAttempts = 4;
+            let assigneeItems: any[] = [];
+
+            for (let attempt = 0; attempt < maxPollingAttempts; attempt++) {
+                // Find input container
+                const inputContainer = taskElement.element.querySelector('div[data-enable-task-assignment]');
+
+                if (!inputContainer) {
+                    Logger.fgtlog(`⚠️ Input container not found (attempt ${attempt + 1}/${maxPollingAttempts})`);
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    continue;
+                }
+
+                // Find listbox
+                const listbox = inputContainer.querySelector('ul[role="listbox"]');
+
+                if (!listbox) {
+                    // Try clicking input to toggle listbox
+                    const input = inputContainer.querySelector('input[role="combobox"]');
+                    if (input) {
+                        Logger.fgtlog(`🖱️ Clicking input to show listbox (attempt ${attempt + 1}/${maxPollingAttempts})`);
+                        (input as HTMLElement).click();
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                    continue;
+                }
+
+                // Find all items
+                const items = listbox.querySelectorAll('li[role="option"]');
+
+                if (items.length === 0) {
+                    // Try clicking input to toggle listbox
+                    const input = inputContainer.querySelector('input[role="combobox"]');
+                    if (input) {
+                        Logger.fgtlog(`🖱️ Clicking input to show listbox (attempt ${attempt + 1}/${maxPollingAttempts})`);
+                        (input as HTMLElement).click();
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+
+                    // Check if button reappeared (list closed)
+                    const buttonReappeared = taskElement.element.querySelector('div[role="button"][aria-disabled]:not([data-first-date-el])');
+                    if (buttonReappeared && buttonReappeared !== assigneeButton) {
+                        Logger.fgtlog('🔄 Button reappeared - clicking again to reopen list');
+                        (buttonReappeared as HTMLElement).click();
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+
+                    continue;
+                }
+
+                // Found items! Extract information
+                Logger.fgtlog(`✅ Found ${items.length} assignee items`);
+
+                items.forEach((item, index) => {
+                    const spans = item.querySelectorAll('span[jsname]');
+                    const texts: string[] = [];
+
+                    spans.forEach(span => {
+                        const text = (span as HTMLSpanElement).innerText;
+                        if (text) {
+                            texts.push(text);
+                        }
+                    });
+
+                    // Check if this is unassign option
+                    const hasSvg = !!item.querySelector('svg');
+                    const hasImage = !!item.querySelector('img');
+                    const isUnassign = hasSvg && !hasImage;
+
+                    if (isUnassign) {
+                        this.hasUnassignOption = true;
+                        Logger.fgtlog(`  ${index}: [Unassign option]`);
+                    } else if (texts.length >= 2) {
+                        // texts[0] = name, texts[1] = email
+                        this.availableAssignees.push({
+                            name: texts[0],
+                            email: texts[1]
+                        });
+                        Logger.fgtlog(`  ${index}: ${texts[0]} (${texts[1]})`);
+                    }
+                });
+
+                assigneeItems = Array.from(items);
+                break; // Success, exit polling loop
+            }
+
+            // Close the assignee list by clicking button again (if it's still open)
+            // Find the input container again
+            const inputContainer = taskElement.element.querySelector('div[data-enable-task-assignment]');
+            if (inputContainer) {
+                const input = inputContainer.querySelector('input[role="combobox"]');
+                if (input) {
+                    // Check if listbox is still visible
+                    const listbox = inputContainer.querySelector('ul[role="listbox"]');
+                    if (listbox) {
+                        Logger.fgtlog('🔄 Closing assignee list...');
+                        (input as HTMLElement).click();
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                }
+            }
+
+            // Set initial selected assignee based on initial text
+            if (this.initialAssigneeText && this.availableAssignees.length > 0) {
+                const match = this.availableAssignees.find(a => a.name === this.initialAssigneeText);
+                if (match) {
+                    this.selectedAssignee = match;
+                    Logger.fgtlog(`✅ Initial assignee matched: ${match.name} (${match.email})`);
+                }
+            }
+
+            Logger.fgtlog(`📊 Assignee info loaded: ${this.availableAssignees.length} assignees, unassign=${this.hasUnassignOption}`);
+
+        } catch (error: any) {
+            Logger.fgterror(`❌ Failed to load assignee information: ${error.message}`);
+            // Don't throw - assignee editing is optional feature
+        }
+    }
+
+    /**
+     * Apply assignee change to task element
+     * Step 4: Change assignee by clicking the matching item in the list
+     * Step 5: Verify the change by checking OgtAssigneeText
+     */
+    async applyAssigneeChange(targetAssignee: {name: string, email: string} | null): Promise<boolean> {
+        try {
+            // Find task element
+            let taskElement = null;
+            if (this.actionType === 'edit' && this.taskId) {
+                taskElement = OgtFinder.findTaskWrapper(this.taskId);
+            } else if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
+                taskElement = this.toBeAddedTaskElement;
+            }
+
+            if (!taskElement) {
+                Logger.fgterror('❌ Cannot change assignee: task element not found');
+                return false;
+            }
+
+            // Remember initial assignee text for verification
+            const initialButton = taskElement.element.querySelector('div[role="button"][aria-disabled]:not([data-first-date-el])');
+            if (!initialButton) {
+                Logger.fgterror('❌ Cannot change assignee: button not found');
+                return false;
+            }
+
+            const initialTextElement = initialButton.querySelector('span[title]');
+            const initialText = initialTextElement?.textContent?.trim() || '';
+            Logger.fgtlog(`👤 Initial assignee text before change: "${initialText}"`);
+
+            // Step 4: Click button to open list
+            Logger.fgtlog('🖱️ Clicking assignee button to open list for change...');
+            (initialButton as HTMLElement).click();
+
+            // Wait for input container to appear
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Poll for assignee items
+            const maxPollingAttempts = 4;
+            let foundItem: HTMLElement | null = null;
+
+            for (let attempt = 0; attempt < maxPollingAttempts; attempt++) {
+                const inputContainer = taskElement.element.querySelector('div[data-enable-task-assignment]');
+
+                if (!inputContainer) {
+                    Logger.fgtlog(`⚠️ Input container not found (attempt ${attempt + 1}/${maxPollingAttempts})`);
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    continue;
+                }
+
+                const listbox = inputContainer.querySelector('ul[role="listbox"]');
+
+                if (!listbox) {
+                    // Try clicking input to toggle listbox
+                    const input = inputContainer.querySelector('input[role="combobox"]');
+                    if (input) {
+                        Logger.fgtlog(`🖱️ Clicking input to show listbox (attempt ${attempt + 1}/${maxPollingAttempts})`);
+                        (input as HTMLElement).click();
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                    continue;
+                }
+
+                const items = listbox.querySelectorAll('li[role="option"]');
+
+                if (items.length === 0) {
+                    // Try clicking input
+                    const input = inputContainer.querySelector('input[role="combobox"]');
+                    if (input) {
+                        (input as HTMLElement).click();
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+
+                    // Check if button reappeared
+                    const buttonReappeared = taskElement.element.querySelector('div[role="button"][aria-disabled]:not([data-first-date-el])');
+                    if (buttonReappeared && buttonReappeared !== initialButton) {
+                        (buttonReappeared as HTMLElement).click();
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+
+                    continue;
+                }
+
+                // Find matching item
+                Logger.fgtlog(`🔍 Searching for ${targetAssignee ? `assignee: ${targetAssignee.name} (${targetAssignee.email})` : 'unassign option'}`);
+
+                for (const item of Array.from(items)) {
+                    if (targetAssignee === null) {
+                        // Looking for unassign option
+                        const hasSvg = !!item.querySelector('svg');
+                        const hasImage = !!item.querySelector('img');
+                        const isUnassign = hasSvg && !hasImage;
+
+                        if (isUnassign) {
+                            foundItem = item as HTMLElement;
+                            Logger.fgtlog('✅ Found unassign option');
+                            break;
+                        }
+                    } else {
+                        // Looking for specific assignee
+                        const spans = item.querySelectorAll('span[jsname]');
+                        const texts: string[] = [];
+
+                        spans.forEach(span => {
+                            const text = (span as HTMLSpanElement).innerText;
+                            if (text) {
+                                texts.push(text);
+                            }
+                        });
+
+                        if (texts.length >= 2 && texts[0] === targetAssignee.name && texts[1] === targetAssignee.email) {
+                            foundItem = item as HTMLElement;
+                            Logger.fgtlog(`✅ Found matching assignee: ${texts[0]} (${texts[1]})`);
+                            break;
+                        }
+                    }
+                }
+
+                if (foundItem) {
+                    break; // Exit polling loop
+                }
+            }
+
+            if (!foundItem) {
+                Logger.fgterror('❌ Could not find matching assignee item in list');
+                return false;
+            }
+
+            // Click the found item
+            Logger.fgtlog('🖱️ Clicking assignee item to apply change...');
+            foundItem.click();
+
+            // Wait for change to be applied
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Step 5: Verify the change
+            Logger.fgtlog('🔍 Verifying assignee change...');
+
+            const updatedButton = taskElement.element.querySelector('div[role="button"][aria-disabled]:not([data-first-date-el])');
+            if (!updatedButton) {
+                Logger.fgtwarn('⚠️ Button not found after change - verification skipped');
+                return true; // Assume success since we clicked
+            }
+
+            const updatedTextElement = updatedButton.querySelector('span[title]');
+            const updatedText = updatedTextElement?.textContent?.trim() || '';
+
+            Logger.fgtlog(`👤 Assignee text after change: "${updatedText}"`);
+
+            // Check if text changed
+            if (updatedText === initialText) {
+                Logger.fgterror(`❌ Assignee text did not change (still "${initialText}")`);
+                return false;
+            }
+
+            // Check if updated text matches expected (if targetAssignee is not null)
+            if (targetAssignee !== null && updatedText !== targetAssignee.name) {
+                Logger.fgtwarn(`⚠️ Assignee text changed but doesn't match expected. Expected: "${targetAssignee.name}", Got: "${updatedText}"`);
+                // This is a warning, not an error
+            }
+
+            Logger.fgtlog(`✅ Assignee successfully changed from "${initialText}" to "${updatedText}"`);
+            return true;
+
+        } catch (error: any) {
+            Logger.fgterror(`❌ Failed to apply assignee change: ${error.message}`);
+            return false;
         }
     }
 
@@ -1733,6 +2113,32 @@ class TaskModal extends ModalBase {
         const titleChanged = fullTitleWithoutNewline !== originalFullTitle;
         const descriptionChanged = description !== originalDescription;
 
+        // Check if assignee changed
+        const assigneeSelect = this.modal!.querySelector(`#${this.namespace}-assignee-select`) as HTMLSelectElement;
+        let assigneeChanged = false;
+        let targetAssignee: {name: string, email: string} | null = null;
+
+        if (assigneeSelect && this.availableAssignees.length > 0) {
+            const selectedEmail = assigneeSelect.value;
+
+            if (selectedEmail === '') {
+                // Unassign option selected
+                assigneeChanged = this.selectedAssignee !== null;
+                targetAssignee = null;
+                Logger.fgtlog(`👤 User selected: [Unassign]`);
+            } else {
+                const selectedAssignee = this.availableAssignees.find(a => a.email === selectedEmail);
+                if (selectedAssignee) {
+                    // Check if different from initial
+                    if (!this.selectedAssignee || this.selectedAssignee.email !== selectedAssignee.email) {
+                        assigneeChanged = true;
+                        targetAssignee = selectedAssignee;
+                        Logger.fgtlog(`👤 User selected: ${selectedAssignee.name} (${selectedAssignee.email})`);
+                    }
+                }
+            }
+        }
+
         // Handle toBeAdded mode
         if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
             // Lock UI to prevent interaction
@@ -1804,6 +2210,16 @@ class TaskModal extends ModalBase {
                 // Wait for changes to apply - monitor DOM changes
                 await this.waitForToBeAddedChanges(titleEditor, descEditor, fullTitle, description, 5000);
 
+                // Apply assignee change if needed (after title/description)
+                if (assigneeChanged) {
+                    Logger.fgtlog('👤 Applying assignee change for toBeAdded task...');
+                    const assigneeSuccess = await this.applyAssigneeChange(targetAssignee);
+
+                    if (!assigneeSuccess) {
+                        Logger.fgtwarn('⚠️ Assignee change failed, but continuing with task creation');
+                    }
+                }
+
                 // Restore UI
                 this.restoreUIAfterOperation();
 
@@ -1853,6 +2269,23 @@ class TaskModal extends ModalBase {
             if (!titleChanged && !descriptionChanged) {
                 Logger.fgtlog('ℹ️ Only date/time changed, skipping title/description update');
 
+                // Apply assignee change if needed (even if title/description didn't change)
+                if (assigneeChanged) {
+                    // Show loading
+                    this.hideUIForOperation('Updating assignee...');
+
+                    Logger.fgtlog('👤 Applying assignee change...');
+                    const assigneeSuccess = await this.applyAssigneeChange(targetAssignee);
+
+                    // Restore UI
+                    this.restoreUIAfterOperation();
+
+                    if (!assigneeSuccess) {
+                        CoreNotificationUtils.error('Failed to update assignee', this.namespace);
+                        return; // Don't close modal on error
+                    }
+                }
+
                 // Call confirm callback
                 Logger.fgtlog(`🔍 [DEBUG] Calling onConfirm callback with taskId: ${this.taskId}`);
                 if (this.onConfirm) {
@@ -1895,9 +2328,27 @@ class TaskModal extends ModalBase {
                 description,
                 originalFullTitle,
                 originalDescription,
-                () => {
+                async () => {
                     // Success callback
                     Logger.fgtlog('✅ Task edit completed');
+
+                    // Apply assignee change if needed (after title/description edit)
+                    if (assigneeChanged) {
+                        Logger.fgtlog('👤 Applying assignee change after edit...');
+                        const assigneeSuccess = await this.applyAssigneeChange(targetAssignee);
+
+                        if (!assigneeSuccess) {
+                            Logger.fgtwarn('⚠️ Assignee change failed');
+                            // Restore UI
+                            this.restoreUIAfterOperation();
+                            // Unlock UI
+                            CoreDOMUtils.disableLockStyles();
+                            this.isProcessing = false;
+                            // Show error
+                            this.showError('Task updated but failed to change assignee');
+                            return; // Don't close modal
+                        }
+                    }
 
                     // Restore UI
                     this.restoreUIAfterOperation();
