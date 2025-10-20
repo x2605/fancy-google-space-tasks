@@ -1,6 +1,5 @@
 // dom_bringer/task_element/assignee_button/assignee_button.ts
 import * as Logger from '@/core/logger';
-import { OgtAssigneeListbox } from './assignee_listbox';
 import { OgtAssigneeImage } from './assignee_image';
 import { OgtAssigneeText } from './assignee_text';
 import type { OgtTaskWrapper } from '@/dom_bringer/task_element/task_element';
@@ -9,7 +8,7 @@ Logger.fgtlog('👤 OGT Assignee Button loading...');
 
 /**
  * Wrapper class for the assignee button element
- * This button shows the current assignee and opens the assignee selector when clicked
+ * This button shows the OgtAssigneeInputWrapper.element and removes itself.
  * 
  * @class OgtAssigneeButton
  */
@@ -54,7 +53,7 @@ class OgtAssigneeButton {
      * @returns OgtAssigneeText or null
      */
     findAssigneeText(): OgtAssigneeText | null {
-        const textElement = this._element.querySelector('span[title]');
+        const textElement = OgtAssigneeText.findElementInObject(this);
         if (!textElement) return null;
         return new OgtAssigneeText(textElement);
     }
@@ -64,28 +63,9 @@ class OgtAssigneeButton {
      * @returns OgtAssigneeImage or null
      */
     findAssigneeImage(): OgtAssigneeImage | null {
-        const imgElement = this._element.querySelector('div[style*="background-image"]') as HTMLDivElement;
+        const imgElement = OgtAssigneeImage.findElementInObject(this);
         if (!imgElement) return null;
         return new OgtAssigneeImage(imgElement);
-    }
-
-    /**
-     * Wait for assignee listbox to appear after clicking button
-     * @param timeout - Maximum wait time
-     * @returns Promise resolving to OgtAssigneeListbox
-     */
-    async waitForAssigneeListbox(timeout: number = 3000): Promise<any> {
-        const startTime = Date.now();
-
-        while (Date.now() - startTime < timeout) {
-            const listbox = document.querySelector('div[data-stable-unique-listbox-id]') as HTMLDivElement;
-            if (listbox && listbox.offsetParent !== null) {
-                return new OgtAssigneeListbox(listbox);
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        throw new Error('Assignee listbox did not appear within timeout');
     }
 
     /**

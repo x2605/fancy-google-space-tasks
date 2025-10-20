@@ -1,5 +1,6 @@
 // manipulator/task_element/assignee_button/assignee_image.ts
 import * as Logger from '@/core/logger';
+import type { OgtAssigneeButton } from '@/dom_bringer/task_element/assignee_button/assignee_button';
 
 Logger.fgtlog('🖼️ OGT Assignee Image loading...');
 
@@ -11,6 +12,20 @@ Logger.fgtlog('🖼️ OGT Assignee Image loading...');
  */
 class OgtAssigneeImage {
     _element: HTMLDivElement;
+
+    /**
+     * Can be called directly from class
+     * @returns - Selector string
+     */
+    static selector = 'div[style*="background-image"]';
+
+    /**
+     * Can be called directly from class
+     * @returns - An HTML element which can be used in constructor
+     */
+    static findElementInObject(object: OgtAssigneeButton): HTMLDivElement | null {
+        return object.element.querySelector(this.selector);
+    }
 
     /**
      * Create an assignee image wrapper

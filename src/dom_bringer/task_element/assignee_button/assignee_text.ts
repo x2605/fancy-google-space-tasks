@@ -1,5 +1,6 @@
 // manipulator/task_element/assignee_button/assignee_text.ts
 import * as Logger from '@/core/logger';
+import type { OgtAssigneeButton } from '@/dom_bringer/task_element/assignee_button/assignee_button';
 
 Logger.fgtlog('👤 OGT Assignee Text loading...');
 
@@ -10,13 +11,27 @@ Logger.fgtlog('👤 OGT Assignee Text loading...');
  * @class OgtAssigneeText
  */
 class OgtAssigneeText {
-    _element: Element;
+    _element: HTMLSpanElement;
+
+    /**
+     * Can be called directly from class
+     * @returns - Selector string
+     */
+    static selector = 'span[title]';
+
+    /**
+     * Can be called directly from class
+     * @returns - An HTML element which can be used in constructor
+     */
+    static findElementInObject(object: OgtAssigneeButton): HTMLSpanElement | null {
+        return object.element.querySelector(this.selector);
+    }
 
     /**
      * Create an assignee text wrapper
      * @param element - The span element with title attribute
      */
-    constructor(element: Element) {
+    constructor(element: HTMLSpanElement) {
         if (!element) {
             throw new Error('OgtAssigneeText requires a valid DOM element');
         }
@@ -27,7 +42,7 @@ class OgtAssigneeText {
      * Get the underlying DOM element
      * @returns The wrapped span element
      */
-    get element(): Element {
+    get element(): HTMLSpanElement {
         return this._element;
     }
 

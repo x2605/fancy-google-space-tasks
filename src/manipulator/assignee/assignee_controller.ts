@@ -37,8 +37,9 @@ export class AssigneeController extends TaskManipulatorBase {
 
             this.triggerClick(assigneeButton.element);
 
-            const listbox = await assigneeButton.waitForAssigneeListbox(2000);
-            assigneeButton.element.focus();
+            const assigneeInputWrapper = taskElement.findAssigneeInputContainer();
+            if (!assigneeInputWrapper) throw new Error('Assignee input container not found');
+            const listbox = await assigneeInputWrapper.waitForAssigneeListbox(2000);
 
             const assigneeItems = listbox.findAllAssigneeItems();
             let targetOption = null;
@@ -89,8 +90,9 @@ export class AssigneeController extends TaskManipulatorBase {
 
             this.triggerClick(assigneeButton.element);
 
-            const listbox = await assigneeButton.waitForAssigneeListbox(2000);
-            assigneeButton.element.focus();
+            const assigneeInputWrapper = taskElement.findAssigneeInputContainer();
+            if (!assigneeInputWrapper) throw new Error('Assignee input container not found');
+            const listbox = await assigneeInputWrapper.waitForAssigneeListbox(2000);
 
             const assigneeItems = listbox.findAllAssigneeItems();
             const assignees = assigneeItems
