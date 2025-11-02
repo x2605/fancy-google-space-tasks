@@ -474,10 +474,10 @@ export function showAddSubcategoryDropdown(modal: any, button: HTMLElement, cate
     // Build dropdown content
     let dropdownHTML = '';
 
-    // Modify option (prompts for new category)
+    // Create new option (prompts for new category)
     dropdownHTML += `
         <div class="${modal.namespace}-dropdown-item modify-option" data-action="add-new">
-            ✏️ Modify
+            ✨ Create new
         </div>
     `;
 
