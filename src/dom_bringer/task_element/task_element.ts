@@ -8,6 +8,7 @@ import { OgtCompleteCheckbox } from './complete_checkbox';
 import { OgtDescWrapper } from './desc_wrapper/desc_wrapper';
 import { OgtTitleWrapper } from './title_wrapper/title_wrapper';
 import { OgtTouchButton } from './touch_button';
+import { OgtAssigneeInputContainer } from './assignee_input_container/assignee_input_container';
 
 Logger.fgtlog('📋 OGT Task Element loading...');
 
@@ -140,6 +141,18 @@ class OgtTaskWrapper {
         const button = OgtAssigneeButton.findElementInObject(this);
         if (!button) return null;
         return new OgtAssigneeButton(button);
+    }
+
+    /**
+     * Find the assignee button
+     * This button shows the current assignee and opens the assignee selector when clicked.
+     * Selector: [role="button"][aria-disabled]:not([data-first-date-el])
+     * @returns Assignee button or null if not found
+     */
+    findAssigneeInputContainer(): OgtAssigneeInputContainer | null {
+        const button = OgtAssigneeInputContainer.findElementInObject(this);
+        if (!button) return null;
+        return new OgtAssigneeInputContainer(button);
     }
 
     /**

@@ -1,12 +1,12 @@
 // manipulator/task_element/assignee_button/assignee_item.ts
 import * as Logger from '@/core/logger';
+import type { OgtAssigneeListbox } from '@/dom_bringer/task_element/assignee_input_container/assignee_listbox';
 
 Logger.fgtlog('👤 OGT Assignee Item loading...');
 
 /**
  * Wrapper class for individual assignee option in the listbox
  * Each item represents a team member that can be assigned to a task
- * Selector: li[role="option"]
  * 
  * @class OgtAssigneeItem
  * @example
@@ -18,13 +18,27 @@ Logger.fgtlog('👤 OGT Assignee Item loading...');
  * });
  */
 class OgtAssigneeItem {
-    _element: Element;
+    _element: HTMLLIElement;
+
+    /**
+     * Can be called directly from class
+     * @returns - Selector string
+     */
+    static selector = 'li[role="option"]';
+
+    /**
+     * Can be called directly from class
+     * @returns - Node list of HTML elements which can be used in constructor
+     */
+    static findAllElementsInObject(object: OgtAssigneeListbox): NodeListOf<HTMLLIElement> {
+        return object.element.querySelectorAll(this.selector);
+    }
 
     /**
      * Create an assignee item wrapper
      * @param element - The list item element
      */
-    constructor(element: Element) {
+    constructor(element: HTMLLIElement) {
         if (!element) throw new Error('OgtAssigneeItem requires a valid DOM element');
         this._element = element;
     }
@@ -33,7 +47,7 @@ class OgtAssigneeItem {
      * Get the underlying DOM element
      * @returns The wrapped list item element
      */
-    get element(): Element { 
+    get element(): HTMLLIElement { 
         return this._element; 
     }
     
@@ -41,8 +55,16 @@ class OgtAssigneeItem {
      * Get the assignee name text
      * @returns The assignee name or empty string
      */
-    get text(): string {
-        return this._element.textContent?.trim() || '';
+    get texts(): string[] {
+        const array = this._element.querySelectorAll('span[jsname]') as NodeListOf<HTMLSpanElement>;
+        let result: string[] = [];
+        for (let i = 0; i < array.length; i++) {
+            if (array[i].innerText) {
+                result.push(array[i].innerText)
+            }
+        }
+
+        return result
     }
     
     /**

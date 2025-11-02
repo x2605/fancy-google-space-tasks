@@ -1015,6 +1015,13 @@ class ContainerManager {
             return;
         }
 
+        // Skip if task modal is open to prevent interference with assignee/date loading
+        // Background rendering during modal open can disrupt OgtAssigneeInputContainer polling
+        if (this.isShowingTaskModal) {
+            Logger.fgtlog('⏸️ Skipping background refresh - task modal is open');
+            return;
+        }
+
         Logger.fgtlog(`🔄 DOM changes detected (${_mutations.length} mutations)`);
 
         // Normal change detection (ToBeAdded is already handled in immediate observer)

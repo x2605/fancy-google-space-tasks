@@ -5,13 +5,15 @@ import { CoreNotificationUtils } from '@/core/notification_utils';
 import { CategoryParser } from '@/category/category_parser';
 import { CoreEventUtils } from '@/core/event_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
-import { CategoryUtils } from '@/category/category_utils';
-import { parseNaturalDate, formatDateForModal, extractAndRemoveTime, getLocaleKeywords, normalizeNumbers } from '@/dom_bringer/task_element/date_button/date_parser';
+import { parseNaturalDate, extractAndRemoveTime, getLocaleKeywords, normalizeNumbers } from '@/dom_bringer/task_element/date_button/date_parser';
 import { OgtFinder } from '@/dom_bringer/finder';
 import { DateController } from '@/manipulator/date/date_controller';
 import { DateVerification } from '@/manipulator/date/date_verification';
 import { DateDialogUtils } from '@/manipulator/date/date_dialog_utils';
 import { DATE_VERIFICATION_TIMEOUT } from '@/dom_bringer/date/date_constants';
+import { getInitialAssigneeText, getAvailableAssigneesWithPolling, closeAssigneeList, applyAssigneeSelection, verifyAssigneeChange } from '@/modal/assignee_utils';
+import { getFormattedDueDate as utilGetFormattedDueDate, getDateValue as utilGetDateValue, getTimeValue as utilGetTimeValue, handleDeleteDate as utilHandleDeleteDate, handleDeleteTime as utilHandleDeleteTime, handleTimeFocus as utilHandleTimeFocus } from '@/modal/date_modal_utils';
+import { renderCategoryBadges as utilRenderCategoryBadges, getSameLevelCategories as utilGetSameLevelCategories, getNextLevelCategories as utilGetNextLevelCategories, updateCategoryBadges as utilUpdateCategoryBadges, handleRemoveBadge as utilHandleRemoveBadge, handleBadgeClick as utilHandleBadgeClick, showCategoryDropdown as utilShowCategoryDropdown, handleModifyCategory as utilHandleModifyCategory, handleSwitchCategory as utilHandleSwitchCategory, closeCategoryDropdown as utilCloseCategoryDropdown, handleAddSubcategory as utilHandleAddSubcategory, promptForNewSubcategory as utilPromptForNewSubcategory, showAddSubcategoryDropdown as utilShowAddSubcategoryDropdown } from '@/modal/category_modal_utils';
 
 Logger.fgtlog('📝 Task Modal loading...');
 
@@ -38,6 +40,11 @@ class TaskModal extends ModalBase {
     lastBadgeRemoveTime: number;
     parsedDateInfo: any; // Cached parsed date info to avoid repeated parsing
     localeAvailable: boolean; // Whether locale keywords are available for date parsing
+    initialAssigneeText: string; // Original assignee text when modal opened
+    availableAssignees: Array<{name: string, email: string}>; // List of available assignees
+    selectedAssignee: {name: string, email: string} | null; // Currently selected assignee
+    hasUnassignOption: boolean; // Whether unassign option is available
+    assigneeLoadFailed: boolean;
 
     constructor(namespace: string = 'fancy-gst') {
         super(namespace);
@@ -62,6 +69,13 @@ class TaskModal extends ModalBase {
         this.lastBadgeRemoveTime = 0;
         this.parsedDateInfo = null;
         this.localeAvailable = !!window.FGT_LOCALE;
+
+        // Assignee state
+        this.initialAssigneeText = '';
+        this.availableAssignees = [];
+        this.selectedAssignee = null;
+        this.hasUnassignOption = false;
+        this.assigneeLoadFailed = false;
     }
 
     /**
@@ -215,6 +229,26 @@ class TaskModal extends ModalBase {
             }
         }
 
+        // Load assignee information after date loading is complete
+        // This includes remembering initial assignee text and fetching available assignees
+        if (this.actionType === 'edit' || this.actionType === 'toBeAdded') {
+            try {
+                // Show loading spinner
+                if (!TEST_MODE) {
+                    this.showLoading('Loading assignee information...', true);
+                }
+
+                await this.loadAssigneeInformation();
+            } finally {
+                // Always restore modal content and remove spinner
+                if (!TEST_MODE) {
+                    this.updateContent(this.generateTaskModalHTML());
+                    this.attachTaskModalHandlers();
+                    this.removeLoadingSpinner();
+                }
+            }
+        }
+
         // Get extension version for debugging
         const manifest = chrome.runtime.getManifest();
         const version = manifest.version;
@@ -316,6 +350,89 @@ class TaskModal extends ModalBase {
             ${this.createHeader(this.getModalTitle(), true)}
             ${this.createBody(`
                 <div class="${this.namespace}-task-modal-content">
+                    <!-- Assignee selector -->
+                    ${this.availableAssignees.length > 0 ? `
+                    <div class="${this.namespace}-form-group">
+                        <label for="${this.namespace}-assignee-select" class="${this.namespace}-form-label">
+                            Assignee
+                        </label>
+                        <select id="${this.namespace}-assignee-select"
+                                class="${this.namespace}-assignee-select ${this.namespace}-form-input">
+                            ${this.hasUnassignOption || this.initialAssigneeText === '' ? `
+                            <option value="" ${!this.selectedAssignee ? 'selected' : ''}>-- Unassign --</option>
+                            ` : ''}
+                            ${this.availableAssignees.map(assignee => `
+                            <option value="${CoreDOMUtils.escapeHtml(assignee.email)}"
+                                    ${this.selectedAssignee && this.selectedAssignee.email === assignee.email ? 'selected' : ''}>
+                                ${CoreDOMUtils.escapeHtml(assignee.name)} (${CoreDOMUtils.escapeHtml(assignee.email)})
+                            </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    ` : this.assigneeLoadFailed ? `
+                    <!-- Assignee load failed -->
+                    <div class="${this.namespace}-form-group">
+                        <label class="${this.namespace}-form-label">
+                            Assignee
+                            <span class="${this.namespace}-error-text">(Failed to load assignee list)</span>
+                        </label>
+                        <div class="${this.namespace}-readonly-field">
+                            ${this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ?
+                                CoreDOMUtils.escapeHtml(this.originalTask.assignee) : 'Not assigned'}
+                        </div>
+                    </div>
+                    ` : this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ? `
+                    <!-- Assignee display (read-only fallback) -->
+                    <div class="${this.namespace}-form-group">
+                        <label class="${this.namespace}-form-label">Assignee</label>
+                        <div class="${this.namespace}-readonly-field">
+                            ${CoreDOMUtils.escapeHtml(this.originalTask.assignee)}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Set Date/Time input -->
+                    <!-- TEMPORARY: Disable date/time editing for completed tasks or when locale is unavailable -->
+                    ${!this.originalTask?.isCompleted && this.localeAvailable ? `
+                    <div class="${this.namespace}-form-group">
+                        <label class="${this.namespace}-form-label">Set Date/Time
+                            ${this.originalTask && this.originalTask.date ? `
+                            <span class="${this.namespace}-date-display">
+                                Current: ${this.getFormattedDueDate()}
+                            </span>
+                            ` : ''}
+                        </label>
+                        <div class="${this.namespace}-datetime-inputs">
+                            <div class="${this.namespace}-datetime-input-wrapper">
+                                <input type="date"
+                                       id="${this.namespace}-date-input"
+                                       class="${this.namespace}-date-input ${this.namespace}-form-input"
+                                       value="${this.getDateValue()}"
+                                       title="Select date">
+                                <button type="button"
+                                        class="${this.namespace}-delete-date-btn ${this.namespace}-delete-datetime-btn"
+                                        id="${this.namespace}-delete-date-btn"
+                                        title="Delete date and time">
+                                    Delete Date
+                                </button>
+                            </div>
+                            <div class="${this.namespace}-datetime-input-wrapper">
+                                <input type="time"
+                                       id="${this.namespace}-time-input"
+                                       class="${this.namespace}-time-input ${this.namespace}-form-input"
+                                       value="${this.getTimeValue()}"
+                                       title="Select time">
+                                <button type="button"
+                                        class="${this.namespace}-delete-time-btn ${this.namespace}-delete-datetime-btn"
+                                        id="${this.namespace}-delete-time-btn"
+                                        title="Delete time only">
+                                    Delete Time
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
                     <!-- Category badges section -->
                     <div class="${this.namespace}-form-group">
                         <label class="${this.namespace}-form-label">Categories</label>
@@ -352,56 +469,6 @@ class TaskModal extends ModalBase {
                                   rows="3">${CoreDOMUtils.escapeHtml(this.getInitialDescription())}</textarea>
                     </div>
 
-                    <!-- Set Date/Time input -->
-                    <!-- TEMPORARY: Disable date/time editing for completed tasks or when locale is unavailable -->
-                    ${!this.originalTask?.isCompleted && this.localeAvailable ? `
-                    <div class="${this.namespace}-form-group">
-                        <label class="${this.namespace}-form-label">Set Date/Time</label>
-                        <div class="${this.namespace}-datetime-inputs">
-                            <div class="${this.namespace}-datetime-input-wrapper">
-                                <input type="date"
-                                       id="${this.namespace}-date-input"
-                                       class="${this.namespace}-date-input ${this.namespace}-form-input"
-                                       value="${this.getDateValue()}"
-                                       title="Select date">
-                                <button type="button"
-                                        class="${this.namespace}-delete-date-btn ${this.namespace}-delete-datetime-btn"
-                                        id="${this.namespace}-delete-date-btn"
-                                        title="Delete date and time">
-                                    Delete Date
-                                </button>
-                            </div>
-                            <div class="${this.namespace}-datetime-input-wrapper">
-                                <input type="time"
-                                       id="${this.namespace}-time-input"
-                                       class="${this.namespace}-time-input ${this.namespace}-form-input"
-                                       value="${this.getTimeValue()}"
-                                       title="Select time">
-                                <button type="button"
-                                        class="${this.namespace}-delete-time-btn ${this.namespace}-delete-datetime-btn"
-                                        id="${this.namespace}-delete-time-btn"
-                                        title="Delete time only">
-                                    Delete Time
-                                </button>
-                            </div>
-                        </div>
-                        ${this.originalTask && this.originalTask.date ? `
-                        <div class="${this.namespace}-date-display">
-                            Current: ${this.getFormattedDueDate()}
-                        </div>
-                        ` : ''}
-                    </div>
-                    ` : ''}
-
-                    <!-- Assignee display -->
-                    ${this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ? `
-                    <div class="${this.namespace}-form-group">
-                        <label class="${this.namespace}-form-label">Assignee</label>
-                        <div class="${this.namespace}-readonly-field">
-                            ${CoreDOMUtils.escapeHtml(this.originalTask.assignee)}
-                        </div>
-                    </div>
-                    ` : ''}
                 </div>
             `)}
             ${this.createFooter([
@@ -415,12 +482,7 @@ class TaskModal extends ModalBase {
      * Get formatted due date for modal display
      */
     getFormattedDueDate(): string {
-        if (!this.originalTask || !this.originalTask.date || !this.originalTask.dateFull) {
-            return 'No date';
-        }
-
-        // Use cached parsed date info
-        return formatDateForModal(this.parsedDateInfo);
+        return utilGetFormattedDueDate(this.originalTask, this.parsedDateInfo);
     }
 
     /**
@@ -429,27 +491,7 @@ class TaskModal extends ModalBase {
      * For "# weeks ago" pattern, uses pre-loaded exactDate from originalTask
      */
     getDateValue(): string {
-        if (!this.originalTask || !this.originalTask.dateFull) {
-            return '';
-        }
-
-        // Check if exactDate was pre-loaded (for weeks ago pattern)
-        if (this.originalTask.exactDate) {
-            Logger.fgtlog(`📅 Using pre-loaded exact date: ${this.originalTask.exactDate}`);
-            return this.originalTask.exactDate;
-        }
-
-        // Use cached parsed date info
-        const dateInfo = this.parsedDateInfo;
-
-        if (dateInfo && dateInfo.year && dateInfo.month && dateInfo.day) {
-            const year = dateInfo.year;
-            const month = String(dateInfo.month).padStart(2, '0');
-            const day = String(dateInfo.day).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        return '';
+        return utilGetDateValue(this.originalTask, this.parsedDateInfo);
     }
 
     /**
@@ -658,6 +700,129 @@ class TaskModal extends ModalBase {
     }
 
     /**
+     * Load assignee information from task element
+     * Step 1: Remember initial assignee text (may be null if unassigned)
+     * Step 2: Get available assignees list via polling
+     *
+     * IMPORTANT: OgtAssigneeButton.element and OgtAssigneeInputContainer.element
+     * are mutually exclusive - when one appears, the other disappears.
+     */
+    async loadAssigneeInformation(): Promise<void> {
+        try {
+            // Find task element
+            let taskElement = null;
+            if (this.actionType === 'edit' && this.taskId) {
+                taskElement = OgtFinder.findTaskWrapper(this.taskId);
+            } else if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
+                taskElement = this.toBeAddedTaskElement;
+            }
+
+            if (!taskElement) {
+                Logger.fgtlog('ℹ️ Cannot load assignee info: task element not found');
+                return;
+            }
+
+            // Step 1: Remember initial assignee text (may be null if task is unassigned)
+            const initialText = getInitialAssigneeText(taskElement);
+            if (initialText) {
+                this.initialAssigneeText = initialText;
+                Logger.fgtlog(`👤 Initial assignee text: "${initialText}"`);
+            } else {
+                // Store empty string for unassigned tasks to distinguish from "not loaded"
+                this.initialAssigneeText = '';
+                Logger.fgtlog('ℹ️ No initial assignee (task is unassigned)');
+            }
+
+            // Step 2: Get available assignees via polling
+            // First attempt: 5 seconds (50 × 100ms), subsequent: 1 second (10 × 100ms)
+            const assigneeInfo = await getAvailableAssigneesWithPolling(taskElement);
+            this.availableAssignees = assigneeInfo.availableAssignees;
+            this.hasUnassignOption = assigneeInfo.hasUnassignOption;
+
+            // Check if loading failed (no assignees and button was found)
+            if (this.availableAssignees.length === 0) {
+                Logger.fgterror('❌ Failed to load assignee list - no assignees found');
+                this.assigneeLoadFailed = true;
+
+                // Reduce timeout for subsequent attempts (5s → 1s)
+                window.FGT_ASSIGNEE_POLLING_TIMEOUT = 10;
+                Logger.fgtlog('⏱️ Reduced assignee polling timeout to 1 second for future attempts');
+
+                // Close the list and return early
+                await closeAssigneeList(taskElement);
+                return;
+            }
+
+            // If task is assigned to self (e.g., "나에게 할당됨"), normalize to actual name
+            if (this.initialAssigneeText && assigneeInfo.selfAssigneeName) {
+                const selfMatch = this.availableAssignees.find(a => a.name === assigneeInfo.selfAssigneeName);
+                if (selfMatch) {
+                    Logger.fgtlog(`🔄 Normalizing self-assigned text: "${this.initialAssigneeText}" → "${selfMatch.name}"`);
+                    this.initialAssigneeText = selfMatch.name;
+                }
+            }
+
+            // Close the assignee list
+            await closeAssigneeList(taskElement);
+
+            // Set initial selected assignee based on initial text (already normalized)
+            if (this.initialAssigneeText && this.availableAssignees.length > 0) {
+                const match = this.availableAssignees.find(a => a.name === this.initialAssigneeText);
+                if (match) {
+                    this.selectedAssignee = match;
+                    Logger.fgtlog(`✅ Initial assignee matched: ${match.name} (${match.email})`);
+                }
+            }
+
+        } catch (error: any) {
+            Logger.fgterror(`❌ Failed to load assignee information: ${error.message}`);
+            // Don't throw - assignee editing is optional feature
+        }
+    }
+
+    /**
+     * Apply assignee change to task element
+     * Step 4: Change assignee by clicking the matching item in the list
+     * Step 5: Verify the change by checking OgtAssigneeText
+     */
+    async applyAssigneeChange(targetAssignee: {name: string, email: string} | null): Promise<boolean> {
+        try {
+            // Find task element
+            let taskElement = null;
+            if (this.actionType === 'edit' && this.taskId) {
+                taskElement = OgtFinder.findTaskWrapper(this.taskId);
+            } else if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
+                taskElement = this.toBeAddedTaskElement;
+            }
+
+            if (!taskElement) {
+                Logger.fgterror('❌ Cannot change assignee: task element not found');
+                return false;
+            }
+
+            // Use cached initial assignee text from modal opening (empty string if unassigned)
+            const initialText = this.initialAssigneeText;
+            Logger.fgtlog(`👤 Initial assignee text (cached): "${initialText}"`);
+
+            // Step 4: Apply assignee selection via polling
+            const selectionApplied = await applyAssigneeSelection(taskElement, targetAssignee);
+            if (!selectionApplied) {
+                return false;
+            }
+
+            // Step 5: Verify the change
+            const expectedName = targetAssignee ? targetAssignee.name : null;
+            const verification = verifyAssigneeChange(taskElement, initialText, expectedName);
+
+            return verification.success;
+
+        } catch (error: any) {
+            Logger.fgterror(`❌ Failed to apply assignee change: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
      * Parse month and year from calendar label text
      * Helper method for getDateValue() weeks ago pattern
      */
@@ -724,72 +889,16 @@ class TaskModal extends ModalBase {
      * 2. Otherwise parse from dateFull text (for normal dates)
      */
     getTimeValue(): string {
-        if (!this.originalTask || !this.originalTask.dateFull) {
-            return '';
-        }
-
-        // Priority 1: Use pre-loaded exactTime if available
-        // This is crucial for "N weeks ago" pattern where time is hidden in UI
-        if (this.originalTask.exactTime !== undefined && this.originalTask.exactTime !== null) {
-            return this.originalTask.exactTime;
-        }
-
-        // Priority 2: Use cached parsed date info
-        const dateInfo = this.parsedDateInfo;
-
-        // Check if time exists (hours and minutes are not 99, which means "no time")
-        if (dateInfo && dateInfo.hours !== 99 && dateInfo.minutes !== 99) {
-            const hour = String(dateInfo.hours).padStart(2, '0');
-            const minute = String(dateInfo.minutes).padStart(2, '0');
-            return `${hour}:${minute}`;
-        }
-
-        return '';
+        return utilGetTimeValue(this.originalTask, this.parsedDateInfo);
     }
 
     /**
      * Render category badges HTML
      */
     renderCategoryBadges(): string {
-        if (this.currentCategories.length === 0) {
-            return `<div class="${this.namespace}-no-categories">No categories</div>`;
-        }
-
-        return this.currentCategories.map((category, index) => {
-            const seed = CategoryUtils.generateCategorySeed(this.currentCategories, index);
-            const colorStyle = this.generateCategoryColor(seed, index);
-            
-            return `
-                <div class="${this.namespace}-category-badge" 
-                     data-category-index="${index}"
-                     data-category="${CoreDOMUtils.escapeHtml(category)}"
-                     style="background-color: ${colorStyle.backgroundColor}; color: ${colorStyle.color};">
-                    <span class="${this.namespace}-badge-text">${CoreDOMUtils.escapeHtml(category)}</span>
-                    <button type="button" 
-                            class="${this.namespace}-badge-remove" 
-                            data-category-index="${index}"
-                            title="Remove category">×</button>
-                </div>
-            `;
-        }).join('');
+        return utilRenderCategoryBadges(this.currentCategories, this.namespace);
     }
 
-    /**
-     * Generate category color
-     */
-    generateCategoryColor(seed: string, level: number): any {
-        const hue = CategoryUtils.generateHueFromSeed(seed);
-        const saturation = 65 + (level * 5) % 20;
-        const lightness = 85 + (level * 5) % 15;
-        
-        const backgroundColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-        
-        return {
-            backgroundColor: backgroundColor,
-            color: '#000',
-            borderColor: '#000'
-        };
-    }
 
     /**
      * Attach task modal event handlers
@@ -896,358 +1005,84 @@ class TaskModal extends ModalBase {
      * Handle category badge remove
      */
     handleRemoveBadge(event: any): void {
-        event.stopPropagation();
-
-        // Prevent rapid consecutive clicks (within 500ms)
-        const now = Date.now();
-        if (now - this.lastBadgeRemoveTime < 500) {
-            Logger.fgtlog('⚠️ Badge remove ignored (too fast)');
-            return;
-        }
-        this.lastBadgeRemoveTime = now;
-
-        const button = event.currentTarget;
-        const categoryIndex = parseInt(button.dataset.categoryIndex);
-        const category = this.currentCategories[categoryIndex];
-
-        // Remove category without confirmation
-        this.currentCategories.splice(categoryIndex, 1);
-        this.updateCategoryBadges();
-        Logger.fgtlog('🗑️ Removed category: ' + category);
+        utilHandleRemoveBadge(this, event);
     }
 
     /**
      * Handle category badge click - show dropdown
      */
     handleBadgeClick(event: any): void {
-        // Prevent badge remove button from triggering this
-        if (event.target.classList.contains(`${this.namespace}-badge-remove`)) {
-            return;
-        }
-
-        event.stopPropagation();
-        
-        const badge = event.currentTarget;
-        const categoryIndex = parseInt(badge.dataset.categoryIndex);
-        
-        Logger.fgtlog('🏷️ Badge clicked: index ' + categoryIndex);
-        
-        // Close any existing dropdown
-        this.closeCategoryDropdown();
-        
-        // Show dropdown for this badge
-        this.showCategoryDropdown(badge, categoryIndex);
+        utilHandleBadgeClick(this, event);
     }
 
     /**
      * Show category dropdown menu
      */
     showCategoryDropdown(badge: HTMLElement, categoryIndex: number): void {
-        // Get same level categories
-        const sameLevelCategories = this.getSameLevelCategories(categoryIndex);
-        
-        // Create dropdown element
-        const dropdown = document.createElement('div');
-        dropdown.className = `${this.namespace}-category-dropdown`;
-        dropdown.id = `${this.namespace}-category-dropdown`;
-        
-        // Build dropdown content
-        let dropdownHTML = '';
-        
-        // Modify option
-        dropdownHTML += `
-            <div class="${this.namespace}-dropdown-item modify-option" data-action="modify">
-                ✏️ Modify
-            </div>
-        `;
-        
-        // Same level categories
-        if (sameLevelCategories.length > 0) {
-            dropdownHTML += `<div class="${this.namespace}-dropdown-divider"></div>`;
-            
-            sameLevelCategories.forEach(categoryName => {
-                dropdownHTML += `
-                    <div class="${this.namespace}-dropdown-item category-option" 
-                         data-action="switch" 
-                         data-category-name="${CoreDOMUtils.escapeHtml(categoryName)}">
-                        ${CoreDOMUtils.escapeHtml(categoryName)}
-                    </div>
-                `;
-            });
-        }
-        
-        dropdown.innerHTML = dropdownHTML;
-        
-        // Calculate position
-        const rect = badge.getBoundingClientRect();
-        dropdown.style.position = 'fixed';
-        dropdown.style.top = `${rect.bottom + 4}px`;
-        dropdown.style.left = `${rect.left}px`;
-        dropdown.style.minWidth = `${rect.width}px`;
-        
-        // Add to document
-        document.body.appendChild(dropdown);
-        this.categoryDropdown = dropdown;
-        
-        // Attach dropdown event handlers
-        const modifyOption = dropdown.querySelector('.modify-option');
-        if (modifyOption) {
-            const cleanup1 = CoreEventUtils.addListener(modifyOption, 'click', () => {
-                this.handleModifyCategory(categoryIndex);
-            });
-            
-            this.dropdownCleanup = () => {
-                cleanup1();
-                // Clean up other handlers below
-            };
-        }
-        
-        const categoryOptions = dropdown.querySelectorAll('.category-option');
-        categoryOptions.forEach(option => {
-            const cleanup2 = CoreEventUtils.addListener(option, 'click', () => {
-                const categoryName = option.getAttribute('data-category-name');
-                if (categoryName) {
-                    this.handleSwitchCategory(categoryIndex, categoryName);
-                }
-            });
-            
-            // Add to cleanup chain
-            if (this.dropdownCleanup) {
-                const prevCleanup = this.dropdownCleanup;
-                this.dropdownCleanup = () => {
-                    prevCleanup();
-                    cleanup2();
-                };
-            }
-        });
-        
-        // Close dropdown on outside click
-        const outsideClickCleanup = CoreEventUtils.addListener(document, 'click', (e: any) => {
-            if (!dropdown.contains(e.target) && e.target !== badge) {
-                this.closeCategoryDropdown();
-            }
-        });
-        
-        // Add to cleanup chain
-        if (this.dropdownCleanup) {
-            const prevCleanup = this.dropdownCleanup;
-            this.dropdownCleanup = () => {
-                prevCleanup();
-                outsideClickCleanup();
-            };
-        } else {
-            this.dropdownCleanup = outsideClickCleanup;
-        }
-        
-        // Close on ESC key
-        const escapeCleanup = CoreEventUtils.addListener(document, 'keydown', (e: any) => {
-            if (e.key === 'Escape') {
-                this.closeCategoryDropdown();
-            }
-        });
-        
-        // Add to cleanup chain
-        if (this.dropdownCleanup) {
-            const prevCleanup = this.dropdownCleanup;
-            this.dropdownCleanup = () => {
-                prevCleanup();
-                escapeCleanup();
-            };
-        }
-        
-        Logger.fgtlog('📋 Category dropdown shown with ' + sameLevelCategories.length + ' options');
+        utilShowCategoryDropdown(this, badge, categoryIndex);
     }
 
     /**
      * Get categories at the same level (sharing same parent sequence)
      */
     getSameLevelCategories(categoryIndex: number): string[] {
-        const parentPath = this.currentCategories.slice(0, categoryIndex);
-        const currentCategory = this.currentCategories[categoryIndex];
-        
-        const sameLevelCategories: string[] = [];
-        const seen = new Set<string>();
-        
-        // Search through all existing category sequences
-        this.allExistingCategories.forEach((catArray: string[]) => {
-            // Check if this array has the same parent path
-            if (catArray.length > categoryIndex) {
-                // Compare parent paths
-                let parentMatches = true;
-                for (let i = 0; i < categoryIndex; i++) {
-                    if (catArray[i] !== parentPath[i]) {
-                        parentMatches = false;
-                        break;
-                    }
-                }
-                
-                if (parentMatches) {
-                    const categoryAtLevel = catArray[categoryIndex];
-                    
-                    // Don't include current category
-                    if (categoryAtLevel !== currentCategory && !seen.has(categoryAtLevel)) {
-                        seen.add(categoryAtLevel);
-                        sameLevelCategories.push(categoryAtLevel);
-                    }
-                }
-            }
-        });
-        
-        Logger.fgtlog(`🔍 Found ${sameLevelCategories.length} same-level categories for index ${categoryIndex}`);
-        return sameLevelCategories;
+        return utilGetSameLevelCategories(this.currentCategories, this.allExistingCategories, categoryIndex);
     }
 
     /**
      * Handle modify category option
      */
     handleModifyCategory(categoryIndex: number): void {
-        this.closeCategoryDropdown();
-        
-        const currentCategory = this.currentCategories[categoryIndex];
-        const newName = prompt(`Modify category name:`, currentCategory);
-        
-        if (newName !== null && newName.trim() !== '') {
-            const cleanName = CategoryParser.cleanCategory(newName);
-            
-            if (CategoryParser.isValidCategory(cleanName)) {
-                // Only change this category, keep children
-                this.currentCategories[categoryIndex] = cleanName;
-                this.updateCategoryBadges();
-                
-                Logger.fgtlog(`✏️ Modified category at index ${categoryIndex}: ${currentCategory} → ${cleanName}`);
-                CoreNotificationUtils.success('Category modified', this.namespace);
-            } else {
-                CoreNotificationUtils.warning('Invalid category name', this.namespace);
-            }
-        }
+        utilHandleModifyCategory(this, categoryIndex);
     }
 
     /**
      * Handle switch category option - replace category at index
      */
     handleSwitchCategory(categoryIndex: number, newCategoryName: string): void {
-        this.closeCategoryDropdown();
-        
-        Logger.fgtlog(`🔄 Switching category at index ${categoryIndex} to: ${newCategoryName}`);
-        
-        // Simply replace the category at this index
-        this.currentCategories[categoryIndex] = newCategoryName;
-        this.updateCategoryBadges();
-        
-        Logger.fgtlog(`✅ Updated to: ${JSON.stringify(this.currentCategories)}`);
-        CoreNotificationUtils.success('Category switched', this.namespace);
+        utilHandleSwitchCategory(this, categoryIndex, newCategoryName);
     }
 
     /**
      * Close category dropdown
      */
     closeCategoryDropdown(): void {
-        if (this.categoryDropdown) {
-            // Clean up event handlers
-            if (this.dropdownCleanup) {
-                this.dropdownCleanup();
-                this.dropdownCleanup = null;
-            }
-            
-            // Remove from DOM
-            this.categoryDropdown.remove();
-            this.categoryDropdown = null;
-            
-            Logger.fgtlog('❌ Category dropdown closed');
-        }
+        utilCloseCategoryDropdown(this);
     }
 
     /**
      * Handle add subcategory button
      */
     handleAddSubcategory(event?: Event): void {
-        // Get next level categories
-        const nextLevelCategories = this.getNextLevelCategories();
-
-        // If no options available, show prompt directly
-        if (nextLevelCategories.length === 0) {
-            this.promptForNewSubcategory();
-            return;
-        }
-
-        // Show dropdown with options
-        const button = event?.currentTarget as HTMLElement || this.modal!.querySelector(`#${this.namespace}-add-subcategory-btn`) as HTMLElement;
-        if (button) {
-            this.showAddSubcategoryDropdown(button, nextLevelCategories);
-        }
+        utilHandleAddSubcategory(this, event);
     }
 
     /**
      * Prompt user for new subcategory name
      */
     promptForNewSubcategory(): void {
-        const newCategory = prompt('Enter new subcategory name:');
-
-        if (newCategory) {
-            const cleanCategory = CategoryParser.cleanCategory(newCategory);
-
-            if (CategoryParser.isValidCategory(cleanCategory)) {
-                this.currentCategories.push(cleanCategory);
-                this.updateCategoryBadges();
-                Logger.fgtlog('➕ Added subcategory: ' + cleanCategory);
-            } else {
-                CoreNotificationUtils.warning('Invalid category name', this.namespace);
-            }
-        }
+        utilPromptForNewSubcategory(this);
     }
 
     /**
      * Handle Delete Date button - clears both date and time
      */
     handleDeleteDate(): void {
-        const dateInput = this.modal!.querySelector(`#${this.namespace}-date-input`) as HTMLInputElement;
-        const timeInput = this.modal!.querySelector(`#${this.namespace}-time-input`) as HTMLInputElement;
-
-        if (dateInput) {
-            dateInput.value = '';
-            Logger.fgtlog('🗑️ Date cleared');
-        }
-
-        if (timeInput) {
-            timeInput.value = '';
-            Logger.fgtlog('🗑️ Time cleared');
-        }
-
-        CoreNotificationUtils.success('Date and time deleted', this.namespace);
+        utilHandleDeleteDate(this.modal!, this.namespace);
     }
 
     /**
      * Handle Delete Time button - clears time only
      */
     handleDeleteTime(): void {
-        const timeInput = this.modal!.querySelector(`#${this.namespace}-time-input`) as HTMLInputElement;
-
-        if (timeInput) {
-            timeInput.value = '';
-            Logger.fgtlog('🗑️ Time cleared');
-            CoreNotificationUtils.success('Time deleted', this.namespace);
-        }
+        utilHandleDeleteTime(this.modal!, this.namespace);
     }
 
     /**
      * Handle Time input focus - auto-fill today's date if date is empty
      */
     handleTimeFocus(): void {
-        const dateInput = this.modal!.querySelector(`#${this.namespace}-date-input`) as HTMLInputElement;
-        const timeInput = this.modal!.querySelector(`#${this.namespace}-time-input`) as HTMLInputElement;
-
-        // Only auto-fill if date is empty and user is trying to enter time
-        if (dateInput && !dateInput.value && timeInput) {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            const todayString = `${year}-${month}-${day}`;
-
-            dateInput.value = todayString;
-            Logger.fgtlog(`📅 Auto-filled today's date: ${todayString}`);
-            CoreNotificationUtils.info('Date auto-filled to today', this.namespace);
-        }
+        utilHandleTimeFocus(this.modal!, this.namespace);
     }
 
     /**
@@ -1255,171 +1090,21 @@ class TaskModal extends ModalBase {
      * @returns Array of category names at the next level
      */
     getNextLevelCategories(): string[] {
-        const nextLevelIndex = this.currentCategories.length;
-        const currentPath = this.currentCategories;
-
-        const nextLevelCategories: string[] = [];
-        const seen = new Set<string>();
-
-        // Search through all existing category sequences
-        this.allExistingCategories.forEach((catArray: string[]) => {
-            // Check if this array extends our current path
-            if (catArray.length > nextLevelIndex) {
-                // Compare current path
-                let pathMatches = true;
-                for (let i = 0; i < currentPath.length; i++) {
-                    if (catArray[i] !== currentPath[i]) {
-                        pathMatches = false;
-                        break;
-                    }
-                }
-
-                if (pathMatches) {
-                    const categoryAtNextLevel = catArray[nextLevelIndex];
-
-                    if (!seen.has(categoryAtNextLevel)) {
-                        seen.add(categoryAtNextLevel);
-                        nextLevelCategories.push(categoryAtNextLevel);
-                    }
-                }
-            }
-        });
-
-        Logger.fgtlog(`🔍 Found ${nextLevelCategories.length} next-level categories`);
-        return nextLevelCategories;
+        return utilGetNextLevelCategories(this.currentCategories, this.allExistingCategories);
     }
 
     /**
      * Show add subcategory dropdown menu
      */
     showAddSubcategoryDropdown(button: HTMLElement, categories: string[]): void {
-        // Close any existing dropdown
-        this.closeCategoryDropdown();
-
-        // Create dropdown element
-        const dropdown = document.createElement('div');
-        dropdown.className = `${this.namespace}-category-dropdown`;
-        dropdown.id = `${this.namespace}-category-dropdown`;
-
-        // Build dropdown content
-        let dropdownHTML = '';
-
-        // Modify option (prompts for new category)
-        dropdownHTML += `
-            <div class="${this.namespace}-dropdown-item modify-option" data-action="add-new">
-                ✏️ Modify
-            </div>
-        `;
-
-        // Existing categories
-        if (categories.length > 0) {
-            dropdownHTML += `<div class="${this.namespace}-dropdown-divider"></div>`;
-
-            categories.forEach(categoryName => {
-                dropdownHTML += `
-                    <div class="${this.namespace}-dropdown-item category-option"
-                         data-action="select"
-                         data-category-name="${CoreDOMUtils.escapeHtml(categoryName)}">
-                        ${CoreDOMUtils.escapeHtml(categoryName)}
-                    </div>
-                `;
-            });
-        }
-
-        dropdown.innerHTML = dropdownHTML;
-
-        // Calculate position
-        const rect = button.getBoundingClientRect();
-        dropdown.style.position = 'fixed';
-        dropdown.style.top = `${rect.bottom + 4}px`;
-        dropdown.style.left = `${rect.left}px`;
-        dropdown.style.minWidth = `${rect.width}px`;
-
-        // Add to document
-        document.body.appendChild(dropdown);
-        this.categoryDropdown = dropdown;
-
-        // Attach dropdown event handlers
-        const modifyOption = dropdown.querySelector('.modify-option');
-        if (modifyOption) {
-            const cleanup1 = CoreEventUtils.addListener(modifyOption, 'click', () => {
-                this.closeCategoryDropdown();
-                this.promptForNewSubcategory();
-            });
-
-            this.dropdownCleanup = () => {
-                cleanup1();
-            };
-        }
-
-        const categoryOptions = dropdown.querySelectorAll('.category-option');
-        categoryOptions.forEach(option => {
-            const cleanup2 = CoreEventUtils.addListener(option, 'click', () => {
-                const categoryName = option.getAttribute('data-category-name');
-                if (categoryName) {
-                    this.closeCategoryDropdown();
-                    this.currentCategories.push(categoryName);
-                    this.updateCategoryBadges();
-                    Logger.fgtlog('➕ Added subcategory from dropdown: ' + categoryName);
-                    CoreNotificationUtils.success('Category added', this.namespace);
-                }
-            });
-
-            // Add to cleanup chain
-            if (this.dropdownCleanup) {
-                const prevCleanup = this.dropdownCleanup;
-                this.dropdownCleanup = () => {
-                    prevCleanup();
-                    cleanup2();
-                };
-            }
-        });
-
-        // Close dropdown on outside click
-        const outsideClickCleanup = CoreEventUtils.addListener(document, 'click', (e: any) => {
-            if (!dropdown.contains(e.target) && e.target !== button) {
-                this.closeCategoryDropdown();
-            }
-        });
-
-        // Add to cleanup chain
-        if (this.dropdownCleanup) {
-            const prevCleanup = this.dropdownCleanup;
-            this.dropdownCleanup = () => {
-                prevCleanup();
-                outsideClickCleanup();
-            };
-        } else {
-            this.dropdownCleanup = outsideClickCleanup;
-        }
-
-        // Close on ESC key
-        const escapeCleanup = CoreEventUtils.addListener(document, 'keydown', (e: any) => {
-            if (e.key === 'Escape') {
-                this.closeCategoryDropdown();
-            }
-        });
-
-        // Add to cleanup chain
-        if (this.dropdownCleanup) {
-            const prevCleanup = this.dropdownCleanup;
-            this.dropdownCleanup = () => {
-                prevCleanup();
-                escapeCleanup();
-            };
-        }
-
-        Logger.fgtlog('📋 Add subcategory dropdown shown with ' + categories.length + ' options');
+        utilShowAddSubcategoryDropdown(this, button, categories);
     }
 
     /**
      * Update category badges display
      */
     updateCategoryBadges(): void {
-        const badgeContainer = this.modal!.querySelector(`#${this.namespace}-category-badges`);
-        if (badgeContainer) {
-            badgeContainer.innerHTML = this.renderCategoryBadges();
-        }
+        utilUpdateCategoryBadges(this);
     }
 
     /**
@@ -1733,6 +1418,32 @@ class TaskModal extends ModalBase {
         const titleChanged = fullTitleWithoutNewline !== originalFullTitle;
         const descriptionChanged = description !== originalDescription;
 
+        // Check if assignee changed
+        const assigneeSelect = this.modal!.querySelector(`#${this.namespace}-assignee-select`) as HTMLSelectElement;
+        let assigneeChanged = false;
+        let targetAssignee: {name: string, email: string} | null = null;
+
+        if (assigneeSelect && this.availableAssignees.length > 0) {
+            const selectedEmail = assigneeSelect.value;
+
+            if (selectedEmail === '') {
+                // Unassign option selected
+                assigneeChanged = this.selectedAssignee !== null;
+                targetAssignee = null;
+                Logger.fgtlog(`👤 User selected: [Unassign]`);
+            } else {
+                const selectedAssignee = this.availableAssignees.find(a => a.email === selectedEmail);
+                if (selectedAssignee) {
+                    // Check if different from initial
+                    if (!this.selectedAssignee || this.selectedAssignee.email !== selectedAssignee.email) {
+                        assigneeChanged = true;
+                        targetAssignee = selectedAssignee;
+                        Logger.fgtlog(`👤 User selected: ${selectedAssignee.name} (${selectedAssignee.email})`);
+                    }
+                }
+            }
+        }
+
         // Handle toBeAdded mode
         if (this.actionType === 'toBeAdded' && this.toBeAddedTaskElement) {
             // Lock UI to prevent interaction
@@ -1804,6 +1515,16 @@ class TaskModal extends ModalBase {
                 // Wait for changes to apply - monitor DOM changes
                 await this.waitForToBeAddedChanges(titleEditor, descEditor, fullTitle, description, 5000);
 
+                // Apply assignee change if needed (after title/description)
+                if (assigneeChanged) {
+                    Logger.fgtlog('👤 Applying assignee change for toBeAdded task...');
+                    const assigneeSuccess = await this.applyAssigneeChange(targetAssignee);
+
+                    if (!assigneeSuccess) {
+                        Logger.fgtwarn('⚠️ Assignee change failed, but continuing with task creation');
+                    }
+                }
+
                 // Restore UI
                 this.restoreUIAfterOperation();
 
@@ -1853,6 +1574,23 @@ class TaskModal extends ModalBase {
             if (!titleChanged && !descriptionChanged) {
                 Logger.fgtlog('ℹ️ Only date/time changed, skipping title/description update');
 
+                // Apply assignee change if needed (even if title/description didn't change)
+                if (assigneeChanged) {
+                    // Show loading
+                    this.hideUIForOperation('Updating assignee...');
+
+                    Logger.fgtlog('👤 Applying assignee change...');
+                    const assigneeSuccess = await this.applyAssigneeChange(targetAssignee);
+
+                    // Restore UI
+                    this.restoreUIAfterOperation();
+
+                    if (!assigneeSuccess) {
+                        CoreNotificationUtils.error('Failed to update assignee', this.namespace);
+                        return; // Don't close modal on error
+                    }
+                }
+
                 // Call confirm callback
                 Logger.fgtlog(`🔍 [DEBUG] Calling onConfirm callback with taskId: ${this.taskId}`);
                 if (this.onConfirm) {
@@ -1895,9 +1633,27 @@ class TaskModal extends ModalBase {
                 description,
                 originalFullTitle,
                 originalDescription,
-                () => {
+                async () => {
                     // Success callback
                     Logger.fgtlog('✅ Task edit completed');
+
+                    // Apply assignee change if needed (after title/description edit)
+                    if (assigneeChanged) {
+                        Logger.fgtlog('👤 Applying assignee change after edit...');
+                        const assigneeSuccess = await this.applyAssigneeChange(targetAssignee);
+
+                        if (!assigneeSuccess) {
+                            Logger.fgtwarn('⚠️ Assignee change failed');
+                            // Restore UI
+                            this.restoreUIAfterOperation();
+                            // Unlock UI
+                            CoreDOMUtils.disableLockStyles();
+                            this.isProcessing = false;
+                            // Show error
+                            this.showError('Task updated but failed to change assignee');
+                            return; // Don't close modal
+                        }
+                    }
 
                     // Restore UI
                     this.restoreUIAfterOperation();
