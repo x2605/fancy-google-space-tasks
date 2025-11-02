@@ -278,7 +278,7 @@
     transition: all 0.2s ease;
 }
 
-.fancy-gst-task-desc-input {
+.fancy-gst-task-desc-input, .fancy-gst-task-title-input {
     resize: vertical;
 }
 
