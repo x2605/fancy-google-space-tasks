@@ -5,8 +5,7 @@ import { CoreNotificationUtils } from '@/core/notification_utils';
 import { CategoryParser } from '@/category/category_parser';
 import { CoreEventUtils } from '@/core/event_utils';
 import { CoreDOMUtils } from '@/core/dom_utils';
-import { CategoryUtils } from '@/category/category_utils';
-import { parseNaturalDate, formatDateForModal, extractAndRemoveTime, getLocaleKeywords, normalizeNumbers } from '@/dom_bringer/task_element/date_button/date_parser';
+import { parseNaturalDate, extractAndRemoveTime, getLocaleKeywords, normalizeNumbers } from '@/dom_bringer/task_element/date_button/date_parser';
 import { OgtFinder } from '@/dom_bringer/finder';
 import { DateController } from '@/manipulator/date/date_controller';
 import { DateVerification } from '@/manipulator/date/date_verification';
@@ -45,6 +44,7 @@ class TaskModal extends ModalBase {
     availableAssignees: Array<{name: string, email: string}>; // List of available assignees
     selectedAssignee: {name: string, email: string} | null; // Currently selected assignee
     hasUnassignOption: boolean; // Whether unassign option is available
+    assigneeLoadFailed: boolean;
 
     constructor(namespace: string = 'fancy-gst') {
         super(namespace);
@@ -350,83 +350,6 @@ class TaskModal extends ModalBase {
             ${this.createHeader(this.getModalTitle(), true)}
             ${this.createBody(`
                 <div class="${this.namespace}-task-modal-content">
-                    <!-- Category badges section -->
-                    <div class="${this.namespace}-form-group">
-                        <label class="${this.namespace}-form-label">Categories</label>
-                        <div class="${this.namespace}-category-badges" id="${this.namespace}-category-badges">
-                            ${this.renderCategoryBadges()}
-                        </div>
-                        <button type="button" 
-                                class="${this.namespace}-add-subcategory-btn" 
-                                id="${this.namespace}-add-subcategory-btn"
-                                title="Add subcategory">
-                            ➕ Add subcategory
-                        </button>
-                    </div>
-
-                    <!-- Title textarea (multiline support for mobile compatibility) -->
-                    <div class="${this.namespace}-form-group">
-                        <label for="${this.namespace}-task-title-input" class="${this.namespace}-form-label">
-                            Title
-                        </label>
-                        <textarea id="${this.namespace}-task-title-input"
-                                  class="${this.namespace}-task-title-input ${this.namespace}-form-input"
-                                  placeholder="Enter task title or [Category] to add category..."
-                                  rows="2">${CoreDOMUtils.escapeHtml(this.getInitialTitle())}</textarea>
-                    </div>
-
-                    <!-- Description textarea -->
-                    <div class="${this.namespace}-form-group">
-                        <label for="${this.namespace}-task-desc-input" class="${this.namespace}-form-label">
-                            Description
-                        </label>
-                        <textarea id="${this.namespace}-task-desc-input"
-                                  class="${this.namespace}-task-desc-input ${this.namespace}-form-input" 
-                                  placeholder="Enter task description..."
-                                  rows="3">${CoreDOMUtils.escapeHtml(this.getInitialDescription())}</textarea>
-                    </div>
-
-                    <!-- Set Date/Time input -->
-                    <!-- TEMPORARY: Disable date/time editing for completed tasks or when locale is unavailable -->
-                    ${!this.originalTask?.isCompleted && this.localeAvailable ? `
-                    <div class="${this.namespace}-form-group">
-                        <label class="${this.namespace}-form-label">Set Date/Time</label>
-                        <div class="${this.namespace}-datetime-inputs">
-                            <div class="${this.namespace}-datetime-input-wrapper">
-                                <input type="date"
-                                       id="${this.namespace}-date-input"
-                                       class="${this.namespace}-date-input ${this.namespace}-form-input"
-                                       value="${this.getDateValue()}"
-                                       title="Select date">
-                                <button type="button"
-                                        class="${this.namespace}-delete-date-btn ${this.namespace}-delete-datetime-btn"
-                                        id="${this.namespace}-delete-date-btn"
-                                        title="Delete date and time">
-                                    Delete Date
-                                </button>
-                            </div>
-                            <div class="${this.namespace}-datetime-input-wrapper">
-                                <input type="time"
-                                       id="${this.namespace}-time-input"
-                                       class="${this.namespace}-time-input ${this.namespace}-form-input"
-                                       value="${this.getTimeValue()}"
-                                       title="Select time">
-                                <button type="button"
-                                        class="${this.namespace}-delete-time-btn ${this.namespace}-delete-datetime-btn"
-                                        id="${this.namespace}-delete-time-btn"
-                                        title="Delete time only">
-                                    Delete Time
-                                </button>
-                            </div>
-                        </div>
-                        ${this.originalTask && this.originalTask.date ? `
-                        <div class="${this.namespace}-date-display">
-                            Current: ${this.getFormattedDueDate()}
-                        </div>
-                        ` : ''}
-                    </div>
-                    ` : ''}
-
                     <!-- Assignee selector -->
                     ${this.availableAssignees.length > 0 ? `
                     <div class="${this.namespace}-form-group">
@@ -467,6 +390,85 @@ class TaskModal extends ModalBase {
                         </div>
                     </div>
                     ` : ''}
+
+                    <!-- Set Date/Time input -->
+                    <!-- TEMPORARY: Disable date/time editing for completed tasks or when locale is unavailable -->
+                    ${!this.originalTask?.isCompleted && this.localeAvailable ? `
+                    <div class="${this.namespace}-form-group">
+                        <label class="${this.namespace}-form-label">Set Date/Time
+                            ${this.originalTask && this.originalTask.date ? `
+                            <span class="${this.namespace}-date-display">
+                                Current: ${this.getFormattedDueDate()}
+                            </span>
+                            ` : ''}
+                        </label>
+                        <div class="${this.namespace}-datetime-inputs">
+                            <div class="${this.namespace}-datetime-input-wrapper">
+                                <input type="date"
+                                       id="${this.namespace}-date-input"
+                                       class="${this.namespace}-date-input ${this.namespace}-form-input"
+                                       value="${this.getDateValue()}"
+                                       title="Select date">
+                                <button type="button"
+                                        class="${this.namespace}-delete-date-btn ${this.namespace}-delete-datetime-btn"
+                                        id="${this.namespace}-delete-date-btn"
+                                        title="Delete date and time">
+                                    Delete Date
+                                </button>
+                            </div>
+                            <div class="${this.namespace}-datetime-input-wrapper">
+                                <input type="time"
+                                       id="${this.namespace}-time-input"
+                                       class="${this.namespace}-time-input ${this.namespace}-form-input"
+                                       value="${this.getTimeValue()}"
+                                       title="Select time">
+                                <button type="button"
+                                        class="${this.namespace}-delete-time-btn ${this.namespace}-delete-datetime-btn"
+                                        id="${this.namespace}-delete-time-btn"
+                                        title="Delete time only">
+                                    Delete Time
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Category badges section -->
+                    <div class="${this.namespace}-form-group">
+                        <label class="${this.namespace}-form-label">Categories</label>
+                        <div class="${this.namespace}-category-badges" id="${this.namespace}-category-badges">
+                            ${this.renderCategoryBadges()}
+                        </div>
+                        <button type="button" 
+                                class="${this.namespace}-add-subcategory-btn" 
+                                id="${this.namespace}-add-subcategory-btn"
+                                title="Add subcategory">
+                            ➕ Add subcategory
+                        </button>
+                    </div>
+
+                    <!-- Title textarea (multiline support for mobile compatibility) -->
+                    <div class="${this.namespace}-form-group">
+                        <label for="${this.namespace}-task-title-input" class="${this.namespace}-form-label">
+                            Title
+                        </label>
+                        <textarea id="${this.namespace}-task-title-input"
+                                  class="${this.namespace}-task-title-input ${this.namespace}-form-input"
+                                  placeholder="Enter task title or [Category] to add category..."
+                                  rows="2">${CoreDOMUtils.escapeHtml(this.getInitialTitle())}</textarea>
+                    </div>
+
+                    <!-- Description textarea -->
+                    <div class="${this.namespace}-form-group">
+                        <label for="${this.namespace}-task-desc-input" class="${this.namespace}-form-label">
+                            Description
+                        </label>
+                        <textarea id="${this.namespace}-task-desc-input"
+                                  class="${this.namespace}-task-desc-input ${this.namespace}-form-input" 
+                                  placeholder="Enter task description..."
+                                  rows="3">${CoreDOMUtils.escapeHtml(this.getInitialDescription())}</textarea>
+                    </div>
+
                 </div>
             `)}
             ${this.createFooter([

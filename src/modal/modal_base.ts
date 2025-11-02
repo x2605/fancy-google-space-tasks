@@ -10,8 +10,8 @@ Logger.fgtlog('🖼️ Modal Base loading...');
  */
 class ModalBase {
     namespace: string;
-    overlay: Element | null;
-    modal: Element | null;
+    overlay: HTMLElement | null;
+    modal: HTMLElement | null;
     isOpen: boolean;
     onClose: Function | null;
     cleanupFunctions: Function[];
