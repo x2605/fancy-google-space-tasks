@@ -95,6 +95,9 @@ declare global {
         FGT_LOCALE: string;
         FGT_DATE_KEYWORDS?: Record<string, LocaleKeywords>;
         FGT_GET_LOCALE_KEYWORDS?: (key: string) => LocaleKeywords | null;
+
+        // FGT assignee polling timeout (in milliseconds)
+        FGT_ASSIGNEE_POLLING_TIMEOUT?: number;
     }
 
     /**

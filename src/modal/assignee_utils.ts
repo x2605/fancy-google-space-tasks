@@ -16,6 +16,7 @@ export interface AssigneeInfo {
     initialText: string;
     availableAssignees: Array<{name: string, email: string}>;
     hasUnassignOption: boolean;
+    selfAssigneeName: string | null;  // Name extracted from unassign option when assigned to self
 }
 
 /**
@@ -51,19 +52,30 @@ export function getInitialAssigneeText(taskElement: OgtTaskWrapper): string | nu
  * Get available assignees by opening the list and reading items
  * Uses polling to wait for listbox to appear
  * @param taskElement - Task wrapper element
- * @param maxPollingAttempts - Maximum number of polling attempts (default: 4)
+ * @param maxPollingAttempts - Maximum number of polling attempts
+ *                            Default: 50 (5 seconds) for first attempt, 10 (1 second) for subsequent attempts
  * @returns AssigneeInfo object with available assignees and unassign option availability
  */
 export async function getAvailableAssigneesWithPolling(
     taskElement: OgtTaskWrapper,
-    maxPollingAttempts: number = 4
+    maxPollingAttempts?: number
 ): Promise<Omit<AssigneeInfo, 'initialText'>> {
+    // Use global timeout if available, otherwise use default 5 seconds (50 attempts)
+    if (maxPollingAttempts === undefined) {
+        maxPollingAttempts = window.FGT_ASSIGNEE_POLLING_TIMEOUT || 50;
+    }
     const result: Omit<AssigneeInfo, 'initialText'> = {
         availableAssignees: [],
-        hasUnassignOption: false
+        hasUnassignOption: false,
+        selfAssigneeName: null
     };
 
     try {
+        // IMPORTANT: OgtAssigneeButton.element and OgtAssigneeInputContainer.element
+        // are mutually exclusive. When button is clicked:
+        // - OgtAssigneeButton.element disappears from DOM
+        // - OgtAssigneeInputContainer.element appears in its place
+
         // Find and click assignee button to open list
         const assigneeButtonEl = OgtAssigneeButton.findElementInObject(taskElement);
         if (!assigneeButtonEl) {
@@ -84,7 +96,7 @@ export async function getAvailableAssigneesWithPolling(
 
             if (!inputContainerEl) {
                 Logger.fgtlog(`⚠️ Input container not found (attempt ${attempt + 1}/${maxPollingAttempts})`);
-                await new Promise(resolve => setTimeout(resolve, 50));
+                await new Promise(resolve => setTimeout(resolve, 100));
                 continue;
             }
 
@@ -99,7 +111,7 @@ export async function getAvailableAssigneesWithPolling(
                 if (inputEl) {
                     Logger.fgtlog(`🖱️ Clicking input to show listbox (attempt ${attempt + 1}/${maxPollingAttempts})`);
                     inputEl.click();
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 continue;
             }
@@ -115,7 +127,7 @@ export async function getAvailableAssigneesWithPolling(
                 if (inputEl) {
                     Logger.fgtlog(`🖱️ Clicking input to show listbox (attempt ${attempt + 1}/${maxPollingAttempts})`);
                     inputEl.click();
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
 
                 // Check if button reappeared (list closed)
@@ -140,7 +152,13 @@ export async function getAvailableAssigneesWithPolling(
 
                 if (isUnassign) {
                     result.hasUnassignOption = true;
-                    Logger.fgtlog(`  ${index}: [Unassign option]`);
+                    // When assigned to self, unassign option contains self's name in texts[1]
+                    if (texts.length >= 2) {
+                        result.selfAssigneeName = texts[1];
+                        Logger.fgtlog(`  ${index}: [Unassign option] (self: ${texts[1]})`);
+                    } else {
+                        Logger.fgtlog(`  ${index}: [Unassign option]`);
+                    }
                 } else if (texts.length >= 2) {
                     // texts[0] = name, texts[1] = email
                     result.availableAssignees.push({
@@ -197,14 +215,19 @@ export async function closeAssigneeList(taskElement: OgtTaskWrapper): Promise<vo
  * Apply assignee change by clicking the matching item in the list
  * @param taskElement - Task wrapper element
  * @param targetAssignee - Target assignee to assign (null for unassign)
- * @param maxPollingAttempts - Maximum number of polling attempts (default: 4)
+ * @param maxPollingAttempts - Maximum number of polling attempts
+ *                            Default: uses global timeout (50 or 10)
  * @returns True if item was found and clicked
  */
 export async function applyAssigneeSelection(
     taskElement: OgtTaskWrapper,
     targetAssignee: {name: string, email: string} | null,
-    maxPollingAttempts: number = 4
+    maxPollingAttempts?: number
 ): Promise<boolean> {
+    // Use global timeout if available, otherwise use default 5 seconds (50 attempts)
+    if (maxPollingAttempts === undefined) {
+        maxPollingAttempts = window.FGT_ASSIGNEE_POLLING_TIMEOUT || 50;
+    }
     try {
         // Find and click assignee button to open list
         const assigneeButtonEl = OgtAssigneeButton.findElementInObject(taskElement);
@@ -227,7 +250,7 @@ export async function applyAssigneeSelection(
 
             if (!inputContainerEl) {
                 Logger.fgtlog(`⚠️ Input container not found (attempt ${attempt + 1}/${maxPollingAttempts})`);
-                await new Promise(resolve => setTimeout(resolve, 50));
+                await new Promise(resolve => setTimeout(resolve, 100));
                 continue;
             }
 
@@ -240,7 +263,7 @@ export async function applyAssigneeSelection(
                 if (inputEl) {
                     Logger.fgtlog(`🖱️ Clicking input to show listbox (attempt ${attempt + 1}/${maxPollingAttempts})`);
                     inputEl.click();
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 continue;
             }
@@ -253,7 +276,7 @@ export async function applyAssigneeSelection(
                 const inputEl = OgtAssigneeInput.findElementInObject(inputContainer);
                 if (inputEl) {
                     inputEl.click();
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
 
                 // Check if button reappeared

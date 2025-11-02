@@ -75,6 +75,7 @@ class TaskModal extends ModalBase {
         this.availableAssignees = [];
         this.selectedAssignee = null;
         this.hasUnassignOption = false;
+        this.assigneeLoadFailed = false;
     }
 
     /**
@@ -434,8 +435,8 @@ class TaskModal extends ModalBase {
                         </label>
                         <select id="${this.namespace}-assignee-select"
                                 class="${this.namespace}-assignee-select ${this.namespace}-form-input">
-                            ${this.hasUnassignOption ? `
-                            <option value="">-- Unassign --</option>
+                            ${this.hasUnassignOption || this.initialAssigneeText === '' ? `
+                            <option value="" ${!this.selectedAssignee ? 'selected' : ''}>-- Unassign --</option>
                             ` : ''}
                             ${this.availableAssignees.map(assignee => `
                             <option value="${CoreDOMUtils.escapeHtml(assignee.email)}"
@@ -444,6 +445,18 @@ class TaskModal extends ModalBase {
                             </option>
                             `).join('')}
                         </select>
+                    </div>
+                    ` : this.assigneeLoadFailed ? `
+                    <!-- Assignee load failed -->
+                    <div class="${this.namespace}-form-group">
+                        <label class="${this.namespace}-form-label">
+                            Assignee
+                            <span class="${this.namespace}-error-text">(Failed to load assignee list)</span>
+                        </label>
+                        <div class="${this.namespace}-readonly-field">
+                            ${this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ?
+                                CoreDOMUtils.escapeHtml(this.originalTask.assignee) : 'Not assigned'}
+                        </div>
                     </div>
                     ` : this.originalTask && this.originalTask.assignee && this.originalTask.assignee !== '😶' ? `
                     <!-- Assignee display (read-only fallback) -->
@@ -686,8 +699,11 @@ class TaskModal extends ModalBase {
 
     /**
      * Load assignee information from task element
-     * Step 1: Remember initial assignee text
+     * Step 1: Remember initial assignee text (may be null if unassigned)
      * Step 2: Get available assignees list via polling
+     *
+     * IMPORTANT: OgtAssigneeButton.element and OgtAssigneeInputContainer.element
+     * are mutually exclusive - when one appears, the other disappears.
      */
     async loadAssigneeInformation(): Promise<void> {
         try {
@@ -704,24 +720,50 @@ class TaskModal extends ModalBase {
                 return;
             }
 
-            // Step 1: Remember initial assignee text
+            // Step 1: Remember initial assignee text (may be null if task is unassigned)
             const initialText = getInitialAssigneeText(taskElement);
             if (initialText) {
                 this.initialAssigneeText = initialText;
+                Logger.fgtlog(`👤 Initial assignee text: "${initialText}"`);
             } else {
-                Logger.fgtlog('ℹ️ Could not get initial assignee text');
-                return;
+                // Store empty string for unassigned tasks to distinguish from "not loaded"
+                this.initialAssigneeText = '';
+                Logger.fgtlog('ℹ️ No initial assignee (task is unassigned)');
             }
 
             // Step 2: Get available assignees via polling
+            // First attempt: 5 seconds (50 × 100ms), subsequent: 1 second (10 × 100ms)
             const assigneeInfo = await getAvailableAssigneesWithPolling(taskElement);
             this.availableAssignees = assigneeInfo.availableAssignees;
             this.hasUnassignOption = assigneeInfo.hasUnassignOption;
 
+            // Check if loading failed (no assignees and button was found)
+            if (this.availableAssignees.length === 0) {
+                Logger.fgterror('❌ Failed to load assignee list - no assignees found');
+                this.assigneeLoadFailed = true;
+
+                // Reduce timeout for subsequent attempts (5s → 1s)
+                window.FGT_ASSIGNEE_POLLING_TIMEOUT = 10;
+                Logger.fgtlog('⏱️ Reduced assignee polling timeout to 1 second for future attempts');
+
+                // Close the list and return early
+                await closeAssigneeList(taskElement);
+                return;
+            }
+
+            // If task is assigned to self (e.g., "나에게 할당됨"), normalize to actual name
+            if (this.initialAssigneeText && assigneeInfo.selfAssigneeName) {
+                const selfMatch = this.availableAssignees.find(a => a.name === assigneeInfo.selfAssigneeName);
+                if (selfMatch) {
+                    Logger.fgtlog(`🔄 Normalizing self-assigned text: "${this.initialAssigneeText}" → "${selfMatch.name}"`);
+                    this.initialAssigneeText = selfMatch.name;
+                }
+            }
+
             // Close the assignee list
             await closeAssigneeList(taskElement);
 
-            // Set initial selected assignee based on initial text
+            // Set initial selected assignee based on initial text (already normalized)
             if (this.initialAssigneeText && this.availableAssignees.length > 0) {
                 const match = this.availableAssignees.find(a => a.name === this.initialAssigneeText);
                 if (match) {
@@ -756,14 +798,9 @@ class TaskModal extends ModalBase {
                 return false;
             }
 
-            // Remember initial assignee text for verification
-            const initialText = getInitialAssigneeText(taskElement);
-            if (!initialText) {
-                Logger.fgterror('❌ Cannot change assignee: could not get initial text');
-                return false;
-            }
-
-            Logger.fgtlog(`👤 Initial assignee text before change: "${initialText}"`);
+            // Use cached initial assignee text from modal opening (empty string if unassigned)
+            const initialText = this.initialAssigneeText;
+            Logger.fgtlog(`👤 Initial assignee text (cached): "${initialText}"`);
 
             // Step 4: Apply assignee selection via polling
             const selectionApplied = await applyAssigneeSelection(taskElement, targetAssignee);
